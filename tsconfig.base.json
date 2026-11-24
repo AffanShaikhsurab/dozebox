@@ -16,7 +16,7 @@
     "verbatimModuleSyntax": true,
     "rewriteRelativeImportExtensions": true,
     "allowImportingTsExtensions": true,
-    "isolatedDeclarations": true,
+    "isolatedDeclarations": false,
     "declaration": true,
     "skipLibCheck": true
   }

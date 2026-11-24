@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dozebox.dev/schema/v1/hold-input.json",
+  "title": "HoldInput",
+  "type": "object",
+  "required": [
+    "reason",
+    "until"
+  ],
+  "properties": {
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "until": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+    },
+    "maxSeconds": {
+      "type": "integer",
+      "minimum": 60,
+      "maximum": 86400
+    },
+    "kind": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "work"
+        },
+        {
+          "type": "string",
+          "const": "wait"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

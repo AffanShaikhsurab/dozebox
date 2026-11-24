@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dozebox.dev/schema/v1/attention-input.json",
+  "title": "AttentionInput",
+  "type": "object",
+  "required": [
+    "key",
+    "severity",
+    "title",
+    "body"
+  ],
+  "properties": {
+    "key": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:@/-]{1,120}$"
+    },
+    "severity": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "page"
+        },
+        {
+          "type": "string",
+          "const": "notify"
+        },
+        {
+          "type": "string",
+          "const": "info"
+        }
+      ]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "body": {
+      "type": "string",
+      "maxLength": 1000
+    },
+    "url": {
+      "type": "string",
+      "pattern": "^https://",
+      "maxLength": 500
+    },
+    "dedupeSeconds": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 86400
+    }
+  },
+  "additionalProperties": false
+}

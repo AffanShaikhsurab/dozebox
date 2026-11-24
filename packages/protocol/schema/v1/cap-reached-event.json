@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dozebox.dev/schema/v1/cap-reached-event.json",
+  "title": "CapReachedEvent",
+  "type": "object",
+  "required": [
+    "cap",
+    "resetAt"
+  ],
+  "properties": {
+    "cap": {
+      "type": "string"
+    },
+    "resetAt": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+    }
+  }
+}

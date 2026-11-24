@@ -1,0 +1,35 @@
+{
+  "v": 1,
+  "box": "main",
+  "desired": "awake",
+  "state": "warming-up",
+  "since": "2026-11-24T21:00:04.000Z",
+  "frozen": false,
+  "instance": {
+    "id": "i-0123456789abcdef0",
+    "type": "m7g.xlarge",
+    "az": "us-east-1a",
+    "launchedAt": "2026-11-20T08:00:00.000Z",
+    "lifecycle": "spot"
+  },
+  "machine": "persistent",
+  "servingSince": "2026-11-24T21:02:11.000Z",
+  "liveness": {
+    "at": "2026-11-24T21:20:00.000Z",
+    "payloads": [{ "name": "example", "health": "degraded", "lastProgressAt": "2026-11-24T21:19:40.000Z" }],
+    "idleSleepAt": null,
+    "awakeBecause": ["hold:example/run-42"]
+  },
+  "caps": {
+    "awakeHoursToday": 3.2,
+    "awakeHoursCap": 16,
+    "onDemandHoursToday": 0,
+    "onDemandHoursCap": 3,
+    "monthSpendUsd": 21.4,
+    "monthBudgetUsd": 60,
+    "weekSpendUsd": 5.1
+  },
+  "alertPath": { "level": "critical", "say": "phone alerts are failing" },
+  "summary": { "level": "ok", "headline": "Working", "detail": "1 payload busy.", "next": "", "actions": ["park"] },
+  "region": "us-east-1"
+}

@@ -217,7 +217,11 @@ importers:
 
   packages/core: {}
 
-  packages/protocol: {}
+  packages/protocol:
+    dependencies:
+      typebox:
+        specifier: 1.4.7
+        version: 1.4.7
 
   packages/sim: {}
 
@@ -838,6 +842,9 @@ packages:
   tslib@2.9.1:
     resolution: {integrity: sha512-a4Ux9VKuIMHsOS7ENbEq6hK2ZGYIT27Rtl0E4eD9KqwxhKiQeMZE/9xb3IdYwWaSOyIBQLExhQgXDTYoiCxnWA==}
 
+  typebox@1.4.7:
+    resolution: {integrity: sha512-KonYdBj3gOgG/rH96TlUs/f+eaEDqiKRW7KU4/LE/tEjEnRCcfpYLofBfHfNMBAiBosmY55e4YeCPuE+NXmJtg==}
+
   typescript@6.0.3:
     resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
     engines: {node: '>=14.17'}
@@ -1344,6 +1351,8 @@ snapshots:
 
   tslib@2.9.1:
     optional: true
+
+  typebox@1.4.7: {}
 
   typescript@6.0.3: {}
 
