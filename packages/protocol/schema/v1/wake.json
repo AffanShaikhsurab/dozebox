@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dozebox.dev/schema/v1/wake.json",
+  "title": "Wake",
+  "type": "object",
+  "required": [
+    "id",
+    "reason",
+    "expiresAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._:-]{0,63}$"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+    },
+    "on": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "source",
+            "repository",
+            "events"
+          ],
+          "properties": {
+            "source": {
+              "type": "string",
+              "const": "github"
+            },
+            "repository": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+            },
+            "events": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z_]{1,40}$"
+              },
+              "minItems": 1,
+              "maxItems": 8
+            },
+            "number": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "actions": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z_]{1,40}$"
+              },
+              "maxItems": 8
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "source",
+            "topic"
+          ],
+          "properties": {
+            "source": {
+              "type": "string",
+              "const": "webhook"
+            },
+            "topic": {
+              "type": "string",
+              "pattern": "^[a-z0-9-]{1,40}$"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "expiresAt": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+    }
+  }
+}

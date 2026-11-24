@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dozebox.dev/schema/v1/health-input.json",
+  "title": "HealthInput",
+  "type": "object",
+  "required": [
+    "ok",
+    "ttlSeconds"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "detail": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "ttlSeconds": {
+      "type": "integer",
+      "minimum": 10,
+      "maximum": 3600
+    }
+  },
+  "additionalProperties": false
+}

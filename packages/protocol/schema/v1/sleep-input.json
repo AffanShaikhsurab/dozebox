@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dozebox.dev/schema/v1/sleep-input.json",
+  "title": "SleepInput",
+  "type": "object",
+  "required": [
+    "reason"
+  ],
+  "properties": {
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "user"
+        }
+      ]
+    },
+    "force": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": false
+}

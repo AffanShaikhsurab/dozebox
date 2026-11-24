@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dozebox.dev/schema/v1/hello.json",
+  "title": "Hello",
+  "type": "object",
+  "required": [
+    "protocol",
+    "agent",
+    "box",
+    "payload",
+    "features",
+    "limits",
+    "deprecations"
+  ],
+  "properties": {
+    "protocol": {
+      "type": "object",
+      "required": [
+        "major",
+        "minor"
+      ],
+      "properties": {
+        "major": {
+          "type": "number",
+          "const": 1
+        },
+        "minor": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "required": [
+        "version"
+      ],
+      "properties": {
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "box": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      }
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]{0,40}$"
+      }
+    },
+    "limits": {
+      "type": "object",
+      "required": [
+        "holdsPerPayload",
+        "holdMaxSeconds",
+        "wakesPerPayload",
+        "wakeHorizonSeconds",
+        "presenceMaxSeconds",
+        "attentionPerHour",
+        "beatNamesPerPayload"
+      ],
+      "properties": {
+        "holdsPerPayload": {
+          "type": "integer"
+        },
+        "holdMaxSeconds": {
+          "type": "integer"
+        },
+        "wakesPerPayload": {
+          "type": "integer"
+        },
+        "wakeHorizonSeconds": {
+          "type": "integer"
+        },
+        "presenceMaxSeconds": {
+          "type": "integer"
+        },
+        "attentionPerHour": {
+          "type": "integer"
+        },
+        "beatNamesPerPayload": {
+          "type": "integer"
+        }
+      }
+    },
+    "deprecations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "what",
+          "since",
+          "removedIn"
+        ],
+        "properties": {
+          "what": {
+            "type": "string"
+          },
+          "since": {
+            "type": "string"
+          },
+          "removedIn": {
+            "type": "string"
+          },
+          "replacement": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

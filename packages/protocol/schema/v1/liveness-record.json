@@ -1,0 +1,297 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dozebox.dev/schema/v1/liveness-record.json",
+  "title": "LivenessRecord",
+  "type": "object",
+  "required": [
+    "v",
+    "at",
+    "writer",
+    "agent",
+    "payloads",
+    "presence",
+    "idle",
+    "net",
+    "disk",
+    "undelivered"
+  ],
+  "properties": {
+    "v": {
+      "type": "number",
+      "const": 1
+    },
+    "at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+    },
+    "writer": {
+      "type": "object",
+      "required": [
+        "instanceId",
+        "bootId"
+      ],
+      "properties": {
+        "instanceId": {
+          "type": "string",
+          "pattern": "^i-[0-9a-f]{8,17}$"
+        },
+        "bootId": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 64
+        }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "required": [
+        "version",
+        "ok",
+        "strikes"
+      ],
+      "properties": {
+        "version": {
+          "type": "string"
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "strikes": {
+          "type": "integer"
+        }
+      }
+    },
+    "payloads": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "health",
+          "restartsThisHour",
+          "lastProgressAt",
+          "progress",
+          "holds"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "health": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "ok"
+              },
+              {
+                "type": "string",
+                "const": "failing"
+              },
+              {
+                "type": "string",
+                "const": "starting"
+              },
+              {
+                "type": "string",
+                "const": "unknown"
+              }
+            ]
+          },
+          "healthDetail": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "restartsThisHour": {
+            "type": "integer"
+          },
+          "lastProgressAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "progress": {
+            "type": "object",
+            "patternProperties": {
+              "^.*$": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+              }
+            }
+          },
+          "holds": {
+            "type": "object",
+            "required": [
+              "work",
+              "wait",
+              "until",
+              "reasons"
+            ],
+            "properties": {
+              "work": {
+                "type": "integer"
+              },
+              "wait": {
+                "type": "integer"
+              },
+              "until": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reasons": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "maxItems": 4
+    },
+    "presence": {
+      "type": "object",
+      "required": [
+        "interactiveUntil",
+        "lastInteractiveAt"
+      ],
+      "properties": {
+        "interactiveUntil": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lastInteractiveAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "idle": {
+      "type": "object",
+      "required": [
+        "since",
+        "sleepAt"
+      ],
+      "properties": {
+        "since": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sleepAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "net": {
+      "type": "object",
+      "required": [
+        "ok",
+        "downSince"
+      ],
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        },
+        "downSince": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "disk": {
+      "type": "object",
+      "required": [
+        "level",
+        "freePct"
+      ],
+      "properties": {
+        "level": {
+          "type": "string"
+        },
+        "freePct": {
+          "type": "number"
+        }
+      }
+    },
+    "undelivered": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "key",
+          "severity",
+          "title",
+          "at"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+          }
+        }
+      },
+      "maxItems": 5
+    },
+    "truncated": {
+      "type": "boolean"
+    }
+  }
+}

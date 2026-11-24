@@ -1,11 +1,58 @@
 {
   "name": "@dozebox/protocol",
   "version": "0.0.0",
-  "private": true,
-  "description": "Payload protocol, records, control API and config: TypeBox schemas and JSON Schema.",
+  "description": "Dozebox payload protocol, records, control API and config: types and JSON Schema.",
   "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=24.12"
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "schema",
+    "README.md"
+  ],
+  "exports": {
+    "./v1": {
+      "@dozebox/source": "./src/v1/index.ts",
+      "types": "./dist/v1/index.d.ts",
+      "default": "./dist/v1/index.js"
+    },
+    "./records": {
+      "@dozebox/source": "./src/records/v1.ts",
+      "types": "./dist/records/v1.d.ts",
+      "default": "./dist/records/v1.js"
+    },
+    "./control": {
+      "@dozebox/source": "./src/control/v1.ts",
+      "types": "./dist/control/v1.d.ts",
+      "default": "./dist/control/v1.js"
+    },
+    "./payload": {
+      "@dozebox/source": "./src/payload/v1.ts",
+      "types": "./dist/payload/v1.d.ts",
+      "default": "./dist/payload/v1.js"
+    },
+    "./config": {
+      "@dozebox/source": "./src/config/v1.ts",
+      "types": "./dist/config/v1.d.ts",
+      "default": "./dist/config/v1.js"
+    },
+    "./schema/*": "./schema/*",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "gen:schema": "node scripts/gen-schema.ts",
+    "check:schema": "node scripts/gen-schema.ts --check",
+    "test": "node --conditions=@dozebox/source --test \"test/**/*.test.ts\""
+  },
+  "dependencies": {
+    "typebox": "1.4.7"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }
