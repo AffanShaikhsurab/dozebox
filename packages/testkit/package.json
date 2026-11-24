@@ -7,5 +7,26 @@
   "type": "module",
   "engines": {
     "node": ">=24.12"
+  },
+  "sideEffects": false,
+  "exports": {
+    "./fakes": {
+      "@dozebox/source": "./src/fakes/index.ts",
+      "types": "./dist/fakes/index.d.ts",
+      "default": "./dist/fakes/index.js"
+    },
+    "./contracts": {
+      "@dozebox/source": "./src/contracts/index.ts",
+      "types": "./dist/contracts/index.d.ts",
+      "default": "./dist/contracts/index.js"
+    },
+    "./fixtures/*": "./fixtures/*"
+  },
+  "scripts": {
+    "test": "node --conditions=@dozebox/source --test \"test/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@dozebox/core": "workspace:*",
+    "memfs": "4.80.1"
   }
 }
