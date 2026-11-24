@@ -21,6 +21,8 @@
     "check:schema": "pnpm -r --if-present check:schema",
     "test:legacy": "node --test \"legacy/runner/test/**/*.node-test.ts\"",
     "tf:test": "terraform -chdir=terraform init -backend=false -input=false && terraform -chdir=terraform test",
+    "tf:examples": "for d in minimal drill emulator; do terraform -chdir=examples/$d init -backend=false -input=false > /dev/null && terraform -chdir=examples/$d validate || exit 1; done",
+    "tf:docs": "terraform-docs terraform",
     "check": "pnpm fmt:check && pnpm lint && pnpm typecheck && pnpm test && pnpm check:schema && pnpm check:sizes && pnpm knip"
   },
   "devDependencies": {
