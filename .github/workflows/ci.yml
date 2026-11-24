@@ -1,0 +1,57 @@
+name: ci
+on:
+  pull_request: {}
+  push:
+    branches: [main]
+  merge_group: {}
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  node:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+  terraform:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.17.x"
+      - run: terraform fmt -check -recursive terraform
+      - run: terraform -chdir=terraform init -backend=false -input=false
+      - run: terraform -chdir=terraform test
+  gitleaks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  ci-ok:
+    if: always()
+    needs: [node, terraform, gitleaks]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Every required job succeeded (failure, cancelled and skipped all fail)
+        run: |
+          results='${{ join(needs.*.result, ' ') }}'
+          echo "results: $results"
+          for r in $results; do
+            case "$r" in
+              success) ;;
+              failure|cancelled|skipped|*) echo "a required job ended with $r"; exit 1 ;;
+            esac
+          done

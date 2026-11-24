@@ -1,0 +1,11 @@
+{
+  "name": "@dozebox/protocol",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Payload protocol, records, control API and config: TypeBox schemas and JSON Schema.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24.12"
+  }
+}

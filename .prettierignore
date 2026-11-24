@@ -1,0 +1,6 @@
+pnpm-lock.yaml
+legacy/
+packages/*/schema/
+node_modules/
+dist/
+.terraform/

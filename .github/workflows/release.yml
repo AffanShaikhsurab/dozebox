@@ -1,0 +1,46 @@
+# Release pipeline (part 7 §7.6). Until changesets and the artifact builds land (WP-Z2), it can cut a
+# pre-release of the agent artifact from a manual run, which phase 3 needs.
+name: release
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "prerelease or release"
+        required: true
+        default: prerelease
+        type: choice
+        options: [prerelease, release]
+      version:
+        description: "Version without the v, for example 0.1.0-rc.1"
+        required: true
+        type: string
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - name: Build artifacts
+        run: pnpm build
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          case "$VERSION" in
+            *[!0-9A-Za-z.-]*) echo "bad version"; exit 1 ;;
+          esac
+          flag=""
+          if [ "$MODE" = "prerelease" ]; then flag="--prerelease"; fi
+          gh release create "v$VERSION" $flag --title "v$VERSION" --notes "Built from ${GITHUB_SHA}."

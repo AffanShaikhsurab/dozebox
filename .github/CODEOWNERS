@@ -1,0 +1,4 @@
+# Areas where a wrong change costs money or locks someone out need a maintainer review.
+/packages/core/src/reconcile/ @AffanShaikhsurab
+/packages/protocol/ @AffanShaikhsurab
+/terraform/iam_*.tf @AffanShaikhsurab

@@ -1,0 +1,11 @@
+{
+  "name": "dozebox",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The dozebox command.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24.12"
+  }
+}

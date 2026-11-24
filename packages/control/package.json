@@ -1,0 +1,11 @@
+{
+  "name": "@dozebox/control",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The control function (AWS Lambda).",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24.12"
+  }
+}
