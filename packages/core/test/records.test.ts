@@ -2,7 +2,14 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import type { LastErrorRecord, LivenessRecord, WakesRecord } from "@dozebox/protocol/records";
 import { RunnerError } from "../src/errors.ts";
-import { byteLength, encodeRecord, readRecord, RECORD_LIMIT_BYTES, RECORD_SPECS } from "../src/records/index.ts";
+import {
+  assertFits,
+  byteLength,
+  encodeRecord,
+  readRecord,
+  RECORD_LIMIT_BYTES,
+  RECORD_SPECS,
+} from "../src/records/index.ts";
 
 const writer = { instanceId: "i-0123456789abcdef0", bootId: "boot-0001" };
 const at = "2026-11-24T21:00:00.000Z";
@@ -57,13 +64,43 @@ const readRows: ReadonlyArray<{
   { name: "not JSON -> missing", raw: "{oops", inService: null, expect: "missing:not-json" },
   { name: "JSON but not an object -> invalid", raw: "42", inService: null, expect: "missing:invalid" },
   { name: "null JSON -> invalid", raw: "null", inService: null, expect: "missing:invalid" },
-  { name: "unknown v -> missing", raw: JSON.stringify({ ...lastError("x"), v: 2, more: 1 }), inService: null, expect: "missing:unknown-version" },
-  { name: "v as text -> invalid", raw: JSON.stringify({ ...lastError("x"), v: "2" }), inService: null, expect: "missing:invalid" },
-  { name: "older shape (v 0) -> invalid", raw: JSON.stringify({ ...lastError("x"), v: 0 }), inService: null, expect: "missing:invalid" },
-  { name: "unknown field (a later minor) -> ok", raw: JSON.stringify({ ...lastError("x"), extra: true }), inService: null, expect: "ok" },
-  { name: "wrong field type -> invalid", raw: JSON.stringify({ ...lastError("x"), message: 5 }), inService: null, expect: "missing:invalid" },
+  {
+    name: "unknown v -> missing",
+    raw: JSON.stringify({ ...lastError("x"), v: 2, more: 1 }),
+    inService: null,
+    expect: "missing:unknown-version",
+  },
+  {
+    name: "v as text -> invalid",
+    raw: JSON.stringify({ ...lastError("x"), v: "2" }),
+    inService: null,
+    expect: "missing:invalid",
+  },
+  {
+    name: "older shape (v 0) -> invalid",
+    raw: JSON.stringify({ ...lastError("x"), v: 0 }),
+    inService: null,
+    expect: "missing:invalid",
+  },
+  {
+    name: "unknown field (a later minor) -> ok",
+    raw: JSON.stringify({ ...lastError("x"), extra: true }),
+    inService: null,
+    expect: "ok",
+  },
+  {
+    name: "wrong field type -> invalid",
+    raw: JSON.stringify({ ...lastError("x"), message: 5 }),
+    inService: null,
+    expect: "missing:invalid",
+  },
   { name: "valid, nothing in service -> ok", raw: JSON.stringify(lastError("x")), inService: null, expect: "ok" },
-  { name: "valid, right instance -> ok", raw: JSON.stringify(lastError("x")), inService: { instanceId: writer.instanceId }, expect: "ok" },
+  {
+    name: "valid, right instance -> ok",
+    raw: JSON.stringify(lastError("x")),
+    inService: { instanceId: writer.instanceId },
+    expect: "ok",
+  },
   {
     name: "valid, right instance and boot -> ok",
     raw: JSON.stringify(lastError("x")),
@@ -171,7 +208,12 @@ test("encodeRecord: trimming touches only the payload that has something to drop
     holds: { work: 0, wait: 0, until: null, reasons: [] },
   };
   const l = "y".repeat(5000);
-  const busy = { ...quiet, name: "busy", progress: { [`a${l}`]: at, [`b${l}`]: at }, holds: { ...quiet.holds, reasons: [l, l] } };
+  const busy = {
+    ...quiet,
+    name: "busy",
+    progress: { [`a${l}`]: at, [`b${l}`]: at },
+    holds: { ...quiet.holds, reasons: [l, l] },
+  };
   const out = JSON.parse(encodeRecord("rec/liveness", liveness({ payloads: [quiet, busy] })).value) as LivenessRecord;
   assert.deepEqual(out.payloads[0], quiet);
   assert.deepEqual(out.payloads[1]?.holds.reasons, []);
@@ -205,4 +247,18 @@ test("every record name has a spec, and only liveness and wakes are Advanced", (
     .filter(([, s]) => s.tier === "Advanced")
     .map(([n]) => n);
   assert.deepEqual(advanced, ["rec/liveness", "rec/wakes"]);
+});
+
+const refused = (name: string, value: string, tier: "Standard" | "Advanced") =>
+  assert.throws(
+    () => assertFits(name, value, tier),
+    (e: unknown) => e instanceof RunnerError && e.code === "invalid_input",
+  );
+
+test("assertFits: refuses bad names and values over the tier, accepts the limit exactly", () => {
+  assertFits("rec/liveness", "x".repeat(8192), "Advanced");
+  assertFits("ctl/wake-intent", "x".repeat(4096), "Standard");
+  refused("rec/liveness", "x".repeat(8193), "Advanced");
+  refused("rec/last-error", "é".repeat(2049), "Standard");
+  for (const bad of ["/rec/x", "rec//x", "Rec/x", "rec/x/", ""]) refused(bad, "{}", "Standard");
 });

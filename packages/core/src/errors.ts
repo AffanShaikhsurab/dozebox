@@ -85,6 +85,9 @@ const TABLE: Readonly<Record<string, Row>> = {
   InvalidParameterCombination: ["invalid_input", false],
   InvalidInputException: ["invalid_input", false],
   ParameterValueTooLarge: ["invalid_input", false],
+  "InvalidVolume.ZoneMismatch": ["invalid_input", false],
+  IdempotentParameterMismatch: ["invalid_input", false],
+  InvalidParameter: ["invalid_input", false],
 };
 
 /** Transport failures before any HTTP status: Node socket codes and the SDK's timeout names. */

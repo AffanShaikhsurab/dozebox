@@ -27,8 +27,7 @@
     "@aws-sdk/client-ec2": "3.1176.0",
     "@aws-sdk/client-sns": "3.1176.0",
     "@aws-sdk/client-ssm": "3.1176.0",
-    "@dozebox/core": "workspace:*",
-    "@dozebox/protocol": "workspace:*"
+    "@dozebox/core": "workspace:*"
   },
   "devDependencies": {
     "@dozebox/testkit": "workspace:*"

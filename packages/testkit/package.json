@@ -32,7 +32,6 @@
   },
   "dependencies": {
     "@dozebox/core": "workspace:*",
-    "@dozebox/protocol": "workspace:*",
     "memfs": "4.80.1"
   },
   "devDependencies": {
