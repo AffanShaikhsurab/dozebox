@@ -3,7 +3,7 @@ title = "dozebox gitleaks config"
 [extend]
 useDefault = true
 
-[allowlist]
+[[allowlists]]
 description = "Documentation placeholders"
 regexTarget = "match"
 regexes = [
@@ -11,3 +11,9 @@ regexes = [
   '''i-0123456789abcdef0''',
   '''vol-0123456789abcdef0''',
 ]
+
+[[allowlists]]
+# Reviewed on import (2026-11-25): all 19 findings in these files are made-up tokens, the RFC 8291 test vectors and
+# redaction fixtures that the old runner's tests feed to its scrubbers. legacy/ is deleted before the public release.
+description = "Old runner test fixtures"
+paths = ['''^legacy/runner/test/''']
