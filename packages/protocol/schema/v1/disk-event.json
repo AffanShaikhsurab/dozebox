@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dozebox.dev/schema/v1/disk-event.json",
+  "title": "DiskEvent",
+  "type": "object",
+  "required": [
+    "level",
+    "freePct"
+  ],
+  "properties": {
+    "level": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "ok"
+        },
+        {
+          "type": "string",
+          "const": "low"
+        },
+        {
+          "type": "string",
+          "const": "critical"
+        }
+      ]
+    },
+    "freePct": {
+      "type": "number"
+    }
+  }
+}

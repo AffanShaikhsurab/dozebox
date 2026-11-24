@@ -1,0 +1,37 @@
+{
+  "box": {
+    "id": "main",
+    "phase": "hibernating",
+    "since": "2026-11-24T21:00:00.000Z",
+    "instance": {
+      "id": "i-0123456789abcdef0",
+      "type": "m7g.xlarge",
+      "az": "us-east-1a",
+      "lifecycle": "spot",
+      "addedInALaterMinor": "ignored"
+    },
+    "bootedAt": "2026-11-24T20:58:00.000Z",
+    "memoryBytes": 17179869184,
+    "cpus": 4,
+    "controlUrl": "https://d111111abcdef8.cloudfront.net",
+    "gpu": { "count": 0 }
+  },
+  "jail": { "ready": true, "egress": "imds-only", "missing": [] },
+  "idle": { "since": null, "sleepAt": null, "awakeBecause": ["hold:example/run-42"] },
+  "disk": { "level": "ok", "freePct": 61.5, "freeBytes": 52428800000, "at": "2026-11-24T21:00:00.000Z" },
+  "caps": { "awakeSecondsToday": 3600, "awakeSecondsCap": null, "awakeSecondsThisWeek": 7200 },
+  "holds": [
+    {
+      "id": "run-42",
+      "reason": "run 42",
+      "kind": "work",
+      "since": "2026-11-24T21:00:00.000Z",
+      "requestedUntil": "2026-11-24T23:30:00.000Z",
+      "until": "2026-11-24T23:30:00.000Z",
+      "clamped": false,
+      "owner": "added later"
+    }
+  ],
+  "wakes": [],
+  "network": { "ok": true }
+}

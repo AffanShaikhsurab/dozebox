@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dozebox.dev/schema/v1/reclaim-notice-event.json",
+  "title": "ReclaimNoticeEvent",
+  "type": "object",
+  "required": [
+    "terminationAt",
+    "stopGraceSeconds"
+  ],
+  "properties": {
+    "terminationAt": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+    },
+    "stopGraceSeconds": {
+      "type": "integer"
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dozebox.dev/schema/v1/attention-accepted.json",
+  "title": "AttentionAccepted",
+  "type": "object",
+  "required": [
+    "alertId",
+    "deduped"
+  ],
+  "properties": {
+    "alertId": {
+      "type": "string"
+    },
+    "deduped": {
+      "type": "boolean"
+    }
+  }
+}
