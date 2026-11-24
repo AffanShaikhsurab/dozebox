@@ -1,0 +1,27 @@
+[
+  {
+    "event": "phase",
+    "data": { "phase": "hibernating", "since": "2026-11-24T21:00:00.000Z", "cause": "later minor" },
+    "expect": { "type": "phase", "phase": "serving" }
+  },
+  {
+    "event": "disk",
+    "data": { "level": "low", "freePct": 12.5, "freeBytes": 1000 },
+    "expect": { "type": "disk", "level": "low" }
+  },
+  {
+    "event": "gpu-hot",
+    "data": { "celsius": 90 },
+    "expect": { "type": "unknown", "name": "gpu-hot" }
+  },
+  {
+    "event": "sleeping",
+    "data": { "reason": "idle" },
+    "expect": { "type": "unknown", "name": "sleeping" }
+  },
+  {
+    "event": "ping",
+    "data": {},
+    "expect": { "type": "ping" }
+  }
+]

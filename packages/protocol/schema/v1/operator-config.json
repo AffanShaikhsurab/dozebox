@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dozebox.dev/schema/v1/operator-config.json",
+  "title": "OperatorConfig",
+  "type": "object",
+  "required": [
+    "schema",
+    "box",
+    "region",
+    "terraformDir",
+    "outputs"
+  ],
+  "properties": {
+    "schema": {
+      "type": "number",
+      "const": 1
+    },
+    "box": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,19}$"
+    },
+    "region": {
+      "type": "string",
+      "pattern": "^[a-z]{2}(-[a-z]+)+-\\d$"
+    },
+    "terraformDir": {
+      "type": "string",
+      "minLength": 1
+    },
+    "outputs": {
+      "type": "object",
+      "required": [
+        "control_url",
+        "control_function_name",
+        "ssm_prefix",
+        "state_table_name"
+      ],
+      "properties": {
+        "control_url": {
+          "type": "string"
+        },
+        "control_function_name": {
+          "type": "string"
+        },
+        "ssm_prefix": {
+          "type": "string"
+        },
+        "state_table_name": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

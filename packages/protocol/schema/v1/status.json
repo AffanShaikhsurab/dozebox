@@ -1,0 +1,400 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dozebox.dev/schema/v1/status.json",
+  "title": "Status",
+  "type": "object",
+  "required": [
+    "box",
+    "jail",
+    "idle",
+    "disk",
+    "caps",
+    "holds",
+    "wakes"
+  ],
+  "properties": {
+    "box": {
+      "type": "object",
+      "required": [
+        "id",
+        "phase",
+        "since",
+        "instance",
+        "bootedAt",
+        "memoryBytes",
+        "cpus",
+        "controlUrl"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "phase": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "booting"
+            },
+            {
+              "type": "string",
+              "const": "serving"
+            },
+            {
+              "type": "string",
+              "const": "idle-pending"
+            },
+            {
+              "type": "string",
+              "const": "reclaim-notice"
+            },
+            {
+              "type": "string",
+              "const": "sleeping"
+            },
+            {
+              "type": "string",
+              "const": "frozen"
+            }
+          ]
+        },
+        "since": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+        },
+        "instance": {
+          "type": "object",
+          "required": [
+            "id",
+            "type",
+            "az",
+            "lifecycle"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            },
+            "az": {
+              "type": "string"
+            },
+            "lifecycle": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "spot"
+                },
+                {
+                  "type": "string",
+                  "const": "on-demand"
+                }
+              ]
+            }
+          }
+        },
+        "bootedAt": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+        },
+        "terminationAt": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+        },
+        "memoryBytes": {
+          "type": "integer"
+        },
+        "cpus": {
+          "type": "integer"
+        },
+        "controlUrl": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "jail": {
+      "type": "object",
+      "required": [
+        "ready",
+        "egress",
+        "missing"
+      ],
+      "properties": {
+        "ready": {
+          "type": "boolean"
+        },
+        "egress": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "imds-only"
+            },
+            {
+              "type": "string",
+              "const": "allowlist"
+            },
+            {
+              "type": "string",
+              "const": "off"
+            }
+          ]
+        },
+        "missing": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "idle": {
+      "type": "object",
+      "required": [
+        "since",
+        "sleepAt",
+        "awakeBecause"
+      ],
+      "properties": {
+        "since": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sleepAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "awakeBecause": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "disk": {
+      "type": "object",
+      "required": [
+        "level",
+        "freePct",
+        "freeBytes",
+        "at"
+      ],
+      "properties": {
+        "level": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "ok"
+            },
+            {
+              "type": "string",
+              "const": "low"
+            },
+            {
+              "type": "string",
+              "const": "critical"
+            }
+          ]
+        },
+        "freePct": {
+          "type": "number"
+        },
+        "freeBytes": {
+          "type": "integer"
+        },
+        "at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+        }
+      }
+    },
+    "caps": {
+      "type": "object",
+      "required": [
+        "awakeSecondsToday",
+        "awakeSecondsCap"
+      ],
+      "properties": {
+        "awakeSecondsToday": {
+          "type": "integer"
+        },
+        "awakeSecondsCap": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "holds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "reason",
+          "kind",
+          "since",
+          "requestedUntil",
+          "until",
+          "clamped"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._:-]{0,63}$"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "work"
+              },
+              {
+                "type": "string",
+                "const": "wait"
+              }
+            ]
+          },
+          "since": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+          },
+          "requestedUntil": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+          },
+          "until": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+          },
+          "clamped": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "wakes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "reason",
+          "expiresAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._:-]{0,63}$"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "at": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+          },
+          "on": {
+            "anyOf": [
+              {
+                "type": "object",
+                "required": [
+                  "source",
+                  "repository",
+                  "events"
+                ],
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "const": "github"
+                  },
+                  "repository": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+                  },
+                  "events": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-z_]{1,40}$"
+                    },
+                    "minItems": 1,
+                    "maxItems": 8
+                  },
+                  "number": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "actions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-z_]{1,40}$"
+                    },
+                    "maxItems": 8
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "required": [
+                  "source",
+                  "topic"
+                ],
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "const": "webhook"
+                  },
+                  "topic": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9-]{1,40}$"
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+          }
+        }
+      }
+    }
+  }
+}

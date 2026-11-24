@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dozebox.dev/schema/v1/error-body.json",
+  "title": "ErrorBody",
+  "type": "object",
+  "required": [
+    "error"
+  ],
+  "properties": {
+    "error": {
+      "type": "object",
+      "required": [
+        "code",
+        "message",
+        "retryable"
+      ],
+      "properties": {
+        "code": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "bad_request"
+            },
+            {
+              "type": "string",
+              "const": "unknown_field"
+            },
+            {
+              "type": "string",
+              "const": "invalid_value"
+            },
+            {
+              "type": "string",
+              "const": "too_large"
+            },
+            {
+              "type": "string",
+              "const": "limit_exceeded"
+            },
+            {
+              "type": "string",
+              "const": "not_found"
+            },
+            {
+              "type": "string",
+              "const": "conflict"
+            },
+            {
+              "type": "string",
+              "const": "rate_limited"
+            },
+            {
+              "type": "string",
+              "const": "unsupported_version"
+            },
+            {
+              "type": "string",
+              "const": "shutting_down"
+            },
+            {
+              "type": "string",
+              "const": "internal"
+            }
+          ]
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "field": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "retryable": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
