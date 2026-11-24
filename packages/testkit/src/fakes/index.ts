@@ -20,3 +20,21 @@ export {
   type ImdsRequest,
   type SpotAction,
 } from "./imds.ts";
+
+export {
+  makeFakeAws,
+  type FakeAsg,
+  type FakeAws,
+  type FakeAwsOptions,
+  type FakeBudgets,
+  type FakeDynamoDb,
+  type FakeEbs,
+  type FakeEbsTiming,
+  type FakeEc2,
+  type FakeEc2Timing,
+  type FakeLogs,
+  type FakeSns,
+  type FakeSsm,
+  type FaultOp,
+  type Faults,
+} from "./aws/index.ts";

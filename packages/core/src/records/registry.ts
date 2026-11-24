@@ -50,7 +50,7 @@ const trimLiveness: Trim<LivenessRecord> = (r) => {
   if (withProgress >= 0) {
     const payloads = r.payloads.map((p, i) => {
       if (i !== withProgress) return p;
-      const entries = Object.entries(p.progress).sort((a, b) => a[1].localeCompare(b[1]));
+      const entries = Object.entries(p.progress).toSorted((a, b) => a[1].localeCompare(b[1]));
       return { ...p, progress: Object.fromEntries(entries.slice(1)) };
     });
     return { ...r, payloads, truncated: true };

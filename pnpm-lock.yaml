@@ -227,9 +227,6 @@ importers:
       '@dozebox/core':
         specifier: workspace:*
         version: link:../core
-      '@dozebox/protocol':
-        specifier: workspace:*
-        version: link:../protocol
     devDependencies:
       '@dozebox/testkit':
         specifier: workspace:*
@@ -262,15 +259,16 @@ importers:
       '@dozebox/core':
         specifier: workspace:*
         version: link:../core
-      '@dozebox/protocol':
-        specifier: workspace:*
-        version: link:../protocol
     devDependencies:
       '@dozebox/testkit':
         specifier: workspace:*
         version: link:../testkit
 
-  packages/core: {}
+  packages/core:
+    dependencies:
+      '@dozebox/protocol':
+        specifier: workspace:*
+        version: link:../protocol
 
   packages/protocol:
     dependencies:
@@ -288,6 +286,13 @@ importers:
       memfs:
         specifier: 4.80.1
         version: 4.80.1
+    devDependencies:
+      '@dozebox/agent':
+        specifier: workspace:*
+        version: link:../agent
+      '@dozebox/control':
+        specifier: workspace:*
+        version: link:../control
 
 packages:
 

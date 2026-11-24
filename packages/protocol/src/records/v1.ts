@@ -145,7 +145,6 @@ export const SleepFence = Type.Object({
 });
 export type SleepFence = Static<typeof SleepFence>;
 
-
 /** True when `value` matches `schema`. Lets readers check records without their own TypeBox dependency. */
 export function matchesSchema(schema: TSchema, value: unknown): boolean {
   return Value.Check(schema, value);
