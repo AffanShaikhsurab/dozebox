@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+.dozebox/
+drills/*.json
+.env
+.env.*

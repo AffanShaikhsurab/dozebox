@@ -1,0 +1,13 @@
+title = "dozebox gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documentation placeholders"
+regexTarget = "match"
+regexes = [
+  '''111122223333''',
+  '''i-0123456789abcdef0''',
+  '''vol-0123456789abcdef0''',
+]
