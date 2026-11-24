@@ -19,6 +19,7 @@
     "check:words": "node scripts/check-words.ts",
     "check:sizes": "node scripts/check-sizes.ts",
     "check:schema": "pnpm -r --if-present check:schema",
+    "test:legacy": "node --test \"legacy/runner/test/**/*.node-test.ts\"",
     "tf:test": "terraform -chdir=terraform init -backend=false -input=false && terraform -chdir=terraform test",
     "check": "pnpm fmt:check && pnpm lint && pnpm typecheck && pnpm test && pnpm check:schema && pnpm check:sizes && pnpm knip"
   },

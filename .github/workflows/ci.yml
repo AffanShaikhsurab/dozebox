@@ -31,6 +31,14 @@ jobs:
       - run: terraform fmt -check -recursive terraform
       - run: terraform -chdir=terraform init -backend=false -input=false
       - run: terraform -chdir=terraform test
+  legacy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+      - run: node --test "legacy/runner/test/**/*.node-test.ts"
   gitleaks:
     runs-on: ubuntu-24.04
     steps:
@@ -42,7 +50,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   ci-ok:
     if: always()
-    needs: [node, terraform, gitleaks]
+    needs: [node, terraform, legacy, gitleaks]
     runs-on: ubuntu-24.04
     steps:
       - name: Every required job succeeded (failure, cancelled and skipped all fail)

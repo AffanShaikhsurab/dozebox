@@ -1,0 +1,17 @@
+# Made-up AWS account numbers and resource ids that the old runner's tests use on purpose. Tests that compare two
+# of them (an account mismatch, two instances) break if they are rewritten to one placeholder, so the scrub keeps
+# these and rewrites every other 12-digit number and every other 17-hex-digit instance, volume or snapshot id.
+000000000000
+000000000001
+111111111111
+111122223333
+123456789012
+210987654321
+444455556666
+555555555555
+i-0000000000000000f
+i-0123456789abcdef0
+i-0123456789abcdeff
+i-0bbbbbbbbbbbbbbbb
+snap-0123456789abcdef0
+vol-0123456789abcdef0
