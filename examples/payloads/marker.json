@@ -5,7 +5,7 @@
   "user": "marker",
   "protocol": "none",
   "start": {
-    "command": ["/usr/bin/node", "/opt/marker/server.mjs"],
+    "command": ["/opt/dozebox/current/node/bin/node", "/opt/dozebox/current/examples/marker/server.mjs"],
     "env": { "MARKER_DIR": "/data/payloads/marker" }
   },
   "health": {
