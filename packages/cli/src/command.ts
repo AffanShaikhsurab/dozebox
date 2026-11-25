@@ -7,6 +7,7 @@ import type { AwsOps } from "./ports/aws.ts";
 import type { ControlApi } from "./ports/control.ts";
 import type { Prompt } from "./ports/prompt.ts";
 import type { CliFiles, Terraform } from "./ports/terraform.ts";
+import type { Tools } from "./ports/tools.ts";
 
 export type ExitCode = 0 | 1 | 2 | 3 | 4 | 5 | 75 | 130;
 
@@ -30,6 +31,7 @@ export type CliDeps = {
   readonly clock: Clock;
   readonly fs: CliFiles;
   readonly prompt: Prompt;
+  readonly tools: Tools;
   readonly ids: { readonly random: () => string };
 };
 
@@ -71,8 +73,28 @@ export class DozeboxCliError extends Error {
 }
 
 /** Pure: the exit code for a thrown error (DozeboxCliError by code, RunnerError `aws_*` -> 4, else 1). */
-export function exitCodeOf(_e: unknown): ExitCode {
-  throw new Error("not implemented: L1 exitCodeOf");
+export function exitCodeOf(e: unknown): ExitCode {
+  if (e instanceof DozeboxCliError) return CODE_EXIT[e.code];
+  if (isAbort(e)) return EXIT.interrupted;
+  // Duck-typed so the CLI does not import core's errors module (packages.md: cli uses core `summary` and `time`).
+  if (e instanceof Error && e.name === "RunnerError") {
+    const code = (e as Error & { readonly code?: unknown }).code;
+    if (typeof code === "string" && code.startsWith("aws_")) return EXIT.aws;
+  }
+  return EXIT.problem;
+}
+
+const CODE_EXIT: Readonly<Record<CliErrorCode, ExitCode>> = {
+  usage: EXIT.usage,
+  "not-set-up": EXIT.notSetUp,
+  aws: EXIT.aws,
+  refused: EXIT.refused,
+  "try-later": EXIT.tryLater,
+  problem: EXIT.problem,
+};
+
+function isAbort(e: unknown): boolean {
+  return e instanceof Error && (e.name === "AbortError" || e.name === "Interrupted");
 }
 
 /** A command whose `run` is not written yet (contracts step): `run` throws "not implemented: <pkg> <name>". */
