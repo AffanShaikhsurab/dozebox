@@ -4,6 +4,15 @@
 import { awsFault, stackOf } from "./stub.ts";
 
 export { awsFault, awsFixture, OFFLINE_CONFIG, stubSdk, type SdkStub, type SentCall, type StubReply } from "./stub.ts";
+export {
+  offlineConfig,
+  sdkError,
+  stubHandlers,
+  type HandlerStub,
+  type SdkCall,
+  type SdkHandler,
+} from "./handlerStub.ts";
+export { ssmMemory, type SsmMemory, type SsmParameter } from "./ssmMemory.ts";
 
 export type WireConfig = {
   readonly endpoint: string;
@@ -97,4 +106,17 @@ export function faultInjector(client: object): (command: string, name: string, s
     list.push({ name, status });
     queued.set(command, list);
   };
+}
+
+/** How many sends reached the client so far. */
+export function countCalls(client: object): () => number {
+  let n = 0;
+  stackOf(client).add(
+    (next) => async (args) => {
+      n++;
+      return next(args);
+    },
+    { step: "initialize", name: "dozeboxWireCount" },
+  );
+  return () => n;
 }

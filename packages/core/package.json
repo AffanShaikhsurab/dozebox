@@ -20,6 +20,11 @@
       "types": "./dist/errors.d.ts",
       "default": "./dist/errors.js"
     },
+    "./notice": {
+      "@dozebox/source": "./src/notice.ts",
+      "types": "./dist/notice.d.ts",
+      "default": "./dist/notice.js"
+    },
     "./records": {
       "@dozebox/source": "./src/records/index.ts",
       "types": "./dist/records/index.d.ts",
