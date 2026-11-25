@@ -2,7 +2,7 @@
 import { volumePortContract } from "@dozebox/testkit/contracts";
 import { faultInjector, resolveWire } from "@dozebox/testkit/wire";
 import { makeAwsVolumes } from "../../src/adapters/aws/ebs.ts";
-import { clients, createSnapshot, createVolume, ZONE } from "./seed.ts";
+import { attachedVolume, clients, createSnapshot, createVolume, ZONE } from "./seed.ts";
 
 const target = await resolveWire();
 const COMMAND = { describe: "DescribeVolumesCommand", create: "CreateVolumeCommand" } as const;
@@ -17,7 +17,8 @@ volumePortContract(
       volumes: makeAwsVolumes({ ec2 }),
       zone: ZONE,
       seedVolume: (boxId, active) => createVolume(seed, boxId, active),
-      seedSnapshot: () => createSnapshot(seed),
+      seedSnapshot: (o) => createSnapshot(seed, o?.boxId),
+      seedAttached: (boxId, o) => attachedVolume(seed, boxId, o?.active ?? true),
       inject: (op, name, status) => inject(COMMAND[op], name, status),
     };
   },
