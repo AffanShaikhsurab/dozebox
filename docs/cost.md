@@ -16,7 +16,7 @@ A parked box has no instance. You pay for what stays:
 | Control function, schedule, DynamoDB, SSM, SNS email | Under the free tier or a few cents       | One scheduled tick a minute is about 43,000 invocations a month. |
 | Logs                                                 | Pennies at low volume                    | `log_retention_days` bounds it.                                  |
 
-Planned: with the front door on, CloudFront and a WAF web ACL add about $5 to $7 a month (the ACL, one rule, requests).
+With the front door on, CloudFront and a WAF web ACL add about $5 to $7 a month (the ACL, one rule, requests).
 
 ## What an awake box costs
 
