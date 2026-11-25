@@ -9,7 +9,7 @@ import type { TickDeps } from "../reconcile/types.ts";
 import { makeRestoreTest, type RestoreTestState } from "./run.ts";
 
 /** A gp3 volume from a small snapshot is `available` within minutes; the test closes after this long. */
-export const RESTORE_CLOSE_MS = 15 * 60_000;
+const RESTORE_CLOSE_MS = 15 * 60_000;
 
 const Ms = Type.Number({ minimum: 0 });
 const Result = Type.Object({ at: Ms, ok: Type.Boolean(), snapshotId: Type.String(), detail: Type.String() });
