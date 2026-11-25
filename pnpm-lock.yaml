@@ -235,9 +235,26 @@ importers:
         specifier: workspace:*
         version: link:../testkit
 
-  packages/cli: {}
+  packages/cli:
+    dependencies:
+      '@dozebox/client':
+        specifier: workspace:*
+        version: link:../client
+      '@dozebox/core':
+        specifier: workspace:*
+        version: link:../core
+      '@dozebox/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      typebox:
+        specifier: 1.4.7
+        version: 1.4.7
 
-  packages/client: {}
+  packages/client:
+    dependencies:
+      '@dozebox/protocol':
+        specifier: workspace:*
+        version: link:../protocol
 
   packages/control:
     dependencies:
@@ -302,9 +319,15 @@ importers:
       '@dozebox/agent':
         specifier: workspace:*
         version: link:../agent
+      '@dozebox/client':
+        specifier: workspace:*
+        version: link:../client
       '@dozebox/control':
         specifier: workspace:*
         version: link:../control
+      dozebox:
+        specifier: workspace:*
+        version: link:../cli
 
 packages:
 
