@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # dozebox CI on the CI box: the jobs of .github/workflows/ci.yml, independent jobs in parallel.
 #   ~/dzci.sh [ref]          ref defaults to main; any branch, tag or sha on origin
-# One persistent clone (fetch + checkout --detach, git clean keeps node_modules and .terraform), a persistent pnpm
-# store and Terraform plugin cache. On a ref other than main, gitleaks scans origin/main..HEAD; on main, all history.
+# One persistent clone (fetch + checkout --detach; git clean keeps node_modules and .terraform), pnpm's default store and
+# a persistent Terraform plugin cache. On a ref other than main, gitleaks scans origin/main..HEAD; on main, all history.
 # Logs: ~/dzci/logs/<sha>/<job>.txt. Last line: DZCI-OK <sha>, or DZCI-FAIL <job>[,<job>...] <sha>.
 set -uo pipefail
 export PATH="$HOME/.npm-global/bin:/usr/local/bin:$PATH"
@@ -13,7 +13,6 @@ mkdir -p "$base/tf-plugins"
 exec 9> "$base/.lock"
 flock -w 3600 9 || { echo "DZCI-FAIL lock"; exit 1; }
 export TF_PLUGIN_CACHE_DIR="$base/tf-plugins" TF_PLUGIN_CACHE_MAY_BREAK_DEPENDENCY_LOCK_FILE=true TF_IN_AUTOMATION=1
-export npm_config_store_dir="$base/pnpm-store"
 started=$SECONDS
 
 work="$base/repo"
@@ -36,8 +35,10 @@ echo "dzci: $ref at $sha ($(node -v), pnpm $(pnpm -v), $(terraform -v | head -1)
 if [ "$ref" = "main" ]; then leaks_range="--all"; else leaks_range="origin/main..HEAD"; fi
 
 # job <name> <command...>: runs in the background, writes $logs/<name>.txt and $logs/<name>.rc.
+started_jobs=()
 job() {
   local name="$1"; shift
+  started_jobs+=("$name")
   (
     start=$SECONDS
     "$@" > "$logs/$name.txt" 2>&1
@@ -62,8 +63,9 @@ node_jobs() {
   [ "$rc" = "0" ] || return
   job check pnpm check
   job schema pnpm --filter @dozebox/protocol gen:schema --check
-  job sim pnpm sim --seeds 2000
-  job sim-judge pnpm sim:judge
+  # CPU-bound on 8 cores: the simulator yields to legacy, terraform and check.
+  job sim nice -n 10 pnpm sim --seeds 2000
+  job sim-judge nice -n 10 pnpm sim:judge
   job docs pnpm docs:check
 }
 
@@ -74,9 +76,9 @@ node_jobs
 wait
 
 failed=()
-for rc in "$logs"/*.rc; do
-  name="$(basename "$rc" .rc)"
-  read -r code secs < "$rc"
+for name in install "${started_jobs[@]}"; do
+  code=1 secs=0
+  [ -f "$logs/$name.rc" ] && read -r code secs < "$logs/$name.rc"
   if [ "$code" = "0" ]; then
     echo "  ok    $name ($secs s)"
   else
