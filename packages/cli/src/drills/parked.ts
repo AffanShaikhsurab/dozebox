@@ -1,8 +1,9 @@
 // Helpers shared by the D2 and D3 drills (spot, fallback, kill, restore): they start from a parked warm stack, wake
 // it through the CLI, read what `dozebox status` says about the serving instance, and leave the stack parked.
-import { MINUTE, SECOND } from "@dozebox/core/time";
+import { MINUTE } from "@dozebox/core/time";
 import { DozeboxCliError } from "../command.ts";
 import { boxInstances, cliOk, obj, str, waitUntil, type BoxInstance } from "./box.ts";
+import { directTick, POLL_MS } from "./tick.ts";
 import type { DrillContext } from "./types.ts";
 
 /** Teardown has no step deadline; it gets one budget for everything it does. */
@@ -19,12 +20,13 @@ const awake = (i: BoxInstance): boolean => i.state === "pending" || i.state === 
 
 /** Polls until the box has no instance that is starting, running or stopping. */
 async function waitNoneRunning(ctx: DrillContext, signal: AbortSignal): Promise<void> {
-  await waitUntil(ctx, signal, 10 * SECOND, async () => ((await boxInstances(ctx, signal)).some(awake) ? null : true));
+  await waitUntil(ctx, signal, POLL_MS, async () => ((await boxInstances(ctx, signal)).some(awake) ? null : true));
 }
 
 /** `dozebox park --force`, then waits until no instance runs. A park of a parked box is a no-op. */
 export async function parkAndWait(ctx: DrillContext, signal: AbortSignal): Promise<void> {
   await cliOk(ctx, ["park", "--force", "--reason", "drill"], signal);
+  await directTick(ctx, signal);
   await waitNoneRunning(ctx, signal);
 }
 
@@ -47,7 +49,7 @@ export async function attemptAll(
 
 /** Polls `dozebox status` until the box serves; answers what it serves on. */
 export function waitServing(ctx: DrillContext, signal: AbortSignal): Promise<Serving> {
-  return waitUntil(ctx, signal, 10 * SECOND, async () => {
+  return waitUntil(ctx, signal, POLL_MS, async () => {
     const s = await cliOk(ctx, ["status"], signal);
     return typeof s["servingSince"] === "string" ? servingOf(s) : null;
   });

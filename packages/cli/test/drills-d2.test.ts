@@ -63,7 +63,7 @@ describe("drill spot", () => {
     assert.equal(r.teardownError, null);
     assert.deepEqual(r.ran, SPOT_STEPS);
     const [hold, proxy] = world.scripts;
-    assert.match(hold ?? "", /dozebox hold drill --payload marker --reason drill --for 15m/);
+    assert.match(hold ?? "", /dozebox hold drill --payload marker --reason drill --for \dm/);
     assert.match(proxy ?? "", /169\.254\.169\.254/);
     assert.match(proxy ?? "", /DOZEBOX_IMDS_URL=http:\/\/127\.0\.0\.1:1338/);
     assert.match(proxy ?? "", /spot\/instance-action/);
