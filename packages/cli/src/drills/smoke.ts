@@ -3,7 +3,7 @@
 // destroying it (the warm stack the other drills reuse).
 import { DozeboxCliError } from "../command.ts";
 import { arr, aws, cliOk, obj, runningInstance, shell, str } from "./box.ts";
-import { controlStatus, parkForce, waitParked, wakeToServing, type Status } from "./flow.ts";
+import { controlStatus, parkByUser, parkForce, waitParked, wakeToServing, type Status } from "./flow.ts";
 import { smokeExtras } from "./smoke-extras.ts";
 import { HOLD_MINUTES, IDLE_MINUTES, PARK_WITHIN_MINUTES } from "./timing.ts";
 import type { Drill, DrillContext, DrillStep } from "./types.ts";
@@ -123,7 +123,7 @@ const steps: ReadonlyArray<DrillStep> = [
     deadlineMs: 5 * MIN,
     run: async (ctx, signal) => {
       const i = await runningInstance(ctx, signal);
-      expectReason(await parkForce(ctx, signal, "user"), "user");
+      expectReason(await parkByUser(ctx, signal), "user");
       const req = await aws(
         ctx,
         ["ec2", "describe-spot-instance-requests", "--filters", `Name=instance-id,Values=${i.id}`],
