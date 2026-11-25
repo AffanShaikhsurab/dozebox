@@ -1,4 +1,4 @@
-﻿import { strict as assert } from "node:assert";
+import { strict as assert } from "node:assert";
 import type { ServerResponse } from "node:http";
 import { test } from "node:test";
 import { makeClient } from "../src/client.ts";

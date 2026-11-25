@@ -1,4 +1,4 @@
-﻿import { strict as assert } from "node:assert";
+import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import type { HoldInput } from "@dozebox/protocol/v1";
 import { makeClient } from "../src/client.ts";

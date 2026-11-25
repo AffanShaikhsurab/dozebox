@@ -1,4 +1,4 @@
-﻿import { strict as assert } from "node:assert";
+import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { createClient, DozeboxError } from "../src/index.ts";
 import { makeClient } from "../src/client.ts";

@@ -1,4 +1,4 @@
-﻿// P2: a Server-Sent Events line parser (WHATWG rules: CR, LF and CRLF line ends, `:` comments, multi-line data).
+// P2: a Server-Sent Events line parser (WHATWG rules: CR, LF and CRLF line ends, `:` comments, multi-line data).
 export type SseMessage = { readonly id: string | undefined; readonly event: string; readonly data: string };
 
 export function makeSseParser(onMessage: (m: SseMessage) => void): { readonly feed: (chunk: string) => void } {

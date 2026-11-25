@@ -1,4 +1,4 @@
-﻿// P2: the payload client library (part 4 §4.17). Zero runtime dependencies besides @dozebox/protocol.
+// P2: the payload client library (part 4 §4.17). Zero runtime dependencies besides @dozebox/protocol.
 import { makeClient } from "./client.ts";
 import type { DozeboxClient, DozeboxClientOptions } from "./types.ts";
 

@@ -1,4 +1,4 @@
-﻿// P2: the client, built from injectable deps (timers, delays) so tests are deterministic.
+// P2: the client, built from injectable deps (timers, delays) so tests are deterministic.
 import {
   normalizeStatus,
   ProtocolDecodeError,
