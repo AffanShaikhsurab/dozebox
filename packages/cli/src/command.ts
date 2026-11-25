@@ -4,6 +4,7 @@ import type { ParseArgsConfig } from "node:util";
 import type { DozeboxClient } from "@dozebox/client";
 import type { Clock } from "@dozebox/core/time";
 import type { AwsOps } from "./ports/aws.ts";
+import type { AwsCli } from "./ports/awscli.ts";
 import type { ControlApi } from "./ports/control.ts";
 import type { Exec } from "./ports/exec.ts";
 import type { Prompt } from "./ports/prompt.ts";
@@ -27,6 +28,8 @@ export type CliDeps = {
   readonly control: ControlApi;
   readonly terraform: Terraform;
   readonly aws: AwsOps;
+  /** The `aws` binary, for drills. */
+  readonly awsCli: AwsCli;
   /** The box's agent socket client in box mode, else null. */
   readonly agentSocket: DozeboxClient | null;
   readonly clock: Clock;

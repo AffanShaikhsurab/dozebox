@@ -26,6 +26,7 @@ export { budgetGate, DRILL_BUDGET_SHARE, DrillReport, estimateHourlyUsd, runDril
 export type { Drill, DrillContext, DrillStep } from "./drills/types.ts";
 export { dispatch, GLOBAL_OPTIONS, helpText } from "./main.ts";
 export type { AwsOps, CliVolumeView, DoctorFacts, EmailSubscription, SnapshotView } from "./ports/aws.ts";
+export type { AwsCli } from "./ports/awscli.ts";
 export type { AdminEvent, ControlApi, WakeAnswer } from "./ports/control.ts";
 export type { Exec, ExecResult } from "./ports/exec.ts";
 export type { Prompt } from "./ports/prompt.ts";
