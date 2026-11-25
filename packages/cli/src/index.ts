@@ -27,7 +27,15 @@ export type { Drill, DrillContext, DrillStep } from "./drills/types.ts";
 export { dispatch, GLOBAL_OPTIONS, helpText } from "./main.ts";
 export type { AwsOps, CliVolumeView, DoctorFacts, EmailSubscription, SnapshotView } from "./ports/aws.ts";
 export type { AdminEvent, ControlApi, WakeAnswer } from "./ports/control.ts";
+export type { Exec, ExecResult } from "./ports/exec.ts";
 export type { Prompt } from "./ports/prompt.ts";
 export type { CliFiles, Terraform, TerraformOutputs } from "./ports/terraform.ts";
 export type { ToolName, Tools } from "./ports/tools.ts";
-export { missingOutputs, readStack, REQUIRED_OUTPUTS, stackFromOutputs, type StackContext, type UnfreezeRunbook } from "./stack.ts";
+export {
+  missingOutputs,
+  readStack,
+  REQUIRED_OUTPUTS,
+  stackFromOutputs,
+  type StackContext,
+  type UnfreezeRunbook,
+} from "./stack.ts";

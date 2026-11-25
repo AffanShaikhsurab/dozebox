@@ -5,6 +5,7 @@ import type { DozeboxClient } from "@dozebox/client";
 import type { Clock } from "@dozebox/core/time";
 import type { AwsOps } from "./ports/aws.ts";
 import type { ControlApi } from "./ports/control.ts";
+import type { Exec } from "./ports/exec.ts";
 import type { Prompt } from "./ports/prompt.ts";
 import type { CliFiles, Terraform } from "./ports/terraform.ts";
 import type { Tools } from "./ports/tools.ts";
@@ -32,6 +33,7 @@ export type CliDeps = {
   readonly fs: CliFiles;
   readonly prompt: Prompt;
   readonly tools: Tools;
+  readonly exec: Exec;
   readonly ids: { readonly random: () => string };
 };
 
