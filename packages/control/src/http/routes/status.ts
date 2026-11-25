@@ -18,7 +18,7 @@ const AlertsTestInput = Type.Object(
 );
 
 /** One test alert a minute, so a held-down button cannot flood the operator's phone. */
-export const ALERTS_TEST_EVERY_S = 60;
+const ALERTS_TEST_EVERY_S = 60;
 
 /**
  * Send one message through the alert topic, so the operator can see the alert path works end to end. The alert

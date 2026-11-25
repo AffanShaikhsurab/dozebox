@@ -24,9 +24,7 @@
       }
     ],
     "idleSleepAt": null,
-    "awakeBecause": [
-      "web/build-7"
-    ]
+    "awakeBecause": ["web/build-7"]
   },
   "caps": {
     "awakeHoursToday": 0,
@@ -44,8 +42,6 @@
     "headline": "Working",
     "detail": "1 payload busy.",
     "next": "",
-    "actions": [
-      "park"
-    ]
+    "actions": ["park"]
   }
 }

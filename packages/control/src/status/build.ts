@@ -27,7 +27,7 @@ export type StatusDeps = {
   readonly desired: DesiredStore;
 };
 
-export type Freeze = { readonly frozen: boolean; readonly by: string | null };
+type Freeze = { readonly frozen: boolean; readonly by: string | null };
 
 export type StatusFacts = {
   readonly now: number;
@@ -42,7 +42,7 @@ export type StatusFacts = {
 };
 
 /** The freeze record the kill runbook writes (`{"v":1,"frozen":true,"by":"kill","reason":...}`); unfreeze deletes it. */
-export function readFreeze(raw: string | undefined): Freeze {
+function readFreeze(raw: string | undefined): Freeze {
   if (raw === undefined) return { frozen: false, by: null };
   let value: unknown;
   try {
@@ -124,7 +124,12 @@ function boxBlocks(facts: StatusFacts, view: Projection): Partial<ControlStatus>
     return {
       servingSince: serving !== null && thisRun(serving, m) ? serving.at : null,
       ...(timeline !== null && thisRun(timeline, m)
-        ? { bootTimeline: { upSeconds: timeline.upSeconds, steps: timeline.steps.map((s) => ({ step: s.step, ms: s.ms })) } }
+        ? {
+            bootTimeline: {
+              upSeconds: timeline.upSeconds,
+              steps: timeline.steps.map((s) => ({ step: s.step, ms: s.ms })),
+            },
+          }
         : {}),
       ...(live !== null && thisRun(live, m) ? { liveness: liveness(live) } : {}),
     };
@@ -136,7 +141,9 @@ function boxBlocks(facts: StatusFacts, view: Projection): Partial<ControlStatus>
     ...(view.state === "stopped-error" && error !== null
       ? { lastError: { message: error.message, at: error.at, source: error.source } }
       : {}),
-    ...(down && words !== null ? { lastWords: { parkedBecause: words.parkedBecause, detail: words.detail, at: words.at } } : {}),
+    ...(down && words !== null
+      ? { lastWords: { parkedBecause: words.parkedBecause, detail: words.detail, at: words.at } }
+      : {}),
   };
 }
 
@@ -164,7 +171,9 @@ export function composeStatus(cfg: ControlConfig, facts: StatusFacts, desired: D
     since: toInstant(view.since),
     frozen: facts.freeze.frozen,
     ...(m !== undefined && m.type !== undefined && m.zone !== undefined
-      ? { instance: { id: m.id, type: m.type, az: m.zone, launchedAt: toInstant(m.launchedAt), lifecycle: m.lifecycle } }
+      ? {
+          instance: { id: m.id, type: m.type, az: m.zone, launchedAt: toInstant(m.launchedAt), lifecycle: m.lifecycle },
+        }
       : {}),
     ...(view.machine === undefined ? {} : { machine: view.machine }),
     ...blocks,
@@ -185,7 +194,10 @@ export function composeStatus(cfg: ControlConfig, facts: StatusFacts, desired: D
 function brandName(facts: StatusFacts): string {
   try {
     const cfg: unknown = JSON.parse(facts.records.get("config")?.value ?? "null");
-    const brand = typeof cfg === "object" && cfg !== null ? (cfg as { readonly brand?: { readonly name?: unknown } }).brand : undefined;
+    const brand =
+      typeof cfg === "object" && cfg !== null
+        ? (cfg as { readonly brand?: { readonly name?: unknown } }).brand
+        : undefined;
     return typeof brand?.name === "string" && brand.name !== "" ? brand.name : "dozebox";
   } catch {
     return "dozebox";

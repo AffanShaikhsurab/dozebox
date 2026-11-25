@@ -22,8 +22,6 @@
     "headline": "Moving dozebox to a new machine",
     "detail": "",
     "next": "",
-    "actions": [
-      "park"
-    ]
+    "actions": ["park"]
   }
 }

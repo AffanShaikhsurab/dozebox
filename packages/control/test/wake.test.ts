@@ -96,7 +96,11 @@ describe("wake", () => {
   test("an unattended wake is refused while the breaker is open; a person's wake passes", async () => {
     const w = makeWorld();
     const now = w.aws.clock.now();
-    await w.deps.state.putFenced(KEYS.wakeBreaker, { failuresInRow: 3, openedAt: now, threshold: 3, coolMs: 6 * HOUR }, 1);
+    await w.deps.state.putFenced(
+      KEYS.wakeBreaker,
+      { failuresInRow: 3, openedAt: now, threshold: 3, coolMs: 6 * HOUR },
+      1,
+    );
     w.aws.clock.advance(HOUR);
     const auto = await w.call("POST", "/v1/wake", { query: "origin=auto" });
     assert.equal(auto.statusCode, 429);

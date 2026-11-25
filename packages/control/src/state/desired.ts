@@ -8,7 +8,7 @@ import type { StateTable } from "../ports/state.ts";
 import { DesiredSchema, desiredOrder, KEYS, putNewest, readKey, WakeLedger } from "./keys.ts";
 
 /** Before the first wake or park: asleep since the epoch, so any wake is newer. */
-export const INITIAL_DESIRED: Desired = { want: "asleep", since: 0, reason: "initial", origin: "operator" };
+const INITIAL_DESIRED: Desired = { want: "asleep", since: 0, reason: "initial", origin: "operator" };
 
 export type DesiredStore = {
   readonly read: () => Promise<Desired>;
@@ -36,7 +36,8 @@ const recent = (list: ReadonlyArray<number>, now: number): number[] =>
  * can lose one entry, which only lets one extra wake through the budget (the budget is a rate limit, not a cap).
  */
 export function makeWakeLedger(state: StateTable): WakeLedgerStore {
-  const read = async (now: number) => recent((await readKey(state, KEYS.wakeLedger, WakeLedger))?.acceptedAt ?? [], now);
+  const read = async (now: number) =>
+    recent((await readKey(state, KEYS.wakeLedger, WakeLedger))?.acceptedAt ?? [], now);
   return {
     read,
     append: async (at) => {

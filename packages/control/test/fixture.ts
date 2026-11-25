@@ -28,13 +28,7 @@ export type ComputeCall = { readonly op: keyof Compute; readonly args: ReadonlyA
 
 /** Wrap every Compute method so the test sees each call, reads and actions alike. */
 export function spyCompute(inner: Compute, calls: ComputeCall[]): Compute {
-  const wrap =
-    // Each wrapped method keeps its own signature; the cast only lets one helper serve all of them.
-    <K extends keyof Compute>(op: K) =>
-    (...args: Parameters<Compute[K]>) => {
-      calls.push({ op, args });
-      return (inner[op] as (...a: Parameters<Compute[K]>) => ReturnType<Compute[K]>)(...args);
-    };
+  const seen = (op: keyof Compute, ...args: ReadonlyArray<unknown>): void => void calls.push({ op, args });
   return {
     describePersistent: async (boxId) => {
       calls.push({ op: "describePersistent", args: [boxId] });
@@ -42,10 +36,22 @@ export function spyCompute(inner: Compute, calls: ComputeCall[]): Compute {
       // The real adapter adds the instance type and zone from DescribeInstances; FakeAws does not.
       return m === null ? null : { ...m, type: "t4g.medium", zone: "us-east-1a" };
     },
-    startPersistent: wrap("startPersistent"),
-    stopPersistent: wrap("stopPersistent"),
-    describeGroup: wrap("describeGroup"),
-    setGroupDesired: wrap("setGroupDesired"),
+    startPersistent: (id, token) => {
+      seen("startPersistent", id, token);
+      return inner.startPersistent(id, token);
+    },
+    stopPersistent: (id, token) => {
+      seen("stopPersistent", id, token);
+      return inner.stopPersistent(id, token);
+    },
+    describeGroup: (name) => {
+      seen("describeGroup", name);
+      return inner.describeGroup(name);
+    },
+    setGroupDesired: (name, desired, token) => {
+      seen("setGroupDesired", name, desired, token);
+      return inner.setGroupDesired(name, desired, token);
+    },
   };
 }
 
@@ -133,4 +139,13 @@ export function makeWorld(
 }
 
 /** Narrow an answer body to a plain object for field checks. */
-export const body = (a: Answer): Readonly<Record<string, unknown>> => a.json as Readonly<Record<string, unknown>>;
+export type Body = Readonly<Record<string, unknown>> & {
+  readonly decision?: unknown;
+  readonly desired?: unknown;
+  readonly state?: unknown;
+  readonly error?: unknown;
+  readonly frozen?: unknown;
+  readonly summary?: unknown;
+  readonly severity?: unknown;
+};
+export const body = (a: Answer): Body => a.json as Body;

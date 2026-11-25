@@ -51,10 +51,15 @@ describe("public assets", () => {
 
 describe("routing", () => {
   test("unversioned paths are aliases of /v1/", async () => {
-    assert.deepEqual(
-      ["/status", "/wake", "/park", "/alerts/test", "/v1/status", "/", "/other"].map(canonicalPath),
-      ["/v1/status", "/v1/wake", "/v1/park", "/v1/alerts/test", "/v1/status", "/", "/other"],
-    );
+    assert.deepEqual(["/status", "/wake", "/park", "/alerts/test", "/v1/status", "/", "/other"].map(canonicalPath), [
+      "/v1/status",
+      "/v1/wake",
+      "/v1/park",
+      "/v1/alerts/test",
+      "/v1/status",
+      "/",
+      "/other",
+    ]);
     const w = makeWorld();
     assert.equal((await w.call("GET", "/status")).statusCode, 200);
     assert.equal((await w.call("GET", "/status/")).statusCode, 200);

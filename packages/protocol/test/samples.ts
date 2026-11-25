@@ -282,7 +282,9 @@ export const SAMPLES: Readonly<Record<string, Sample>> = {
     why: "an unknown decision and no caps",
   },
   ControlErrorBody: {
-    valid: { error: { code: "wake_budget", message: "6 wakes in the last hour", retryable: true, retryAfterSeconds: 3600 } },
+    valid: {
+      error: { code: "wake_budget", message: "6 wakes in the last hour", retryable: true, retryAfterSeconds: 3600 },
+    },
     invalid: { error: { code: "frozen", retryable: false } },
     why: "no message",
   },

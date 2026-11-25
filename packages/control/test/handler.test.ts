@@ -57,13 +57,19 @@ describe("event shapes", () => {
     const w = makeWorld();
     const id = w.aws.ec2.addMachine({ boxId: "main", role: "persistent", state: "running", lifecycle: "spot" });
     await handlerOf(w)(spotWarning(id));
-    assert.deepEqual(await w.deps.state.get(KEYS.interruption), { instanceId: id, at: Date.parse("2026-11-25T00:00:30Z") });
+    assert.deepEqual(await w.deps.state.get(KEYS.interruption), {
+      instanceId: id,
+      at: Date.parse("2026-11-25T00:00:30Z"),
+    });
     assert.deepEqual(
       w.computeCalls.filter((c) => !c.op.startsWith("describe")),
       [],
     );
     await handlerOf(w)(spotWarning(id, "2026-11-25T00:00:10Z"));
-    assert.deepEqual(await w.deps.state.get(KEYS.interruption), { instanceId: id, at: Date.parse("2026-11-25T00:00:30Z") });
+    assert.deepEqual(await w.deps.state.get(KEYS.interruption), {
+      instanceId: id,
+      at: Date.parse("2026-11-25T00:00:30Z"),
+    });
   });
 
   test("a Spot warning for another box's instance, a group machine, and state changes", async () => {
@@ -138,7 +144,8 @@ describe("DOZEBOX_CONTROL", () => {
     assert.throws(() => parseControlConfig("{"), /not JSON/);
     assert.throws(
       () => parseControlConfig(JSON.stringify({ ...terraformShape, ssmPrefix: "no-slash-secret" })),
-      (e: unknown) => e instanceof ConfigError && e.message.includes("/ssmPrefix") && !e.message.includes("no-slash-secret"),
+      (e: unknown) =>
+        e instanceof ConfigError && e.message.includes("/ssmPrefix") && !e.message.includes("no-slash-secret"),
     );
   });
 });

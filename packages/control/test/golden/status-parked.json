@@ -22,8 +22,6 @@
     "headline": "dozebox is asleep",
     "detail": "",
     "next": "",
-    "actions": [
-      "wake"
-    ]
+    "actions": ["wake"]
   }
 }

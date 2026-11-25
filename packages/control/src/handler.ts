@@ -28,7 +28,9 @@ export function makeHandler(build: () => Deps): Handler {
         deps = build();
       } catch (e) {
         const msg = e instanceof Error ? `${e.name}: ${e.message}` : "unknown";
-        process.stdout.write(`${JSON.stringify({ level: "error", msg: "control function misconfigured", component: "control", error: msg })}\n`);
+        process.stdout.write(
+          `${JSON.stringify({ level: "error", msg: "control function misconfigured", component: "control", error: msg })}\n`,
+        );
         if (isHttpEvent(event)) return errorResponse("internal", "The control function is misconfigured.");
         throw e;
       }

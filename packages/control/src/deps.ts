@@ -16,7 +16,7 @@ export type WakeIdempotency = {
   readonly remember: (key: string, answer: FunctionUrlResult) => Promise<void>;
 };
 
-export const NO_IDEMPOTENCY: WakeIdempotency = { recall: async () => null, remember: async () => {} };
+const NO_IDEMPOTENCY: WakeIdempotency = { recall: async () => null, remember: async () => {} };
 
 export type Deps = AwsPorts & {
   readonly config: ControlConfig;
@@ -70,8 +70,10 @@ export function assembleDeps(o: AssembleOptions): Deps {
   };
 }
 
+const wallClock = (): number => Date.now();
+
 export function makeDeps(env: Readonly<Record<string, string | undefined>>): Deps {
   const config = parseControlConfig(env["DOZEBOX_CONTROL"]);
-  const now = () => Date.now();
+  const now = wallClock;
   return assembleDeps({ config, ports: makeAwsPorts(config, now), now });
 }
