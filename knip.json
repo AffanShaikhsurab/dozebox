@@ -7,8 +7,7 @@
     },
     "packages/*": {
       "entry": ["src/**/index.ts", "src/*/v1.ts", "src/v1/index.ts", "scripts/*.ts", "test/**/*.test.ts"],
-      "project": ["src/**/*.ts", "scripts/**/*.ts", "test/**/*.ts"],
-      "ignoreDependencies": ["@aws-sdk/client-(budgets|cloudwatch-logs|dynamodb|sns|ssm)"]
+      "project": ["src/**/*.ts", "scripts/**/*.ts", "test/**/*.ts"]
     }
   },
   "ignore": ["legacy/**"],

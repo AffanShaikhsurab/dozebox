@@ -29,6 +29,41 @@
       "@dozebox/source": "./src/records/index.ts",
       "types": "./dist/records/index.d.ts",
       "default": "./dist/records/index.js"
+    },
+    "./idle": {
+      "@dozebox/source": "./src/idle/index.ts",
+      "types": "./dist/idle/index.d.ts",
+      "default": "./dist/idle/index.js"
+    },
+    "./health": {
+      "@dozebox/source": "./src/health/index.ts",
+      "types": "./dist/health/index.d.ts",
+      "default": "./dist/health/index.js"
+    },
+    "./wake": {
+      "@dozebox/source": "./src/wake/index.ts",
+      "types": "./dist/wake/index.d.ts",
+      "default": "./dist/wake/index.js"
+    },
+    "./reconcile": {
+      "@dozebox/source": "./src/reconcile/index.ts",
+      "types": "./dist/reconcile/index.d.ts",
+      "default": "./dist/reconcile/index.js"
+    },
+    "./caps": {
+      "@dozebox/source": "./src/caps/index.ts",
+      "types": "./dist/caps/index.d.ts",
+      "default": "./dist/caps/index.js"
+    },
+    "./alerts": {
+      "@dozebox/source": "./src/alerts/index.ts",
+      "types": "./dist/alerts/index.d.ts",
+      "default": "./dist/alerts/index.js"
+    },
+    "./summary": {
+      "@dozebox/source": "./src/summary/index.ts",
+      "types": "./dist/summary/index.d.ts",
+      "default": "./dist/summary/index.js"
     }
   },
   "scripts": {
