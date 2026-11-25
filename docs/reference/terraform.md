@@ -224,7 +224,7 @@ Terraform rejects a value that breaks one of these at plan time.
 | --- | --- |
 | `box_id` | The box id. |
 | `region` | The region the stack is in. |
-| `control_url` | Base URL of the control API: the Function URL (AWS_IAM with front_door_enabled, else public). CloudFront is not built yet. |
+| `control_url` | Base URL of the control API, no trailing slash: the CloudFront front door with front_door_enabled, else the public Function URL. |
 | `control_function_name` | For aws lambda invoke admin calls. |
 | `ssm_prefix` | /&lt;prefix&gt;/&lt;box_id&gt;/. |
 | `wake_token_parameter` | Name of the SecureString holding the wake token (not the value). |

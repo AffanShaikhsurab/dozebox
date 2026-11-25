@@ -21,7 +21,7 @@ What Dozebox protects, what an attacker could try, and what you must do yourself
 | The control URL called by anyone          | The Function URL requires SigV4 while `front_door_enabled` is `true`                                                            | Built                                                |
 | Internet traffic flooding the control URL | A WAF rate rule behind CloudFront (`waf_rate_limit_per_5min`)                                                                   | Built (`front_door_enabled`)                         |
 | A forged webhook                          | HMAC signature, constant-time compare, replay window for generic hooks                                                          | Built in the function; not enabled by the module yet |
-| A prompt-injected agent reads credentials | A jail with no instance metadata and a decoy credential that pages when used (`jail`, `tripwire_enabled`)                       | Planned (the agent)                                  |
+| A prompt-injected agent reads credentials | A jail with no instance metadata and a decoy credential that pages when used (`jail`, `tripwire_enabled`)                       | Built in the agent; release planned                  |
 | Deleted data                              | Daily snapshots, a Recycle Bin rule, `destroy` snapshots every tagged volume first, `prevent_destroy`                           | Built                                                |
 | A compromised dependency                  | A pinned lockfile, few dependencies, checksum-verified agent artifact                                                           | Built, release checks planned                        |
 
