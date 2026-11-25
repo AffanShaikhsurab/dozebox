@@ -13,12 +13,12 @@ apply at the next payload restart.
 
 ## Required
 
-| Input         | Example                                                 | Notes                                                                                |
-| ------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `instance`    | `{ types = ["t4g.medium", "t4g.large"] }`               | 1 to 10 types, the first preferred. `arch` is `arm64` unless you set it.             |
-| `data_volume` | `{ size_gb = 100 }`                                     | 20 to 4096 GiB, encrypted. Holds all payload state.                                  |
-| `caps`        | `{ monthly_budget_usd = 60 }`                           | See [Spending limits](#spending-limits).                                             |
-| `payloads`    | `{ app = jsondecode(file("${path.module}/app.json")) }` | 1 to 4 [payload definitions](./payloads.md).                                         |
+| Input         | Example                                                 | Notes                                                                                           |
+| ------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `instance`    | `{ types = ["t4g.medium", "t4g.large"] }`               | 1 to 10 types, the first preferred. `arch` is `arm64` unless you set it.                        |
+| `data_volume` | `{ size_gb = 100 }`                                     | 20 to 4096 GiB, encrypted. Holds all payload state.                                             |
+| `caps`        | `{ monthly_budget_usd = 60 }`                           | See [Spending limits](#spending-limits).                                                        |
+| `payloads`    | `{ app = jsondecode(file("${path.module}/app.json")) }` | 1 to 4 [payload definitions](./payloads.md).                                                    |
 | `agent`       | `{ version = "none" }`                                  | `none` boots, logs and powers off, for test stacks. The agent is built; its release is planned. |
 
 ## Names
