@@ -7,17 +7,19 @@ import type { LogTransport } from "../../ports/logs.ts";
 import type { BoxNotifier } from "../../ports/notify.ts";
 import type { ParameterReader } from "../../ports/params.ts";
 import type { RecordWriter } from "../../ports/records.ts";
+import type { SecretReader } from "../../ports/secrets.ts";
 import type { SelfStop } from "../../ports/selfstop.ts";
 import type { VolumeAttach } from "../../ports/volumes.ts";
 import { makeAwsVolumeAttach } from "./ebs.ts";
 import { asgClient, ec2Client, makeAwsSelfStop } from "./ec2.ts";
 import { makeAwsLogTransport } from "./logs.ts";
 import { makeAwsBoxNotifier } from "./sns.ts";
-import { makeAwsParameterReader, makeAwsRecordWriter, ssmClient } from "./ssm.ts";
+import { makeAwsParameterReader, makeAwsRecordWriter, makeAwsSecretReader, ssmClient } from "./ssm.ts";
 
 export type AwsPorts = {
   readonly params: ParameterReader;
   readonly recordWriter: RecordWriter;
+  readonly secrets: SecretReader;
   readonly selfStop: SelfStop;
   readonly volumes: VolumeAttach;
   readonly logs: LogTransport;
@@ -40,6 +42,7 @@ export function makeAwsPorts(opts: AwsPortsOptions): AwsPorts {
   return {
     params: makeAwsParameterReader({ ssm, root: opts.root }),
     recordWriter: makeAwsRecordWriter({ ssm, root: opts.root }),
+    secrets: makeAwsSecretReader({ ssm, prefix: opts.prefix }),
     selfStop: makeAwsSelfStop({ ec2, asg: asgClient(cfg) }),
     volumes: makeAwsVolumeAttach({ ec2, prefix: opts.prefix }),
     logs: makeAwsLogTransport({ logs: new CloudWatchLogsClient(cfg) }),

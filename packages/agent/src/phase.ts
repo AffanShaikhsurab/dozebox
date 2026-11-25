@@ -12,6 +12,37 @@ export type AgentPhase =
   | { readonly phase: "frozen"; readonly since: number };
 
 /** False once a park or a reclaim is under way: a second park never starts. */
-export function canPark(_p: AgentPhase): boolean {
-  throw new Error("not implemented: A5 canPark");
+export function canPark(p: AgentPhase): boolean {
+  switch (p.phase) {
+    case "booting":
+    case "serving":
+    case "idle-pending":
+    case "frozen":
+      return true;
+    case "reclaim-notice":
+    case "sleeping":
+      return false;
+    default: {
+      const never: never = p;
+      return never;
+    }
+  }
+}
+
+/** The current phase, shared by the loops. `onChange` mirrors it to `/run/dozebox/phase` for the failsafe. */
+export interface PhaseCell {
+  readonly get: () => AgentPhase;
+  readonly set: (next: AgentPhase) => void;
+}
+
+export function makePhaseCell(first: AgentPhase, onChange: (p: AgentPhase) => void = () => {}): PhaseCell {
+  let current = first;
+  return {
+    get: () => current,
+    set: (next) => {
+      const changed = next.phase !== current.phase;
+      current = next;
+      if (changed) onChange(next);
+    },
+  };
 }
