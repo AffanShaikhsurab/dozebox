@@ -17,9 +17,10 @@ git clone https://github.com/AffanShaikhsurab/dozebox.git && cd dozebox
 pnpm install
 pnpm --filter @dozebox/control build   # writes packages/control/dist/control.zip, the control function
 alias dozebox='node --conditions=@dozebox/source packages/cli/src/bin.ts'
+export TF_VAR_control_bundle="$PWD/packages/control/dist/control.zip"
 ```
 
-The alias is for the current shell. Every `dozebox` command below uses it. `dozebox help` lists the commands and
+The alias and the variable are for the current shell, so run every command from this checkout. `dozebox help` lists the commands and
 `dozebox help <command>` shows one command's flags. The full list is in the [CLI reference](./reference/cli.md).
 
 ## 2. Bootstrap the account
@@ -44,6 +45,10 @@ mkdir .dozebox
 cp examples/payloads/marker.json .dozebox/marker.json
 ```
 
+The module comes from a tagged Git source, so `terraform init` downloads it. To test local module changes, point
+`source` at `../terraform` instead. The `control_bundle` variable takes the zip built in step 1 from
+`TF_VAR_control_bundle`.
+
 Create `.dozebox/main.tf`:
 
 ```hcl
@@ -54,12 +59,17 @@ terraform {
   }
 }
 
+variable "control_bundle" {
+  type    = string
+  default = null
+}
+
 provider "aws" {
   region = "us-east-1"
 }
 
 module "dozebox" {
-  source = "../terraform" # the module in your checkout; a tagged Git source is planned
+  source = "git::https://github.com/AffanShaikhsurab/dozebox.git//terraform?ref=v0.9.0"
 
   instance            = { types = ["t4g.medium", "t4g.large"] }
   data_volume         = { size_gb = 50 }
@@ -67,7 +77,7 @@ module "dozebox" {
   alerts              = { email = "you@example.com" }
   payloads            = { marker = jsondecode(file("${path.module}/marker.json")) }
   agent               = { version = "none" }
-  control_bundle_path = "${path.module}/../packages/control/dist/control.zip"
+  control_bundle_path = var.control_bundle
 }
 
 output "box_id" { value = module.dozebox.box_id }
