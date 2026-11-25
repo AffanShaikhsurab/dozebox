@@ -42,7 +42,7 @@ git -C "$work/repo.git" for-each-ref --format='%(refname)' refs/heads | grep -vx
   printf '%s==>DZKEPTOWNER/%s\n@%s==>@DZKEPTOWNER\n' "$slug" "${slug#*/}" "${slug%/*}"
   cat "$history/scrub-expressions.txt"
   grep -vE '^#|^$' "$private"
-  "$history/fake-id-rule.sh" "$history/fake-ids.txt"
+  bash "$history/fake-id-rule.sh" "$history/fake-ids.txt"
   printf 'regex:DZKEPTOWNER==>%s\n' "${slug%/*}"
 } > "$work/expressions.txt"
 
@@ -67,7 +67,7 @@ diff -rq --exclude=.git "$work/original" "$work/checkout" | grep -v "^Only in $w
 diff -ru --exclude=.git --exclude=legacy "$work/original" "$work/checkout" > "$work/head.diff" || true
 echo "scrub: identities after the rewrite:"
 git -C "$work/checkout" log --all --format='  %an <%ae>' | sort -u
-"$here/scrub-check.sh" --private "$private" --slug "$slug" --report "$work/report.txt" "$work/checkout"
+bash "$here/scrub-check.sh" --private "$private" --slug "$slug" --report "$work/report.txt" "$work/checkout"
 
 if [ -n "$push" ]; then
   git -C "$work/repo.git" push --force "$push" main
