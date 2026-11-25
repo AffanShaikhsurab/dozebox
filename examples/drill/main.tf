@@ -108,7 +108,7 @@ module "dozebox" {
 
   caps = {
     awake_hours_per_day     = 2
-    on_demand_hours_per_day = 1
+    on_demand_hours_per_day = 12 # drills run On-Demand (maintainer, 2026-11-25); the cap must not park them
     monthly_budget_usd      = 25
     max_spot_price_per_hour = 0.03
   }
