@@ -34,6 +34,16 @@
       "@dozebox/source": "./src/health/index.ts",
       "types": "./dist/health/index.d.ts",
       "default": "./dist/health/index.js"
+    },
+    "./wake": {
+      "@dozebox/source": "./src/wake/index.ts",
+      "types": "./dist/wake/index.d.ts",
+      "default": "./dist/wake/index.js"
+    },
+    "./reconcile": {
+      "@dozebox/source": "./src/reconcile/index.ts",
+      "types": "./dist/reconcile/index.d.ts",
+      "default": "./dist/reconcile/index.js"
     }
   },
   "scripts": {

@@ -78,7 +78,7 @@ export function pickPersistent(
   const holder = volume?.attachedTo ? all.find((p) => p.id === volume.attachedTo) : undefined;
   if (holder) return holder;
   return (
-    [...all].sort(
+    all.toSorted(
       (a, b) =>
         (STATE_RANK[a.state] ?? 9) - (STATE_RANK[b.state] ?? 9) ||
         (timeMs(b.launchedAt) ?? 0) - (timeMs(a.launchedAt) ?? 0),
