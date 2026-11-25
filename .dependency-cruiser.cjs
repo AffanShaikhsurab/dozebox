@@ -12,7 +12,7 @@ module.exports = {
     {
       name: "aws-sdk-only-in-adapters",
       severity: "error",
-      from: { path: "^packages/", pathNot: "^packages/[^/]+/src/adapters/aws/" },
+      from: { path: "^packages/", pathNot: "^packages/[^/]+/(src/adapters/aws|test/wire)/" },
       to: { path: "@aws-sdk/" },
     },
     {

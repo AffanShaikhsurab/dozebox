@@ -1,0 +1,17 @@
+{
+  "SpotInstanceRequests": [
+    {
+      "SpotInstanceRequestId": "sir-efgh5678",
+      "InstanceId": "i-0a1b2c3d4e5f60002",
+      "Type": "persistent",
+      "InstanceInterruptionBehavior": "stop",
+      "State": "active",
+      "Status": {
+        "Code": "marked-for-stop",
+        "Message": "Spot Instance is marked for stop.",
+        "UpdateTime": "2026-11-24T22:15:41.000Z"
+      },
+      "CreateTime": "2026-11-20T08:00:00.000Z"
+    }
+  ]
+}

@@ -14,6 +14,7 @@
     "lint": "oxlint --deny-warnings && depcruise packages scripts && node scripts/check-words.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --conditions=@dozebox/source --test \"scripts/test/**/*.test.ts\" && pnpm -r --if-present test",
+    "test:wire": "pnpm --filter @dozebox/control --filter @dozebox/agent test:wire",
     "sim": "pnpm --filter @dozebox/sim --if-present sim",
     "knip": "knip --no-progress",
     "check:words": "node scripts/check-words.ts",

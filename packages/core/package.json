@@ -14,6 +14,22 @@
       "@dozebox/source": "./src/time/index.ts",
       "types": "./dist/time/index.d.ts",
       "default": "./dist/time/index.js"
+    },
+    "./errors": {
+      "@dozebox/source": "./src/errors.ts",
+      "types": "./dist/errors.d.ts",
+      "default": "./dist/errors.js"
+    },
+    "./records": {
+      "@dozebox/source": "./src/records/index.ts",
+      "types": "./dist/records/index.d.ts",
+      "default": "./dist/records/index.js"
     }
+  },
+  "scripts": {
+    "test": "node --conditions=@dozebox/source --test --experimental-test-coverage --test-coverage-include=src/errors.ts --test-coverage-include=src/records/*.ts --test-coverage-branches=100 --test-coverage-lines=100 \"test/*.test.ts\""
+  },
+  "dependencies": {
+    "@dozebox/protocol": "workspace:*"
   }
 }

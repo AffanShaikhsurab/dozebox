@@ -1,0 +1,14 @@
+# The local AWS emulator for wire tests (`pnpm test:wire`) and the examples/emulator Terraform apply.
+#   docker compose -f test/emulator/compose.yml up -d     # then: pnpm test:wire
+#   docker compose -f test/emulator/compose.yml down
+# Floci 2.3.0, pinned by digest. It binds loopback only, holds state in memory, and checks no credentials.
+# What it does not model (Spot requests, snapshots, CreateVolume client tokens, tag overwrite, IAM conditions,
+# Budgets "no data yet") is listed in test/emulator/README.md; those cases are covered by FakeAws.
+name: dozebox-emulator
+services:
+  floci:
+    image: floci/floci:2.3.0@sha256:e0b292df4dc9559b7b1bf4f51bdda4bb8e269276236438cd03cae661260ea8a9
+    ports:
+      - "127.0.0.1:4566:4566"
+    environment:
+      FLOCI_SERVICES_EC2_MOCK: "true"
