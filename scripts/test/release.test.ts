@@ -129,8 +129,8 @@ test("the launchers put the bundled shared libraries first on the library path",
   writeFileSync(join(dir, "node", "bin", "node"), '#!/bin/sh\necho "$LD_LIBRARY_PATH"\n', { mode: 0o755 });
   const run = (ld: string | undefined): string => {
     const env = { ...process.env };
-    if (ld === undefined) delete env.LD_LIBRARY_PATH;
-    else env.LD_LIBRARY_PATH = ld;
+    if (ld === undefined) delete env["LD_LIBRARY_PATH"];
+    else env["LD_LIBRARY_PATH"] = ld;
     return spawnSync(join(dir, "bin", "dozeboxd"), [], { encoding: "utf8", env }).stdout.trim();
   };
   assert.equal(run(undefined), `${join(dir, "bin")}/../lib/so`);
