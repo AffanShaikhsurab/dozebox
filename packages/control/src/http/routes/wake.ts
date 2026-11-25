@@ -92,12 +92,21 @@ export async function wakeRoute(deps: HttpDeps, req: Request): Promise<FunctionU
   return result;
 }
 
+/** Write a park (always accepted, R2) and answer as `POST /v1/park` does; `reason` defaults to the origin. */
+export async function parkBox(
+  deps: HttpDeps,
+  origin: Desired["origin"],
+  reason: string = origin,
+): Promise<ControlAnswer> {
+  const now = deps.clock.now();
+  const facts = await gatherFacts(deps, now);
+  const w = await write(deps, decidePark(now, origin, reason));
+  deps.log.log("info", "park accepted", { origin, written: w.written });
+  return { ...composeStatus(deps.config, facts, w.desired), decision: "accept" };
+}
+
 export async function parkRoute(deps: HttpDeps, req: Request): Promise<FunctionUrlResult> {
   const origin = originOf(req);
   if (origin === null) return errorResponse("bad_request", "origin must be user or auto");
-  const now = deps.clock.now();
-  const facts = await gatherFacts(deps, now);
-  const w = await write(deps, decidePark(now, origin.park, origin.park));
-  deps.log.log("info", "park accepted", { origin: origin.park, written: w.written });
-  return answer(deps, facts, w.desired, "accept");
+  return json(202, await parkBox(deps, origin.park));
 }

@@ -4,7 +4,7 @@ import { describe, test } from "node:test";
 import { ConfigError, parseControlConfig } from "../src/config.ts";
 import { isEc2Event } from "../src/events/ec2.ts";
 import { isScheduleEvent, makeHandler } from "../src/handler.ts";
-import { isHttpEvent } from "../src/http/event.ts";
+import { isHttpEvent, type FunctionUrlResult } from "../src/http/event.ts";
 import { KEYS } from "../src/state/keys.ts";
 import { CONFIG, httpEvent, makeWorld, type World } from "./fixture.ts";
 
@@ -40,7 +40,7 @@ describe("event shapes", () => {
   test("HTTP goes to the router", async () => {
     const w = makeWorld();
     const res = await handlerOf(w)(httpEvent("GET", "/v1/status"), { awsRequestId: "req-42" });
-    assert.equal(res?.statusCode, 200);
+    assert.equal((res as FunctionUrlResult).statusCode, 200);
     assert.ok(w.lines.some((l) => l.includes('"requestId":"req-42"')));
   });
 
@@ -113,7 +113,7 @@ describe("deps", () => {
   test("a bad DOZEBOX_CONTROL answers HTTP with 500 and throws for other events", async () => {
     const h = makeHandler(() => parseControlConfig(undefined) as never);
     const res = await h(httpEvent("GET", "/v1/status"));
-    assert.equal(res?.statusCode, 500);
+    assert.equal((res as FunctionUrlResult).statusCode, 500);
     await assert.rejects(h({ dozebox: "reconcile", v: 1 }), ConfigError);
   });
 });

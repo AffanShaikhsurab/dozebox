@@ -1,35 +1,74 @@
 #!/usr/bin/env bash
-# Phase 2 real-AWS exit (part 16, owned by WP-C3): apply examples/drill without an agent and without the front door,
-# deploy the real control bundle, then drive the instance through the control API: wake (twice with one
-# Idempotency-Key), the tick starts it, park, the tick stops it and it stays stopped for three ticks, a wrong token is
-# 401, and the reconcile lease has been granted more than once. Tears everything down on exit. Run from the repo root
-# with credentials for the test account and `pnpm install` done.
+# Phase 2 real-AWS exit (part 16, owned by WP-C3): apply examples/drill with the built control bundle
+# (control_bundle_path), no agent and no front door, then drive the instance through the control API: wake (twice with
+# one Idempotency-Key), the tick starts it, park, the tick stops it and it stays stopped for three ticks, a wrong token
+# is 401, and the reconcile lease has been granted more than once. Tears everything down on exit and checks that
+# nothing tagged with this run's dozebox:test value remains. Run from the repo root with credentials for the test
+# account and `pnpm install` done. TF_VAR_network passes an existing VPC where the account may not create one.
 set -euo pipefail
 run="p2-$(date +%s | tail -c 7)"
 box="$(printf 'drill-%s-zzzzzzzzzzzz' "$run" | cut -c1-20)"
+export TF_VAR_test_tag="${TF_VAR_test_tag:-$run}"   # per run, so the leftover check sees only this run
 started="$(date +%s)"
 tf() { terraform -chdir=examples/drill "$@"; }
-vars=(-var "box_id=$box" -var agent_version=none -var front_door=false)
+bundle="$PWD/packages/control/dist/control.zip"
+vars=(-var "box_id=$box" -var agent_version=none -var front_door=false -var "control_bundle_path=$bundle")
 param=""
-cleanup() {
+ok=false
+leftovers="[]"
+
+# Destroy, then list what still carries this run's tag. The tagging API lists terminated instances, deleted volumes
+# and cancelled Spot requests for a while, so those are checked with describe calls.
+teardown() {
+  if [ "$ok" != true ] && [ -n "${fn:-}" ]; then
+    # Why it failed, before the log group goes: the control function's warnings and errors, and its state items.
+    aws logs filter-log-events --log-group-name "/aws/lambda/$fn" --start-time "$(( started * 1000 ))" \
+      --filter-pattern '?warn ?error ?Error ?Task' --query 'events[-40:].message' --output text 2>&1 | tail -c 6000 >&2 || true
+    aws dynamodb scan --table-name "$(tf output -raw state_table_name 2> /dev/null)" --query 'Items[].[pk.S]' \
+      --output text 2>&1 | tr '\n' ' ' >&2 || true
+  fi
   [ -n "$param" ] && aws ssm delete-parameter --name "$param" > /dev/null 2>&1 || true
-  tf destroy -auto-approve "${vars[@]}" || true
+  if ! tf destroy -auto-approve "${vars[@]}" > /tmp/"$run"-destroy.log 2>&1; then
+    # The test user may not delete schedule groups (STATUS.md): drop it from state and destroy the rest.
+    tf state list 2>/dev/null | grep -E 'aws_scheduler_schedule_group' | xargs -r -n1 terraform -chdir=examples/drill state rm > /dev/null || true
+    tf destroy -auto-approve "${vars[@]}" >> /tmp/"$run"-destroy.log 2>&1 || echo "destroy failed: /tmp/$run-destroy.log" >&2
+  fi
+  local arn left=()
+  for arn in $(aws resourcegroupstaggingapi get-resources --tag-filters "Key=dozebox:test,Values=$TF_VAR_test_tag" \
+    --query 'ResourceTagMappingList[].ResourceARN' --output text || echo tagging-api-failed); do
+    case "$arn" in
+      *:instance/*)
+        [ "$(aws ec2 describe-instances --instance-ids "${arn##*/}" --query 'Reservations[0].Instances[0].State.Name' \
+          --output text 2> /dev/null || echo terminated)" = terminated ] && continue ;;
+      *:volume/*) aws ec2 describe-volumes --volume-ids "${arn##*/}" > /dev/null 2>&1 || continue ;;
+      *:network-interface/*) aws ec2 describe-network-interfaces --network-interface-ids "${arn##*/}" > /dev/null 2>&1 || continue ;;
+      *:spot-instances-request/*)
+        case "$(aws ec2 describe-spot-instance-requests --spot-instance-request-ids "${arn##*/}" \
+          --query 'SpotInstanceRequests[0].State' --output text 2> /dev/null || echo cancelled)" in
+          cancelled | closed) continue ;;
+        esac ;;
+    esac
+    left+=("$arn")
+  done
+  leftovers="$(printf '%s\n' "${left[@]}" | jq -Rsc 'split("\n") | map(select(length > 0))')"
+  [ "$leftovers" = "[]" ] || ok=false
+  minutes=$(( ($(date +%s) - started) / 60 ))
+  echo "{\"phase\":2,\"ok\":$ok,\"box\":\"$box\",\"minutes\":$minutes,\"estimatedUsd\":0.05,\"leftovers\":$leftovers}"
+  [ "$ok" = true ]
 }
-trap cleanup EXIT
+trap teardown EXIT
 
 pnpm --filter @dozebox/control build > /dev/null
 tf init -input=false > /dev/null
-tf apply -auto-approve "${vars[@]}"
+tf apply -auto-approve "${vars[@]}" > /tmp/"$run"-apply.log
 id="$(tf output -raw persistent_instance_id)"
 fn="$(tf output -raw control_function_name)"
 url="$(tf output -raw control_url)"; url="${url%/}"
-aws lambda update-function-code --function-name "$fn" --zip-file fileb://packages/control/dist/control.zip > /dev/null
-aws lambda wait function-updated-v2 --function-name "$fn"
 
 param="$(tf output -raw wake_token_parameter)"
 token="$(openssl rand -hex 24)"
 aws ssm put-parameter --name "$param" --type SecureString --value "$token" \
-  --tags "Key=dozebox:test,Value=${TF_VAR_test_tag:-drill}" "Key=dozebox:owner,Value=orchestrator" > /dev/null
+  --tags "Key=dozebox:test,Value=$TF_VAR_test_tag" "Key=dozebox:owner,Value=orchestrator" > /dev/null
 aws ec2 wait instance-stopped --instance-ids "$id"
 
 curl -fsS -X POST "$url/v1/wake" -H "x-dozebox-token: $token" -H "Idempotency-Key: $run-1" | jq -e '.decision=="accept"'
@@ -44,5 +83,4 @@ aws ec2 describe-instances --instance-ids "$id" --query 'Reservations[0].Instanc
 curl -sS -o /dev/null -w '%{http_code}' "$url/v1/status" -H "x-dozebox-token: wrong" | grep -qx 401
 aws dynamodb get-item --table-name "$(tf output -raw state_table_name)" --key '{"pk":{"S":"lease#reconcile"}}' \
   | jq -e '.Item.fencing.N | tonumber > 1'
-minutes=$(( ($(date +%s) - started) / 60 ))
-echo "{\"phase\":2,\"ok\":true,\"box\":\"$box\",\"minutes\":$minutes,\"estimatedUsd\":0.05}"
+ok=true

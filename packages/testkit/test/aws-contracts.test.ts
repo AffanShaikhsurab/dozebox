@@ -53,7 +53,23 @@ volumePortContract("FakeAws", async () => {
     volumes: aws.ebs.volumes,
     zone,
     seedVolume: async (boxId, active) => aws.ebs.addVolume({ boxId, active, zone }),
-    seedSnapshot: async () => aws.ebs.addSnapshot(),
+    seedSnapshot: async (opts) => aws.ebs.addSnapshot(opts),
+    seedAttached: async (boxId, o) => {
+      const volumeId = aws.ebs.addVolume({ boxId, active: true, zone });
+      const machineId = aws.ec2.addMachine({
+        boxId: fresh("m"),
+        role: "persistent",
+        state: "running",
+        lifecycle: "spot",
+        zone,
+      });
+      await aws.ebs.attach.attach({ boxId, volumeId, machineId, device: "/dev/sdf" });
+      // The attach fence needs the active tag; hand it to a spare volume to leave this one inactive.
+      if (o?.active === false) {
+        await aws.ebs.volumes.moveActive(boxId, volumeId, aws.ebs.addVolume({ boxId, active: false, zone }));
+      }
+      return { volumeId, machineId };
+    },
     inject: (op, name, status) => aws.faults.failNext(op === "create" ? "ebs.create" : "ebs.describe", name, status),
   };
 });
