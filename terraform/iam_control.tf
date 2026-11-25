@@ -12,7 +12,8 @@ resource "aws_iam_role" "control" {
       Condition = { StringEquals = { "aws:SourceAccount" = local.account_id } }
     }]
   })
-  tags = local.tags
+  permissions_boundary = var.iam_permissions_boundary
+  tags                 = local.tags
 }
 
 locals {

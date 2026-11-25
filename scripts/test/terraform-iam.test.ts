@@ -30,6 +30,23 @@ test("every aws_iam_policy is listed in iam_index.tf", () => {
   assert.deepEqual(missing, [], `add these to local.all_policies in iam_index.tf: ${missing.join(", ")}`);
 });
 
+test("every aws_iam_role takes the permissions boundary input", () => {
+  const blocks = sources.flatMap(({ file, text }) =>
+    [...text.matchAll(/^resource\s+"aws_iam_role"\s+"([A-Za-z0-9_-]+)"\s+\{[\s\S]*?^\}/gm)].map((m) => ({
+      name: `${file}:${m[1] ?? ""}`,
+      body: m[0],
+    })),
+  );
+  assert.ok(blocks.length > 0, "no aws_iam_role found");
+  const unbounded = blocks
+    .filter((b) => !/^\s*permissions_boundary\s*=\s*var\.iam_permissions_boundary\s*$/m.test(b.body))
+    .map((b) => b.name);
+  assert.deepEqual(
+    unbounded,
+    [],
+    `set permissions_boundary = var.iam_permissions_boundary on: ${unbounded.join(", ")}`,
+  );
+});
 
 test("no Elastic IP: a parked box must not hold a billed public address", () => {
   assert.deepEqual(resourceNames("aws_eip"), []);

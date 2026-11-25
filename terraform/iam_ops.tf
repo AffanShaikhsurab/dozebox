@@ -107,27 +107,31 @@ locals {
 }
 
 resource "aws_iam_role" "kill" {
-  name               = local.names.kill_role
-  assume_role_policy = local.service_trust["ssm"]
-  tags               = local.tags
+  name                 = local.names.kill_role
+  assume_role_policy   = local.service_trust["ssm"]
+  permissions_boundary = var.iam_permissions_boundary
+  tags                 = local.tags
 }
 
 resource "aws_iam_role" "unfreeze" {
-  name               = local.names.unfreeze_role
-  assume_role_policy = local.service_trust["ssm"]
-  tags               = local.tags
+  name                 = local.names.unfreeze_role
+  assume_role_policy   = local.service_trust["ssm"]
+  permissions_boundary = var.iam_permissions_boundary
+  tags                 = local.tags
 }
 
 resource "aws_iam_role" "scheduler" {
-  name               = local.names.scheduler_role
-  assume_role_policy = local.service_trust["scheduler"]
-  tags               = local.tags
+  name                 = local.names.scheduler_role
+  assume_role_policy   = local.service_trust["scheduler"]
+  permissions_boundary = var.iam_permissions_boundary
+  tags                 = local.tags
 }
 
 resource "aws_iam_role" "snapshots" {
-  name               = local.names.snapshots_role
-  assume_role_policy = local.service_trust["dlm"]
-  tags               = local.tags
+  name                 = local.names.snapshots_role
+  assume_role_policy   = local.service_trust["dlm"]
+  permissions_boundary = var.iam_permissions_boundary
+  tags                 = local.tags
 }
 
 resource "aws_iam_policy" "kill" {
