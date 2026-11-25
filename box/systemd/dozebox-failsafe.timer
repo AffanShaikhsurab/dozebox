@@ -1,0 +1,9 @@
+[Unit]
+Description=Dozebox failsafe: 60 minutes after boot, then every 15
+
+[Timer]
+OnBootSec=60min
+OnUnitActiveSec=15min
+
+[Install]
+WantedBy=timers.target
