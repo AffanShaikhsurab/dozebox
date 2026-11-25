@@ -106,5 +106,6 @@ A stack built by the old runner keeps its resource names, so adopting the module
 
 4. Run `terraform plan`. It must show no replacement of the instance, volume or roles. Stop if it does.
 
-Planned: `scripts/gen-moved.ts` is a stub, and the module's `ssm_prefix` and `tag_prefix` overrides are declared but not
-used yet (both come from `name_prefix`). Adoption of a live stack waits for both.
+Some legacy names cannot be reproduced by the prefixes: the tag key `t3box:id` (the module uses `<prefix>:box`), the
+instance and snapshot role suffixes, the dead-letter queue, the launch template and the `spend-freeze` parameter. The
+generated `moved` blocks map those resources anyway, so `plan` shows them as replacements; review each one.

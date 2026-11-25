@@ -13,10 +13,10 @@ The base URL is the module output `control_url` (`terraform -chdir=.dozebox outp
 | `true` (default)     | The Lambda Function URL | Callers that sign requests with AWS SigV4 (the CLI does). The token is also required. |
 | `false`              | The Lambda Function URL | Anyone on the internet who has the token.                                             |
 
-Planned: with the front door on, `control_url` becomes a CloudFront domain with a WAF rate rule
-(`waf_rate_limit_per_5min`) in front of the Function URL, so browsers and webhooks reach the API without AWS
-credentials. CloudFront and WAF are not built yet; the outputs `front_door_domain_name`, `front_door_distribution_id`
-and `waf_web_acl_arn` are `null`.
+With the front door on, a CloudFront distribution with a WAF rate rule (`waf_rate_limit_per_5min`) sits in front of
+the Function URL, so browsers and webhooks reach the API without AWS credentials. Its address is the output
+`front_door_domain_name` (with `front_door_distribution_id` and `waf_web_acl_arn`; all `null` when it is off).
+Planned: `control_url` still prints the Function URL; use `https://<front_door_domain_name>` until it follows.
 
 ## Authentication
 

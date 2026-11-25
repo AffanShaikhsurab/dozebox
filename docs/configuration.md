@@ -27,8 +27,8 @@ apply at the next payload restart.
 | ------------- | ---------- | ---------------------------------------------------------------------------------- |
 | `box_id`      | `main`     | The box's id in names, SSM paths and tags. One stack per box.                      |
 | `name_prefix` | `dozebox`  | Prefix of every resource name, SSM path and tag key.                               |
-| `ssm_prefix`  | `null`     | Overrides the SSM path, such as `/legacy/main/`. Planned: declared, not used yet.  |
-| `tag_prefix`  | `null`     | Overrides the tag key prefix (`<prefix>:box`). Planned: declared, not used yet.    |
+| `ssm_prefix`  | `null`     | Overrides the SSM path, such as `/legacy/main/`, for an adopted stack.             |
+| `tag_prefix`  | `null`     | Overrides the tag key prefix (`<prefix>:box`), for an adopted stack.               |
 | `tags`        | `{}`       | Added to every resource. The module adds `<prefix>:box`.                           |
 
 `ssm_prefix` and `tag_prefix` exist so an old stack can keep its names ([decision 0009](./decisions/0009-name-prefix.md),
@@ -82,8 +82,10 @@ function. Planned: the module does not pass `wake_sources` to the function yet, 
 | `front_door_enabled`      | `true`  | CloudFront with a WAF in front of the control Function URL.                      |
 | `waf_rate_limit_per_5min` | 300     | Requests per 5 minutes per client address before the WAF blocks (at least 10).   |
 
-Built today: `front_door_enabled` sets the Function URL's authentication (`AWS_IAM` when `true`, none when `false`).
-Planned: the CloudFront distribution and the WAF rule that `waf_rate_limit_per_5min` sets.
+With `front_door_enabled = true` the module builds a CloudFront distribution with origin access control in front of the
+Function URL (which then needs `AWS_IAM`), forwards only `x-dozebox-token` and `x-t3box-token`, caches nothing, and puts
+a WAF web ACL with a rate rule of `waf_rate_limit_per_5min` requests per client address in front of it. With `false`
+the Function URL is public and token-checked.
 
 ## Machine and network
 

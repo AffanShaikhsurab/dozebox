@@ -131,8 +131,8 @@ try {
 sleep. Other methods: `hello`, `status`, `hold`, `release`, `wake`, `cancelWake`, `presence`, `sleep` and `events`
 (server-sent events with reconnect).
 
-Planned: the client's methods are typed but `createClient` is not implemented yet. Until it is, use the box commands
-or call the socket directly.
+Only errors the server marks retryable are retried. `keepHold` renews the hold until you call its `stop()`, which
+releases it. `events` reconnects with `Last-Event-ID`; unknown event names arrive as `{ type: "unknown" }`.
 
 ## Check a definition
 
