@@ -118,12 +118,17 @@ resource "aws_instance" "persistent" {
     version = "$Latest"
   }
 
-  instance_market_options {
-    market_type = "spot"
-    spot_options {
-      spot_instance_type             = "persistent"
-      instance_interruption_behavior = "stop"
-      max_price                      = local.spot_max_price
+  # purchase "on-demand": the same stop/start-able instance without a Spot request (drills, where Spot capacity is
+  # not what is under test).
+  dynamic "instance_market_options" {
+    for_each = var.instance.purchase == "spot" ? [1] : []
+    content {
+      market_type = "spot"
+      spot_options {
+        spot_instance_type             = "persistent"
+        instance_interruption_behavior = "stop"
+        max_price                      = local.spot_max_price
+      }
     }
   }
 

@@ -3,7 +3,9 @@
 # serves every drill of a session: it is applied once, re-applied only when Terraform changed (the smoke drill's
 # deploy step plans first), and parked between drills (`--keep`). `warm_destroy` tears it down and sweeps the tag.
 # Source it from the repo root with credentials for the test account and `pnpm install` done.
-#   DZ_WARM_DIR        stack dir (default examples/.warm, gitignored; two levels below the repo root because the
+#   DZ_WARM_BOX/TAG    box id and dozebox:test value (default drill-warm / dz-test-warm); one stack per box id
+#   DZ_PURCHASE        spot or on-demand persistent instance (default on-demand; only the spot drill needs spot)
+#   DZ_WARM_DIR        stack dir (default examples/.warm-<box>, gitignored; two levels below the repo root because the
 #                      drill example finds the module and payloads by relative path)
 #   DZ_AGENT_VERSION   agent release version (default none: no agent)
 #   DZ_AGENT_TARBALL   the release tarball to push through SSM (--deliver) when the box cannot download it
@@ -11,9 +13,9 @@
 #   TF_VAR_network     the module's network input (accounts that may not create a VPC)
 set -euo pipefail
 repo="$(pwd)"
-WARM="${DZ_WARM_DIR:-$repo/examples/.warm}"
-WARM_TAG="${DZ_WARM_TAG:-dz-test-warm}"
 WARM_BOX="${DZ_WARM_BOX:-drill-warm}"
+WARM="${DZ_WARM_DIR:-$repo/examples/.warm-$WARM_BOX}"
+WARM_TAG="${DZ_WARM_TAG:-dz-test-warm}"
 DELIVER=()
 [ -n "${DZ_AGENT_TARBALL:-}" ] && DELIVER=(--deliver "$DZ_AGENT_TARBALL")
 
@@ -34,6 +36,7 @@ warm_prepare() {
   "box_id": "$WARM_BOX",
   "test_tag": "$WARM_TAG",
   "agent_version": "${DZ_AGENT_VERSION:-none}",
+  "purchase": "${DZ_PURCHASE:-on-demand}",
   "agent_artifact_base_url": $base,
   "agent_sha256": $sha,
   "control_bundle_path": "$WARM/control.zip",

@@ -55,6 +55,12 @@ variable "network" {
   default = {}
 }
 
+variable "purchase" {
+  description = "spot or on-demand for the persistent instance. Drills run On-Demand; only the spot drill's stack uses spot."
+  type        = string
+  default     = "on-demand"
+}
+
 variable "marker_nonce" {
   description = "Written by the marker payload into /data/payloads/marker/nonce on its first start; the smoke drill reads it back."
   type        = string
@@ -121,6 +127,7 @@ module "dozebox" {
     types        = ["t4g.medium", "t4g.large", "m7g.medium", "m7g.large"]
     arch         = "arm64"
     machine_mode = "persistent"
+    purchase     = var.purchase
   }
   fallback    = { types = ["t4g.medium", "t4g.large", "m7g.medium", "m7g.large"] }
   network     = var.network
@@ -132,8 +139,8 @@ module "dozebox" {
   no_progress_park_minutes = 30
 
   caps = {
-    awake_hours_per_day     = 2
-    on_demand_hours_per_day = 1
+    awake_hours_per_day     = 12
+    on_demand_hours_per_day = 12 # drills run On-Demand (maintainer, 2026-11-25); the caps must not park them
     monthly_budget_usd      = 25
     max_spot_price_per_hour = 0.03
   }

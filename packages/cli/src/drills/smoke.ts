@@ -72,8 +72,10 @@ const steps: ReadonlyArray<DrillStep> = [
     run: async (ctx, signal) => {
       const s = await wakeToServing(ctx, signal);
       if (s["state"] !== "running") throw new DozeboxCliError("problem", `state ${String(s["state"])}, want running`);
-      const lifecycle = obj(s["instance"])["lifecycle"];
-      if (lifecycle !== "spot") throw new DozeboxCliError("problem", `lifecycle ${String(lifecycle)}, want spot`);
+      // The persistent instance serves (Spot or On-Demand per instance.purchase; drills run On-Demand), not the fallback.
+      if (s["machine"] !== undefined && s["machine"] !== "persistent") {
+        throw new DozeboxCliError("problem", `machine ${String(s["machine"])}, want persistent`);
+      }
     },
   },
   { id: "payload-serves", deadlineMs: 2 * MIN, run: nonceOnBox },
@@ -126,8 +128,10 @@ const steps: ReadonlyArray<DrillStep> = [
         ["ec2", "describe-spot-instance-requests", "--filters", `Name=instance-id,Values=${i.id}`],
         signal,
       );
-      const state = str(obj(arr(req["SpotInstanceRequests"])[0])["State"]);
-      if (state !== "disabled") throw new DozeboxCliError("problem", `Spot request ${String(state)}, want disabled`);
+      const requests = arr(req["SpotInstanceRequests"]);
+      const state = str(obj(requests[0])["State"]);
+      ctx.facts.set("spotRequest", state ?? "none (on-demand)");
+      if (requests.length > 0 && state !== "disabled") throw new DozeboxCliError("problem", `Spot request ${String(state)}, want disabled`);
     },
   },
   {
