@@ -151,6 +151,48 @@ describe("tick", () => {
       ["wake-unresolved"],
     );
   });
+
+  test("fallback hand-off: once the group is up, the stopped persistent instance releases the volume", async () => {
+    const { w, id } = boxWith("stopped", {
+      groups: { spot: null, fallback: "dozebox-main-fallback" },
+      fallback: { enabled: true, unattended: false },
+    });
+    w.aws.asg.addGroup("dozebox-main-fallback", { boxId: "main", lifecycle: "on-demand" });
+    const vol = w.aws.ebs.addVolume({ boxId: "main", active: true });
+    await w.aws.ebs.attach.attach({ boxId: "main", volumeId: vol, machineId: id, device: "/dev/sdf" });
+    w.aws.ec2.setSpotCapacity(false);
+    await w.call("POST", "/v1/wake");
+    const done: string[] = [];
+    for (let i = 0; i < 4; i++) {
+      const r = await tick(w.deps, { trigger: "schedule" });
+      if (r.kind === "done" && r.outcome.kind === "acted") done.push(r.outcome.action);
+      w.aws.clock.advance(MIN);
+    }
+    assert.deepEqual(done, ["raise-fallback", "release-volume"]);
+    assert.equal((await w.aws.ebs.attach.describe(vol))?.attachment, null);
+  });
+
+  test("the tick runs the weekly restore test: scratch volume from the newest snapshot, verified, deleted", async () => {
+    const { w } = boxWith("stopped");
+    const live = w.aws.ebs.addVolume({ boxId: "main", active: true });
+    const snap = w.aws.ebs.addSnapshot({ boxId: "main" });
+    await tick(w.deps, { trigger: "schedule" });
+    const scratch = (await w.deps.volumes.describeBox("main")).filter((v) => v.id !== live);
+    assert.deepEqual(
+      scratch.map((v) => v.active),
+      [false],
+    );
+    w.aws.clock.advance(16 * MIN);
+    await tick(w.deps, { trigger: "schedule" });
+    assert.deepEqual(
+      (await w.deps.volumes.describeBox("main")).map((v) => v.id),
+      [live],
+    );
+    assert.deepEqual(await w.deps.state.get("restore-test"), {
+      phase: "idle",
+      lastResult: { at: w.aws.clock.now(), ok: true, snapshotId: snap, detail: "restored 8 GiB, available" },
+    });
+  });
 });
 
 describe("act re-reads before destructive and billing actions", () => {
