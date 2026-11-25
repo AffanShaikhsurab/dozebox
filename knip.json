@@ -11,5 +11,6 @@
     }
   },
   "ignore": ["legacy/**"],
-  "ignoreBinaries": ["terraform"]
+  "ignoreBinaries": ["terraform"],
+  "ignoreDependencies": ["@aws-sdk/client-auto-scaling", "@aws-sdk/client-ec2"]
 }
