@@ -31,7 +31,12 @@ export type Observed = {
     readonly instances: ReadonlyArray<{ readonly id: string; readonly state: Ec2State; readonly launchedAt: number }>;
   } | null;
   readonly volume: { readonly id: string; readonly attachedTo: string | null; readonly active: boolean };
-  readonly sleepFence: { readonly at: number; readonly phase: "before-stop" | "after-stop" } | null;
+  readonly sleepFence: {
+    readonly at: number;
+    readonly phase: "before-stop" | "after-stop";
+    /** The agent's park reason (idle, user, unhealthy, reclaim, ...), when the record names one. */
+    readonly reason?: string;
+  } | null;
   /** The newest interruption record (Spot warning or EC2 stop for capacity), written by the event handler (R1). */
   readonly interruption: { readonly instanceId: string; readonly at: number } | null;
   /** The newest failed StartInstances of the persistent instance, written by the act step. */
@@ -76,6 +81,22 @@ function replacing(desired: Desired, o: Observed, p: Persistent | null): boolean
   if (i.at < desired.since) return false;
   if (p.launchedAt !== null && p.launchedAt > i.at) return false;
   return o.now - i.at < REPLACING_WINDOW_MS;
+}
+
+/**
+ * R2 for a park the agent did itself (idle, a person's sleep on the box, unhealthy): the box only writes
+ * `fence/sleep-requested` (after-stop), so the tick records the park as `desired = asleep` at the fence's time. Null
+ * when there is nothing to record: desired is already asleep, a wake came after the fence, a machine booted after it,
+ * or it is a Spot reclaim (the group's instance replaces the persistent one, desired stays awake).
+ */
+export function agentPark(desired: Desired, o: Observed): Desired | null {
+  const f = o.sleepFence;
+  if (desired.want !== "awake" || f === null || f.phase !== "after-stop" || f.reason === "reclaim") return null;
+  if (f.at < desired.since) return null;
+  const launches = [o.persistent?.launchedAt ?? null, ...(o.group?.instances.map((i) => i.launchedAt) ?? [])];
+  if (launches.some((t) => t !== null && t > f.at)) return null;
+  if (replacing(desired, o, o.persistent)) return null;
+  return { want: "asleep", since: f.at, reason: `park:agent:${f.reason ?? "self"}`, origin: "auto" };
 }
 
 /** At most one action per tick. Destructive and billing actions require a re-read in act() before they run. */
