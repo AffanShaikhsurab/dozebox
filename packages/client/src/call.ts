@@ -1,4 +1,4 @@
-﻿// P2: retries. Only errors marked retryable (a retryable error body, a transport failure, a 5xx without a body)
+// P2: retries. Only errors marked retryable (a retryable error body, a transport failure, a 5xx without a body)
 // are tried again, a small fixed number of times with jittered backoff.
 import { setTimeout as sleepFor } from "node:timers/promises";
 import { DozeboxError, errorOf, isRecord, send, type Method, type Reply } from "./http.ts";

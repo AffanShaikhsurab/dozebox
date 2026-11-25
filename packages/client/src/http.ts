@@ -1,4 +1,4 @@
-﻿// P2: one HTTP/1.1 exchange over the unix socket, and the error every client call rejects with.
+// P2: one HTTP/1.1 exchange over the unix socket, and the error every client call rejects with.
 import { request } from "node:http";
 import { ERROR_STATUS, type ErrorBody } from "@dozebox/protocol/v1";
 

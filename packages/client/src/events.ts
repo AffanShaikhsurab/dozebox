@@ -1,4 +1,4 @@
-﻿// P2: the event stream. GET /v1/events, reconnect with Last-Event-ID, unknown event names read as `unknown`.
+// P2: the event stream. GET /v1/events, reconnect with Last-Event-ID, unknown event names read as `unknown`.
 import { request } from "node:http";
 import { EVENT_PING_SECONDS, normalizeEvent } from "@dozebox/protocol/v1";
 import type { Delay } from "./call.ts";

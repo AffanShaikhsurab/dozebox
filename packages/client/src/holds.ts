@@ -1,4 +1,4 @@
-﻿// P2: keepHold. Renewals run one at a time; a failed renewal is retried by the next tick.
+// P2: keepHold. Renewals run one at a time; a failed renewal is retried by the next tick.
 import type { HoldInput } from "@dozebox/protocol/v1";
 import { DozeboxError } from "./http.ts";
 import type { DozeboxClient } from "./types.ts";

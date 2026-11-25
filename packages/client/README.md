@@ -1,4 +1,4 @@
-﻿# @dozebox/client
+# @dozebox/client
 
 Node client for a payload running on a dozebox box. It talks HTTP/1.1 over the payload's unix socket, retries only
 errors the agent marks retryable, and reads responses tolerantly (extra fields and unknown enum values do not throw).
