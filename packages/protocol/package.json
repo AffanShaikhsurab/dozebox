@@ -51,6 +51,20 @@
   "dependencies": {
     "typebox": "1.4.7"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AffanShaikhsurab/dozebox.git",
+    "directory": "packages/protocol"
+  },
+  "homepage": "https://github.com/AffanShaikhsurab/dozebox#readme",
+  "bugs": {
+    "url": "https://github.com/AffanShaikhsurab/dozebox/issues"
+  },
+  "keywords": [
+    "dozebox",
+    "protocol",
+    "json-schema"
+  ],
   "publishConfig": {
     "access": "public",
     "provenance": true
