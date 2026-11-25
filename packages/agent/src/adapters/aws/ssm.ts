@@ -85,7 +85,8 @@ export function makeAwsParameterReader(deps: AwsParameterReaderDeps): ParameterR
 export function makeAwsSecretReader(deps: { readonly ssm: SSMClient; readonly prefix: string }): SecretReader {
   return {
     get: async (name) => {
-      if (!/^[a-z0-9-]{1,40}$/.test(name)) throw new RunnerError("invalid_input", false, `"${name}" is not a secret name`);
+      if (!/^[a-z0-9-]{1,40}$/.test(name))
+        throw new RunnerError("invalid_input", false, `"${name}" is not a secret name`);
       try {
         const out = await deps.ssm.send(
           new GetParameterCommand({ Name: `/${deps.prefix}/shared/${name}`, WithDecryption: true }),

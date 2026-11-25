@@ -56,14 +56,13 @@ test("a document without a field is refused", async () => {
   assert.equal(IMDS_TOKEN_HEADER, "x-aws-ec2-metadata-token");
 });
 
+const tagged: typeof fetch = async (url) => new Response(String(url).endsWith("/token") ? "tok" : "dozebox-box-1-spot");
 
 test("tag: the instance tag's value, null when IMDS has none (404)", async (t) => {
   const fake = await startFakeImds();
   t.after(() => fake.close());
   assert.equal(await makeHttpImds({ base: fake.base }).tag("aws:autoscaling:groupName"), null);
   assert.equal(fake.requests.at(-1)?.path, "/latest/meta-data/tags/instance/aws:autoscaling:groupName");
-  const tagged: typeof fetch = async (url) =>
-    new Response(String(url).endsWith("/token") ? "tok" : "dozebox-box-1-spot");
   assert.equal(await makeHttpImds({ fetch: tagged }).tag("aws:autoscaling:groupName"), "dozebox-box-1-spot");
   assert.throws(() => makeHttpImds({ fetch: tagged }).tag("bad key/../x"), /bad tag key/);
 });

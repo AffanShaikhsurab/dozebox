@@ -6,7 +6,7 @@ import type { Files } from "../ports/files.ts";
 import type { RecordPublisher } from "../records/publish.ts";
 
 export const TIMELINE_PATH = "/run/dozebox/boot-timeline.jsonl";
-export const UPTIME_PATH = "/proc/uptime";
+const UPTIME_PATH = "/proc/uptime";
 const MAX_STEPS = 24;
 const STEP = /^[a-z][a-z0-9-]{0,40}$/;
 

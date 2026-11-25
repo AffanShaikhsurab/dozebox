@@ -35,7 +35,7 @@ export type Deps = AwsPorts & {
   readonly fetch: typeof fetch;
 };
 
-export const GROUP_TAG = "aws:autoscaling:groupName";
+const GROUP_TAG = "aws:autoscaling:groupName";
 
 /** Build the real dependencies. Reads IMDS and the boot id, so it is async and fails when either is missing. */
 export async function makeDeps(env: AgentEnv): Promise<Deps> {

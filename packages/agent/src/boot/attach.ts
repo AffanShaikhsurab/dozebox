@@ -8,7 +8,7 @@ import type { AttachedVolume, VolumeAttach } from "../ports/volumes.ts";
 
 export const DATA_DEVICE = "/dev/sdf";
 export const ATTACH_WAIT_MS = 5 * 60_000;
-export const ATTACH_POLL_MS = 5_000;
+const ATTACH_POLL_MS = 5_000;
 
 export type AttachOutcome =
   | { readonly kind: "attached"; readonly volumeId: string; readonly device: string }
@@ -59,7 +59,11 @@ export async function attachDataVolume(
       return { kind: "refused", why: "attached-elsewhere" };
     }
     if (deps.clock.now() >= deadline) {
-      throw new RunnerError("internal", true, `volume ${v.id} did not reach attached within ${ATTACH_WAIT_MS / 1000} s`);
+      throw new RunnerError(
+        "internal",
+        true,
+        `volume ${v.id} did not reach attached within ${ATTACH_WAIT_MS / 1000} s`,
+      );
     }
     await wait();
   }

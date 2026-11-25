@@ -12,6 +12,7 @@ import { flush, harness, IDENTITY } from "./support.ts";
 
 const ME = { boxId: "box-1", instanceId: "i-0123456789abcdef0", zone: "us-east-1a" };
 const OTHER = "i-0fedcba9876543210";
+const h0 = (): number => Date.parse("2026-11-25T00:00:00.000Z") - 10_000;
 
 function volumes(start: AttachedVolume | null, opts: { deny?: boolean } = {}) {
   let v = start;
@@ -155,9 +156,6 @@ test("timeline: steps from every process, ok false on a throw, published with up
       [TIMELINE_PATH]: `${JSON.stringify({ step: "stage0", startedAt: h0() + 1_000, ms: 2_000, ok: true })}\nnot json\n`,
     },
   });
-  function h0() {
-    return Date.parse("2026-11-25T00:00:00.000Z") - 10_000;
-  }
   const t = makeBootTimeline({ clock: h.clock, records: h.deps.records, files: h.files, bootAt: h0() });
   await t.step("attach", async () => h.clock.advance(1_500));
   await assert.rejects(

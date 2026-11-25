@@ -22,8 +22,8 @@ import { makeSupervisor } from "./supervisor/supervisor.ts";
 import { healthLoop, type HealthLoop } from "./watchdog/health.ts";
 
 export const RUN_DIR = "/run/dozebox";
-export const PAYLOADS_LOOP = "payloads";
-export const PAYLOADS_EVERY_MS = 5 * MINUTE;
+const PAYLOADS_LOOP = "payloads";
+const PAYLOADS_EVERY_MS = 5 * MINUTE;
 
 export type AgentLoopsOptions = {
   /** A2's protocol store when present; health-only until then. */
@@ -166,7 +166,8 @@ export function makeAgentLoops(opts: AgentLoopsOptions = {}): ReadonlyArray<Make
       onVerdict: (v) => {
         const p = s.phase.get();
         const now = deps.clock.now();
-        if (v.kind === "idle" && p.phase === "serving") s.phase.set({ phase: "idle-pending", since: now, sleepAt: v.sleepAt });
+        if (v.kind === "idle" && p.phase === "serving")
+          s.phase.set({ phase: "idle-pending", since: now, sleepAt: v.sleepAt });
         if (v.kind === "awake" && p.phase === "idle-pending") s.phase.set({ phase: "serving", since: now });
       },
       park: s.park,

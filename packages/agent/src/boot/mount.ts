@@ -8,12 +8,12 @@ import type { Clock } from "@dozebox/core/time";
 import type { Exec, ExecResult } from "../ports/exec.ts";
 
 export const DATA_MOUNT = "/data";
-export const DATA_DIRS = [
+const DATA_DIRS = [
   { path: "/data/dozebox", mode: "0700" },
   { path: "/data/payloads", mode: "0755" },
   { path: "/data/home", mode: "0755" },
 ] as const;
-export const DEVICE_WAIT_MS = 120_000;
+const DEVICE_WAIT_MS = 120_000;
 const DEVICE_POLL_MS = 2_000;
 
 export type MountOutcome = { readonly formatted: boolean; readonly mountedAt: string };

@@ -120,14 +120,14 @@ test("record writes that fail do not stop the park; the errors are kept", async 
 
 test("payloads get PAYLOAD_STOP_MS, then the stop call goes out anyway", async () => {
   const { h, deps, stopped } = setup();
-  let signal: AbortSignal | null = null;
+  const signals: AbortSignal[] = [];
   const parked = park(
     {
       ...deps,
       payloads: {
         stopAll: (s) =>
           new Promise<void>((_resolve, reject) => {
-            signal = s;
+            signals.push(s);
             s.addEventListener("abort", () => reject(new Error("units still stopping")));
           }),
       },
@@ -138,7 +138,7 @@ test("payloads get PAYLOAD_STOP_MS, then the stop call goes out anyway", async (
   await flush(300);
   h.clock.advance(PAYLOAD_STOP_MS);
   assert.equal(await parked, "parked");
-  assert.equal(signal?.aborted, true);
+  assert.equal(signals[0]?.aborted, true);
   assert.deepEqual(stopped, ["i-0123456789abcdef0"]);
 });
 

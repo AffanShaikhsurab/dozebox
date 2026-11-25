@@ -71,5 +71,5 @@ test("a crash loop ends in ActiveState=failed, and OnFailure= sees it failed", {
   const seen = readFileSync(log, "utf8").trim().split("\n");
   // Earlier lines (if this systemd fires OnFailure= before an automatic restart) show a state that is not failed.
   assert.equal(seen.at(-1), "failed");
-  t.diagnostic(`OnFailure= ran ${seen.length} time(s): ${seen.join(", ")}`);
+  t.diagnostic(`result ${result}; OnFailure= ran ${seen.length} time(s): ${seen.join(", ")}`);
 });

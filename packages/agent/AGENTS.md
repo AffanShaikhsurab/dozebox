@@ -14,9 +14,9 @@ Entry points: `./main` (bin `dozeboxd`), `./boot` (bin `dozebox-boot`), `./ports
 | `src/loops.ts`                | periodic loops: beats, errors vs bugs (3 bugs in a row exit 1), stop                         |
 | `src/watchdog/loop.ts`        | `WATCHDOG=1` only when no loop is stuck                                                      |
 | `src/records/publish.ts`      | stamp (`v`, `at`, writer tag), encode, put                                                   |
-| `src/agent-loops.ts`          | A3/A5 loops (payloads, health, idle) sharing one phase (`phase.ts`) and supervisor             |
+| `src/agent-loops.ts`          | A3/A5 loops (payloads, health, idle) sharing one phase (`phase.ts`) and supervisor           |
 | `src/supervisor/`             | payload drop-ins, install hooks, credentials, health checks, systemctl                       |
-| `src/watchdog/health.ts`      | health strikes (core `decideHealth`): serve, restart, park                                     |
+| `src/watchdog/health.ts`      | health strikes (core `decideHealth`): serve, restart, park                                   |
 | `src/idle/`                   | idle verdict loop, cgroup CPU activity, the park sequence                                    |
 | `src/boot/`                   | `dozebox-boot`: tag-fenced attach, guarded mount, boot timeline (`/run/dozebox`)             |
 | `src/ports/`, `src/adapters/` | ports and their real adapters; AWS SDK only in `src/adapters/aws/`                           |
