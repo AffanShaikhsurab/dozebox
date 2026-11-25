@@ -4,6 +4,7 @@ import { controlStatusFixture, makeFakeCliDeps, stackOutputsFixture } from "@doz
 import { COMMANDS } from "../src/commands/index.ts";
 import { dispatch } from "../src/main.ts";
 import { CHUNK_CHARS, IN_FLIGHT, chunkCommand, deliverAgent, installScript, releaseOf } from "../src/drills/deliver.ts";
+import { parkByUser } from "../src/drills/flow.ts";
 import { smokeDrill } from "../src/drills/smoke.ts";
 import type { DrillContext, DrillOptions } from "../src/drills/types.ts";
 import { stackFromOutputs } from "../src/stack.ts";
@@ -179,5 +180,24 @@ describe("smoke teardown", () => {
     const { ctx, deps } = context();
     await smokeDrill.teardown(ctx);
     assert.equal(deps.terraform.calls.filter((c) => c.op === "destroy").length, 1);
+  });
+});
+
+describe("park by user", () => {
+  test("asks the box itself to sleep and reads the agent's last-words, not the operator park", async () => {
+    const { ctx, deps } = context();
+    const run = ssm(() => "sleeping\n");
+    deps.awsCli.answer = (args) => {
+      if (args[1] === "describe-instances") {
+        return { Reservations: [{ Instances: [{ InstanceId: "i-0123456789abcdef0", State: { Name: "running" } }] }] };
+      }
+      if (args[1] === "get-parameter") return { Parameter: { Value: JSON.stringify({ parkedBecause: "user" }) } };
+      return run(args);
+    };
+    const words = await parkByUser(ctx, new AbortController().signal);
+    assert.equal(words["parkedBecause"], "user");
+    const sent = deps.awsCli.calls.find((c) => c[1] === "send-command");
+    assert.match(sent?.[sent.indexOf("--parameters") + 1] ?? "", /bin\/dozebox sleep --force/);
+    assert.equal(deps.control.calls.filter((c) => c.op === "admin").length, 0);
   });
 });
