@@ -19,7 +19,7 @@ import { volumesList, volumesRetire } from "./volumes.ts";
 import { moveAz } from "./move-az.ts";
 import { rebuild } from "./rebuild.ts";
 import { unfreeze } from "./unfreeze.ts";
-import { drill } from "./drill.ts";
+import { drillCommand } from "./drill.ts";
 import { BOX_COMMANDS } from "./box/index.ts";
 
 export const COMMANDS: ReadonlyArray<Command> = [
@@ -51,6 +51,6 @@ export const COMMANDS: ReadonlyArray<Command> = [
   rebuild,
   unfreeze,
   destroy,
-  drill,
+  drillCommand(() => COMMANDS),
   ...BOX_COMMANDS,
 ];

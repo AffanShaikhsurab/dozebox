@@ -15,7 +15,7 @@ import { attachDataVolume } from "./attach.ts";
 import { mountDataVolume, resolveDataDevice } from "./mount.ts";
 import { bootTimeOf, makeBootTimeline } from "./timeline.ts";
 
-/** Not in core's record registry yet (contract request): written raw, read raw. */
+/** Core's `rec/formatted` (FormattedRecord); written and read raw, before the record publisher exists. */
 export const FORMATTED_RECORD = "rec/formatted";
 
 export type BootDeps = {
