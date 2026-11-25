@@ -10,7 +10,11 @@ export type WakeAnswer =
 export type AdminEvent =
   | { readonly action: "park"; readonly force: boolean; readonly reason: string }
   | { readonly action: "operator-hold"; readonly forSeconds: number; readonly reason: string }
-  | { readonly action: "status"; readonly records: boolean };
+  | { readonly action: "status"; readonly records: boolean }
+  /** Inside the lease: tag `volumeId` active, the old active one `retired` (restore, move-az). Box must be parked. */
+  | { readonly action: "swap-volume"; readonly volumeId: string; readonly reason: string }
+  /** Replace the instance (new launch template version) at the next wake, keeping the data volume. */
+  | { readonly action: "rebuild"; readonly reason: string };
 
 export interface ControlApi {
   readonly status: (signal?: AbortSignal) => Promise<ControlStatus>;
