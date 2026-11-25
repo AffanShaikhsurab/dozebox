@@ -150,7 +150,14 @@ const vol = (id: string, active: boolean, state = "in-use", extra: object = {}):
 
 /** One active volume, one snapshot; the control function's tick answers on the second read of `kv#restore-test`. */
 function restoreWorld(opts: RestoreOpts = {}) {
-  const w = { reads: 0, listed: 0, puts: [] as string[], created: [] as string[], deleted: [] as string[], scratch: false };
+  const w = {
+    reads: 0,
+    listed: 0,
+    puts: [] as string[],
+    created: [] as string[],
+    deleted: [] as string[],
+    scratch: false,
+  };
   const ctx = makeCtx({ cli: () => ok({}) });
   const routes: Record<string, Route> = {
     "ec2 describe-snapshots": () => ({
