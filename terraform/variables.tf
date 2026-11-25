@@ -384,7 +384,7 @@ variable "tags" {
     error_message = "tags keys must not start with aws: (reserved by AWS)."
   }
   validation {
-    condition     = !contains(keys(var.tags), "${var.name_prefix}:box")
+    condition     = !contains(keys(var.tags), "${coalesce(var.tag_prefix, var.name_prefix)}:box")
     error_message = "tags must not set <prefix>:box; the module sets it from box_id."
   }
 }
