@@ -135,5 +135,5 @@ with your credentials:
 ```
 
 The actions are `park`, `operator-hold`, `status` (with `records`), `swap-volume` and `rebuild`. The CLI sends them for
-`dozebox park`, `status --records`, `restore`, `move-az` and `rebuild`. Planned ([issue 16](https://github.com/AffanShaikhsurab/dozebox/issues/16)): the control function does not handle
+`dozebox park`, `status --records`, `restore`, `move-az` and `rebuild`. Planned ([issue 2](https://github.com/AffanShaikhsurab/dozebox/issues/2)): the control function does not handle
 admin events yet, so those commands fail against a real stack. The wake token cannot send them; that is the point.

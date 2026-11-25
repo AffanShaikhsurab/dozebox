@@ -106,7 +106,7 @@ dozebox status                                # state, instance, spend against t
 dozebox park                                  # sleep now
 ```
 
-Known problem ([issue 16](https://github.com/AffanShaikhsurab/dozebox/issues/16)): `park` fails against a real stack
+Known problem ([issue 2](https://github.com/AffanShaikhsurab/dozebox/issues/2)): `park` fails against a real stack
 today. The box still parks itself after its idle time, and `destroy` below parks it first.
 
 Open the confirmation email AWS sends to your alert address (check spam). Until you confirm it, alerts reach no one.

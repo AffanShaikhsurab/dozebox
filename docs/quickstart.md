@@ -141,7 +141,7 @@ dozebox park
 ```
 
 A real box parks itself after `idle_minutes` with no activity. `park` asks for it now, and `park --force` ignores
-holds. Planned ([issue 16](https://github.com/AffanShaikhsurab/dozebox/issues/16)): the control function does not serve the admin events `park` uses yet, so today the command fails
+holds. Planned ([issue 2](https://github.com/AffanShaikhsurab/dozebox/issues/2)): the control function does not serve the admin events `park` uses yet, so today the command fails
 against a real stack. `POST /v1/park` does the same over HTTP, see the [control API](./control-api.md).
 
 ## 8. Remove it
