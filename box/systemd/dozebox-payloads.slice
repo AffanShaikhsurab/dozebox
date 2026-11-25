@@ -1,0 +1,6 @@
+[Unit]
+Description=dozebox payloads
+
+[Slice]
+CPUWeight=100
+MemoryHigh=90%
