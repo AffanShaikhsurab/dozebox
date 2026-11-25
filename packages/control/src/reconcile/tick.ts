@@ -1,7 +1,7 @@
 // The reconcile tick (part 6 §6.3): lease, observe, caps, decideReconcile (core), act. One action per tick. A tick
 // without the lease counts `ReconcileSkipped` (another container is reconciling); a finished one counts
 // `ReconcileCompleted`, which the `control-quiet` alarm watches.
-import { decideReconcile, type Desired } from "@dozebox/core/reconcile";
+import { agentPark, decideReconcile, type Desired } from "@dozebox/core/reconcile";
 import { enforceCaps } from "../caps/awake.ts";
 import { restoreTestStep } from "../restore-test/tick.ts";
 import { act } from "./act.ts";
@@ -22,6 +22,12 @@ export async function tick(deps: TickDeps, ctx: TickContext): Promise<TickResult
   const snapshot = await observe(deps, now);
   const caps = await enforceCaps(deps, snapshot, held);
   let desired: Desired = snapshot.desired;
+  const parked = agentPark(desired, snapshot.observed);
+  if (parked !== null) {
+    // "older" means a wake came after the agent's park; the next tick judges that one.
+    if ((await deps.desired.write(parked)) === "written") desired = parked;
+    deps.log.log("info", "agent parked the box", { reason: parked.reason });
+  }
   if (caps?.park === true && desired.want === "awake") {
     const park: Desired = { want: "asleep", since: now, reason: `park:cap:${caps.rule}`, origin: "judge" };
     // "older" means a newer wake or park won meanwhile; the next tick judges that one.

@@ -5,8 +5,8 @@
   "user": "marker",
   "protocol": "none",
   "start": {
-    "command": ["/usr/bin/node", "/opt/marker/server.mjs"],
-    "env": { "MARKER_DIR": "/data/payloads/marker" }
+    "command": ["/opt/dozebox/current/node/bin/node", "/opt/dozebox/current/examples/marker/server.mjs"],
+    "env": { "MARKER_DIR": "/data/payloads/marker", "LD_LIBRARY_PATH": "/opt/dozebox/current/lib/so" }
   },
   "health": {
     "http": { "url": "http://127.0.0.1:8080/health", "expectStatus": 200 },

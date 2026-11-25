@@ -40,9 +40,9 @@ variable "front_door" {
 }
 
 variable "iam_permissions_boundary" {
-  description = "Permissions boundary on every role; the test account's deploy user may only create bounded roles."
+  description = "Permissions boundary on every role; the test account's deploy user may only create bounded roles. Null: the dozebox-test-boundary policy of the account the provider deploys to."
   type        = string
-  default     = "arn:aws:iam::111122223333:policy/dozebox-test-boundary"
+  default     = null
 }
 
 variable "network" {
@@ -53,6 +53,30 @@ variable "network" {
     subnet_ids = optional(list(string), [])
   })
   default = {}
+}
+
+variable "purchase" {
+  description = "spot or on-demand for the persistent instance. Drills run On-Demand; only the spot drill's stack uses spot."
+  type        = string
+  default     = "on-demand"
+}
+
+variable "marker_nonce" {
+  description = "Written by the marker payload into /data/payloads/marker/nonce on its first start; the smoke drill reads it back."
+  type        = string
+  default     = "drill-nonce"
+}
+
+variable "agent_artifact_base_url" {
+  description = "Where stage 0 downloads the agent release (https); null for the module default."
+  type        = string
+  default     = null
+}
+
+variable "agent_sha256" {
+  description = "SHA-256 of the agent tarball per arch (arm64, x86_64), from the release's SHA256SUMS."
+  type        = map(string)
+  default     = null
 }
 
 variable "region" {
@@ -70,11 +94,25 @@ variable "test_tag" {
 locals {
   # On every resource: default_tags for most, and the module's tags input for what default_tags cannot reach (launch
   # template tag specifications, so instances, volumes, ENIs and Spot requests are tagged on create, and group tags).
+  marker = jsondecode(file("${path.module}/../payloads/marker.json"))
+  # The nonce reaches the payload through its start env.
+  marker_payload = merge(local.marker, {
+    start = merge(local.marker.start, { env = merge(local.marker.start.env, { MARKER_NONCE = var.marker_nonce }) })
+  })
+
   test_tags = {
     "dozebox:test"  = var.test_tag
     "dozebox:owner" = "orchestrator"
   }
+
+  permissions_boundary = coalesce(
+    var.iam_permissions_boundary,
+    "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:policy/dozebox-test-boundary",
+  )
 }
+
+data "aws_caller_identity" "current" {}
+data "aws_partition" "current" {}
 
 provider "aws" {
   region = var.region
@@ -88,7 +126,7 @@ module "dozebox" {
 
   box_id                   = var.box_id
   tags                     = local.test_tags
-  iam_permissions_boundary = var.iam_permissions_boundary
+  iam_permissions_boundary = local.permissions_boundary
   control_bundle_path      = var.control_bundle_path
 
   instance = {
@@ -97,18 +135,20 @@ module "dozebox" {
     types        = ["t4g.medium", "t4g.large", "m7g.medium", "m7g.large"]
     arch         = "arm64"
     machine_mode = "persistent"
+    purchase     = var.purchase
   }
   fallback    = { types = ["t4g.medium", "t4g.large", "m7g.medium", "m7g.large"] }
   network     = var.network
   data_volume = { size_gb = 20 }
   snapshots   = { every_hours = 24, keep = 2, recycle_bin_days = 1 }
 
-  idle_minutes             = 5
-  no_progress_park_minutes = 30
+  idle_minutes             = 5                                # the validation minimum (terraform/variables.tf: 5 to 720); a drill would like 2
+  wake_budget              = { per_hour = 30, per_day = 120 } # a drill session wakes the box many times an hour
+  no_progress_park_minutes = 30                               # the validation minimum
 
   caps = {
-    awake_hours_per_day     = 2
-    on_demand_hours_per_day = 12 # drills run On-Demand (maintainer, 2026-11-25); the cap must not park them
+    awake_hours_per_day     = 12
+    on_demand_hours_per_day = 12 # drills run On-Demand (maintainer, 2026-11-25); the caps must not park them
     monthly_budget_usd      = 25
     max_spot_price_per_hour = 0.03
   }
@@ -121,9 +161,14 @@ module "dozebox" {
   drill_mode = true # test-only: the data volume has no prevent_destroy, so the drill can tear down
 
   payloads = {
-    marker = jsondecode(file("${path.module}/../payloads/marker.json"))
+    marker = local.marker_payload
   }
-  agent = { version = var.agent_version }
+  agent = {
+    version = var.agent_version
+    # A drill stack points at its own pre-release (warm.auto.tfvars.json); the public default otherwise.
+    artifact_base_url = coalesce(var.agent_artifact_base_url, "https://github.com/dozebox/dozebox/releases/download/v${var.agent_version}")
+    sha256            = var.agent_sha256
+  }
 }
 
 output "box_id" {
@@ -179,4 +224,29 @@ output "state_table_name" {
 output "unfreeze_runbook" {
   description = "The unfreeze SSM Automation document and its parameters."
   value       = module.dozebox.unfreeze_runbook
+}
+
+output "region" {
+  description = "The stack's region."
+  value       = module.dozebox.region
+}
+
+output "tag_prefix" {
+  description = "Tag key prefix."
+  value       = module.dozebox.tag_prefix
+}
+
+output "instance_role_arn" {
+  description = "The box role."
+  value       = module.dozebox.instance_role_arn
+}
+
+output "front_door_domain_name" {
+  description = "CloudFront domain, or null without the front door."
+  value       = module.dozebox.front_door_domain_name
+}
+
+output "marker_nonce" {
+  description = "The marker payload's nonce (the smoke drill compares /data/payloads/marker/nonce with it)."
+  value       = var.marker_nonce
 }
