@@ -3,6 +3,7 @@
 // `ReconcileCompleted`, which the `control-quiet` alarm watches.
 import { decideReconcile, type Desired } from "@dozebox/core/reconcile";
 import { enforceCaps } from "../caps/awake.ts";
+import { restoreTestStep } from "../restore-test/tick.ts";
 import { act } from "./act.ts";
 import { observe } from "./observe.ts";
 import type { ActOutcome, TickDeps } from "./types.ts";
@@ -30,6 +31,17 @@ export async function tick(deps: TickDeps, ctx: TickContext): Promise<TickResult
   const observed = caps?.noOnDemand === true ? { ...snapshot.observed, onDemandAllowed: false } : snapshot.observed;
   const action = decideReconcile(desired, observed);
   const outcome = await act(deps, action, { lease: held, snapshot: { ...snapshot, desired, observed } });
+  if (held.mayContinue(deps.clock.now())) {
+    // A failed restore step (AWS refused, scratch volume still creating) is retried by the next tick.
+    const restore = await restoreTestStep(deps, held.lease.token).catch((e: unknown) => {
+      deps.log.log("warn", "restore test step failed", { error: e instanceof Error ? e.name : "unknown" });
+      return null;
+    });
+    const result = restore?.phase === "idle" ? restore.lastResult : null;
+    if (result !== null && result.at === now && !result.ok) {
+      deps.log.log("warn", "restore test failed", { snapshotId: result.snapshotId, detail: result.detail });
+    }
+  }
   if (held.mayContinue(deps.clock.now())) {
     // The Lambda timeout bounds the drain; sinks take their own per-call timeouts.
     const after = await deps.afterTick.run(held.lease.token, new AbortController().signal);
