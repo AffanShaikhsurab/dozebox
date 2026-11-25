@@ -42,7 +42,11 @@ export function makeAlertRouter(deps: RouterDeps): AlertRouter {
   return {
     submit: async (alert, token) => {
       const now = deps.clock.now();
-      const admission = admitAlert(await deps.ledger.read(), { key: alert.key, severity: alert.severity, text: alert.title }, now);
+      const admission = admitAlert(
+        await deps.ledger.read(),
+        { key: alert.key, severity: alert.severity, text: alert.title },
+        now,
+      );
       if (admission.send) {
         const breakers = await deps.breakers.read();
         const states = deps.sinks
