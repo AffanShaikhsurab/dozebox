@@ -10,6 +10,7 @@ import type {
   ControlApi,
   DoctorFacts,
   EmailSubscription,
+  Exec,
   Prompt,
   SnapshotView,
   Terraform,
@@ -55,7 +56,11 @@ export function makeFakeControlApi(initial: ControlStatus): FakeControlApi {
 export function makeFakeTerraform(outputs: TerraformOutputs = {}): Terraform & {
   outputs: TerraformOutputs;
   changes: boolean;
-  readonly calls: Array<{ readonly op: string; readonly dir: string; readonly vars?: Readonly<Record<string, string>> }>;
+  readonly calls: Array<{
+    readonly op: string;
+    readonly dir: string;
+    readonly vars?: Readonly<Record<string, string>>;
+  }>;
 } {
   const calls: Array<{ readonly op: string; readonly dir: string; readonly vars?: Readonly<Record<string, string>> }> =
     [];
@@ -64,7 +69,10 @@ export function makeFakeTerraform(outputs: TerraformOutputs = {}): Terraform & {
     changes: false,
     calls,
     init: async (dir: string) => void calls.push({ op: "init", dir }),
-    plan: async (dir: string, vars: Readonly<Record<string, string>>) => (calls.push({ op: "plan", dir, vars }), f.changes),
+    plan: async (dir: string, vars: Readonly<Record<string, string>>) => (
+      calls.push({ op: "plan", dir, vars }),
+      f.changes
+    ),
     apply: async (dir: string, vars: Readonly<Record<string, string>>) => {
       calls.push({ op: "apply", dir, vars });
       f.changes = false;
@@ -210,6 +218,25 @@ export function makeFakeCliFiles(initial: Readonly<Record<string, string>> = {})
   };
 }
 
+/** Records each run; prints `lines` through `onOutput`, then exits with `exitCode`. */
+export function makeFakeCliExec(): Exec & {
+  lines: string[];
+  exitCode: number;
+  readonly runs: Array<ReadonlyArray<string>>;
+} {
+  const f = {
+    lines: [] as string[],
+    exitCode: 0,
+    runs: [] as Array<ReadonlyArray<string>>,
+    run: async (argv: ReadonlyArray<string>, opts: { readonly onOutput: (line: string) => void }) => {
+      f.runs.push(argv);
+      for (const l of f.lines) opts.onOutput(l);
+      return { exitCode: f.exitCode, signal: null };
+    },
+  };
+  return f;
+}
+
 /**
  * A clock whose `sleep` moves time forward at once, so polling commands run to the end in a test. A `timeout`
  * signal fires when a sleep moves time past it.
@@ -219,8 +246,8 @@ export function makeAutoClock(start = Date.parse("2026-11-25T00:00:00.000Z")): C
   const slept: number[] = [];
   const timers: Array<{ readonly at: number; readonly c: AbortController }> = [];
   const fire = (): void => {
-    for (const t of timers) if (t.at <= now && !t.c.signal.aborted)
-      t.c.abort(new DOMException("The operation timed out.", "TimeoutError"));
+    for (const t of timers)
+      if (t.at <= now && !t.c.signal.aborted) t.c.abort(new DOMException("The operation timed out.", "TimeoutError"));
   };
   return {
     slept,
@@ -247,6 +274,7 @@ export type FakeCliDeps = CliDeps & {
   readonly fs: ReturnType<typeof makeFakeCliFiles>;
   readonly prompt: ReturnType<typeof makeFakePrompt>;
   readonly tools: ReturnType<typeof makeFakeTools>;
+  readonly exec: ReturnType<typeof makeFakeCliExec>;
 };
 
 /** Every CLI port faked; `status` is the control API's first answer, `outputs` the stack's Terraform outputs. */
@@ -266,10 +294,10 @@ export function makeFakeCliDeps(opts: {
     fs: makeFakeCliFiles(),
     prompt: opts.prompt ?? makeFakePrompt(),
     tools: makeFakeTools(),
+    exec: makeFakeCliExec(),
     ids: { random: () => `id-${++id}` },
   };
 }
-
 
 /** A parked box's `/v1/status`, overridable per field. */
 export function controlStatusFixture(over: Partial<ControlStatus> = {}): ControlStatus {

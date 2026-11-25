@@ -7,6 +7,8 @@ export type UnfreezeRunbook = { readonly document: string; readonly parameters: 
 export type StackContext = {
   readonly stackDir: string;
   readonly boxId: string;
+  /** Tag key prefix (<prefix>:box, <prefix>:active); output `tag_prefix`, default `dozebox`. */
+  readonly tagPrefix: string;
   readonly region: string;
   readonly controlUrl: string;
   readonly controlFunctionName: string;
@@ -80,6 +82,7 @@ export function stackFromOutputs(stackDir: string, o: TerraformOutputs): StackCo
   return {
     stackDir,
     boxId: req("box_id"),
+    tagPrefix: str(o, "tag_prefix") ?? "dozebox",
     region: req("region"),
     controlUrl: req("control_url").replace(/\/+$/, ""),
     controlFunctionName: req("control_function_name"),
