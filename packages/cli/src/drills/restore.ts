@@ -223,11 +223,9 @@ export const restoreDrill: Drill = {
               .map((v) => v.id)
               .toSorted()
               .join(",")}, active ${active.join(",")}`;
-            const same =
-              vols
-                .map((v) => v.id)
-                .toSorted()
-                .join(",") === before;
+            // A scratch volume of the control function's own test may be in flight at the baseline: it may go, none may stay.
+            const known = new Set(before.split(","));
+            const same = vols.every((v) => known.has(v.id));
             return same && active.length === 1 && active[0] === text(ctx, "restore.active") ? true : null;
           });
         } catch (e) {

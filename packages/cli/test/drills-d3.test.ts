@@ -129,7 +129,12 @@ describe("drill kill", () => {
   });
 });
 
-type RestoreOpts = { readonly verdictOk?: boolean; readonly scratchTags?: "mine" | "foreign" };
+type RestoreOpts = {
+  readonly verdictOk?: boolean;
+  readonly scratchTags?: "mine" | "foreign";
+  /** The control function's own restore test has a volume at the baseline that is gone by the end. */
+  readonly inFlight?: boolean;
+};
 
 const vol = (id: string, active: boolean, state = "in-use", extra: object = {}): unknown => ({
   VolumeId: id,
@@ -145,7 +150,7 @@ const vol = (id: string, active: boolean, state = "in-use", extra: object = {}):
 
 /** One active volume, one snapshot; the control function's tick answers on the second read of `kv#restore-test`. */
 function restoreWorld(opts: RestoreOpts = {}) {
-  const w = { reads: 0, puts: [] as string[], created: [] as string[], deleted: [] as string[], scratch: false };
+  const w = { reads: 0, listed: 0, puts: [] as string[], created: [] as string[], deleted: [] as string[], scratch: false };
   const ctx = makeCtx({ cli: () => ok({}) });
   const routes: Record<string, Route> = {
     "ec2 describe-snapshots": () => ({
@@ -170,7 +175,9 @@ function restoreWorld(opts: RestoreOpts = {}) {
           ],
         };
       }
-      return { Volumes: [vol("vol-a", true), ...(w.scratch ? [vol("vol-new", false, "available")] : [])] };
+      w.listed++;
+      const inFlight = opts.inFlight === true && w.listed === 1 ? [vol("vol-ctl", false, "available")] : [];
+      return { Volumes: [vol("vol-a", true), ...inFlight, ...(w.scratch ? [vol("vol-new", false, "available")] : [])] };
     },
     "ec2 create-volume": () => {
       w.created.push("vol-new");
@@ -219,6 +226,13 @@ describe("drill restore", () => {
       lastResult: { at: 0, ok: true, snapshotId: "", detail: "drill: made due" },
     });
     assert.deepEqual(w.created, [], "the control function creates the volume, not the drill");
+  });
+
+  it("passes when the control function's own scratch volume was in flight at the baseline", async () => {
+    const { ctx } = restoreWorld({ inFlight: true });
+    const r = await play(restoreDrill, ctx);
+    assert.equal(r.failure, null, message(r.failure));
+    assert.match(String(ctx.facts.get("restore.before")), /vol-ctl/);
   });
 
   it("fails with the control function's detail when the test failed", async () => {
