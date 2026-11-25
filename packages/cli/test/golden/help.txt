@@ -1,0 +1,42 @@
+Usage: dozebox <command> [options]
+
+Commands:
+  bootstrap         Create the state bucket and deploy principal policies; activate the cost tag.
+  setup             Re-runnable setup: apply, store the wake token, subscribe alerts, run doctor.
+  deploy            Run terraform init and apply in the stack directory.
+  status            Print the control function status; --records and --releases add detail.
+  wake              Wake the box and optionally wait until it serves.
+  park              Ask the control function to park the box.
+  upgrade           Set the agent version and apply.
+  doctor            Check tools, credentials, the stack and the alert path.
+  secrets set       Store a shared secret; the value is read from stdin, never from a flag.
+  secrets list      List the shared secret names (never values).
+  secrets delete    Delete a shared secret.
+  token show        Print the wake link <control_url>/#t=<token>.
+  token rotate      Store a new wake token; every old wake link stops working.
+  phone pair        Pair a phone: prints a link with the wake token and a new approve token.
+  phone list        List paired phones.
+  phone revoke      Revoke a paired phone's approve token.
+  alerts test       Send a test alert through every sink.
+  alerts path       Show the alert path verdict.
+  snapshots list    List the box's data volume snapshots, newest first.
+  snapshots create  Snapshot the active data volume; waits until completed unless --no-wait.
+  snapshots delete  Delete one snapshot of the box.
+  restore           Restore the data volume from a snapshot.
+  volumes list      List the box volumes; flags a box with no active volume.
+  volumes retire    Tag a volume retired (never the active one); it is kept until you delete it.
+  move-az           Move the data volume to another availability zone.
+  rebuild           Replace the instance and keep the volume.
+  unfreeze          Run the unfreeze runbook after a kill-switch freeze.
+  destroy           Snapshot every tagged volume, then terraform destroy.
+  drill             Run a real-AWS drill: smoke, spot, fallback, kill, front-door, restore.
+
+Global options:
+  --box <id>     Which box (default: the stack's box, else main).
+  --stack <dir>  Directory with stack.json and the Terraform root (default ./.dozebox).
+  --json         One JSON document on stdout; logs on stderr.
+  --dry-run      Print every call that would change state, change nothing.
+  --yes          Skip confirmation prompts (needed with --json for destructive commands).
+  --verbose      Debug logs on stderr.
+
+Run `dozebox help <command>` for a command's options.
