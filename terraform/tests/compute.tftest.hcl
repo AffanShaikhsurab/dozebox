@@ -303,3 +303,27 @@ run "launches_are_tagged_on_create" {
     error_message = "The data volume carries the module tags and active = true."
   }
 }
+
+run "on_demand_persistent_instance_has_no_spot_request" {
+  command = apply
+  variables {
+    instance = { types = ["t4g.small"], purchase = "on-demand" }
+  }
+
+  assert {
+    condition     = length(aws_instance.persistent[0].instance_market_options) == 0
+    error_message = "purchase on-demand launches the persistent instance without instance_market_options."
+  }
+  assert {
+    condition     = aws_ec2_instance_state.persistent[0].state == "stopped" && aws_launch_template.box["persistent"].instance_initiated_shutdown_behavior == "stop"
+    error_message = "The On-Demand persistent instance still starts parked and stops on a guest shutdown."
+  }
+}
+
+run "purchase_is_spot_or_on_demand" {
+  command = plan
+  variables {
+    instance = { types = ["t4g.small"], purchase = "reserved" }
+  }
+  expect_failures = [var.instance]
+}
