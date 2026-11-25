@@ -34,7 +34,7 @@ describe("jailArgv", () => {
       "--gid=60001",
       "--",
     ]);
-    assert.equal(argv[8], "/usr/bin/bwrap");
+    assert.deepEqual(argv.slice(8, 11), ["/usr/bin/env", "-i", "/usr/bin/bwrap"]);
     assert.equal(argv.at(-1), "--");
   });
 
