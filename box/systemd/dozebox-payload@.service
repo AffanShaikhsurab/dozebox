@@ -1,0 +1,18 @@
+[Unit]
+Description=dozebox payload %i
+After=dozebox-boot.service
+Requires=dozebox-boot.service
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=simple
+Slice=dozebox-payloads.slice
+KillMode=mixed
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+# Replaced by the per-payload drop-in (10-dozebox.conf).
+ExecStart=/bin/false
