@@ -2,6 +2,9 @@
 // the endpoint, refuses anything that is not loopback, and hands out fake keys, so a wire test cannot reach a real
 // account. It imports no SDK: the tests build their clients from `target.config`.
 
+export { ssmMemory, type SsmMemory, type SsmParameter } from "./ssmMemory.ts";
+export { offlineConfig, sdkError, stubSdk, type SdkCall, type SdkHandler, type SdkStub } from "./stub.ts";
+
 export type WireConfig = {
   readonly endpoint: string;
   readonly region: string;
@@ -66,4 +69,54 @@ export async function eventually(
     if (Date.now() > deadline) throw new Error(`not within ${withinMs} ms: ${what}`);
     await new Promise((resolve) => setTimeout(resolve, everyMs));
   }
+}
+
+type Handler = (args: unknown) => Promise<unknown>;
+type Stack = {
+  readonly add: (
+    middleware: (next: Handler, context: { readonly commandName?: string }) => Handler,
+    options: { readonly step: "initialize"; readonly name: string },
+  ) => void;
+};
+const stackOf = (client: object): Stack => (client as { readonly middlewareStack: Stack }).middlewareStack;
+
+/**
+ * One-shot faults for an SDK v3 client: the next send of `command` (such as "StartInstancesCommand") throws an
+ * error shaped like the SDK's service exceptions, before anything goes on the wire. Proves the adapter's mapping
+ * for errors the emulator cannot produce on demand.
+ */
+export function faultInjector(client: object): (command: string, name: string, status: number) => void {
+  const queued = new Map<string, Array<{ name: string; status: number }>>();
+  stackOf(client).add(
+    (next, context) => async (args) => {
+      const fault = queued.get(context.commandName ?? "")?.shift();
+      if (fault) {
+        throw Object.assign(new Error(`injected ${fault.name}`), {
+          name: fault.name,
+          $fault: fault.status >= 500 ? "server" : "client",
+          $metadata: { httpStatusCode: fault.status },
+        });
+      }
+      return next(args);
+    },
+    { step: "initialize", name: "dozeboxWireFaults" },
+  );
+  return (command, name, status) => {
+    const list = queued.get(command) ?? [];
+    list.push({ name, status });
+    queued.set(command, list);
+  };
+}
+
+/** How many sends reached the client so far. */
+export function countCalls(client: object): () => number {
+  let n = 0;
+  stackOf(client).add(
+    (next) => async (args) => {
+      n++;
+      return next(args);
+    },
+    { step: "initialize", name: "dozeboxWireCount" },
+  );
+  return () => n;
 }
