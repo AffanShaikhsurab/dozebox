@@ -10,13 +10,27 @@
   },
   "sideEffects": false,
   "bin": {
-    "dozeboxd": "./dist/main.js"
+    "dozeboxd": "./dist/main.js",
+    "dozebox-boot": "./dist/boot/main.js",
+    "dozebox-shim": "./dist/bin/dozebox.js",
+    "dozebox-jail-exec": "./dist/bin/jail-exec.js",
+    "dozebox-tripwire": "./dist/bin/tripwire.js"
   },
   "exports": {
     "./main": {
       "@dozebox/source": "./src/main.ts",
       "types": "./dist/main.d.ts",
       "default": "./dist/main.js"
+    },
+    "./boot": {
+      "@dozebox/source": "./src/boot/main.ts",
+      "types": "./dist/boot/main.d.ts",
+      "default": "./dist/boot/main.js"
+    },
+    "./bin/*": {
+      "@dozebox/source": "./src/bin/*.ts",
+      "types": "./dist/bin/*.d.ts",
+      "default": "./dist/bin/*.js"
     },
     "./ports/*": {
       "@dozebox/source": "./src/ports/*.ts",
@@ -26,6 +40,7 @@
   },
   "scripts": {
     "test": "node --conditions=@dozebox/source --test \"test/*.test.ts\"",
+    "test:systemd": "node --conditions=@dozebox/source --test \"test/systemd/*.test.ts\"",
     "test:wire": "node --conditions=@dozebox/source --test --test-concurrency=1 \"test/wire/*.test.ts\""
   },
   "dependencies": {

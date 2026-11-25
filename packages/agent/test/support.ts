@@ -134,6 +134,11 @@ export function harness(
         return v ?? null;
       },
     },
+    recordWriter,
+    secrets: { get: unused("secrets") },
+    machine: { mode: "persistent", instanceId: IDENTITY.instanceId },
+    exists: async () => false,
+    fetch: unused("fetch"),
     selfStop: { stopSelf: unused("selfStop") },
     volumes: { findActive: unused("volumes"), describe: unused("volumes"), attach: unused("volumes") },
     logs: { send: unused("logs") },
