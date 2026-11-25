@@ -23,7 +23,7 @@ export const writerOf = (id: Identity): WriterTag => ({ instanceId: id.instanceI
 
 export async function resolveIdentity(
   env: AgentEnv,
-  deps: { readonly imds: Imds; readonly files: Files; readonly signal?: AbortSignal },
+  deps: { readonly imds: Pick<Imds, "instance">; readonly files: Files; readonly signal?: AbortSignal },
 ): Promise<Identity> {
   const facts = await deps.imds.instance(deps.signal);
   const bootId = (await deps.files.readText(BOOT_ID_PATH))?.trim().replaceAll("-", "") ?? "";

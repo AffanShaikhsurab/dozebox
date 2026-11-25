@@ -31,7 +31,7 @@ export function makeHttpImds(deps: HttpImdsDeps = {}): Imds {
     return (await res.text()).trim();
   };
 
-  const get = async (path: string, signal?: AbortSignal): Promise<string> => {
+  const get = async (path: string, signal?: AbortSignal, missing?: "null"): Promise<string | null> => {
     const s = signal ?? timeout(2_000);
     for (let attempt = 0; ; attempt++) {
       token ??= await newToken(s);
@@ -40,6 +40,7 @@ export function makeHttpImds(deps: HttpImdsDeps = {}): Imds {
         token = null;
         continue;
       }
+      if (res.status === 404 && missing) return null;
       if (!res.ok) throw fail(path, res.status);
       return (await res.text()).trim();
     }
@@ -47,7 +48,7 @@ export function makeHttpImds(deps: HttpImdsDeps = {}): Imds {
 
   return {
     instance: async (signal) => {
-      const doc: unknown = JSON.parse(await get("/latest/dynamic/instance-identity/document", signal));
+      const doc: unknown = JSON.parse((await get("/latest/dynamic/instance-identity/document", signal)) ?? "null");
       const field = (k: string): string => {
         const v = (doc as Record<string, unknown> | null)?.[k];
         if (typeof v !== "string" || v === "") throw new RunnerError("internal", false, `IMDS document has no ${k}`);
@@ -60,6 +61,10 @@ export function makeHttpImds(deps: HttpImdsDeps = {}): Imds {
         instanceType: field("instanceType"),
       };
       return facts;
+    },
+    tag: (key, signal) => {
+      if (!/^[A-Za-z0-9:._-]{1,128}$/.test(key)) throw new RunnerError("invalid_input", false, `bad tag key "${key}"`);
+      return get(`/latest/meta-data/tags/instance/${key}`, signal, "null");
     },
   };
 }

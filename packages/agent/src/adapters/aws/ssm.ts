@@ -11,10 +11,11 @@ import {
   SSMClient,
   type SSMClientConfig,
 } from "@aws-sdk/client-ssm";
-import { fromAws } from "@dozebox/core/errors";
+import { fromAws, RunnerError } from "@dozebox/core/errors";
 import { assertFits, type Tier } from "@dozebox/core/records";
 import type { ParameterReader } from "../../ports/params.ts";
 import type { RecordWriter } from "../../ports/records.ts";
+import type { SecretReader } from "../../ports/secrets.ts";
 
 export const ssmClient = (cfg: SSMClientConfig): SSMClient => new SSMClient(cfg);
 
@@ -70,6 +71,26 @@ export function makeAwsParameterReader(deps: AwsParameterReaderDeps): ParameterR
       assertFits(name, "", "Standard");
       try {
         const out = await ssm.send(new GetParameterCommand({ Name: `${root}${name}` }));
+        return out.Parameter?.Value ?? null;
+      } catch (e) {
+        const err = fromAws(e);
+        if (err.code === "aws_not_found") return null;
+        throw err;
+      }
+    },
+  };
+}
+
+/** SecureStrings under `/<prefix>/shared/` (the box role may read and decrypt only these). */
+export function makeAwsSecretReader(deps: { readonly ssm: SSMClient; readonly prefix: string }): SecretReader {
+  return {
+    get: async (name) => {
+      if (!/^[a-z0-9-]{1,40}$/.test(name))
+        throw new RunnerError("invalid_input", false, `"${name}" is not a secret name`);
+      try {
+        const out = await deps.ssm.send(
+          new GetParameterCommand({ Name: `/${deps.prefix}/shared/${name}`, WithDecryption: true }),
+        );
         return out.Parameter?.Value ?? null;
       } catch (e) {
         const err = fromAws(e);
