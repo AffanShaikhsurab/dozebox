@@ -5,6 +5,7 @@ import { DozeboxCliError } from "../command.ts";
 import { arr, aws, cliOk, obj, runningInstance, shell, str } from "./box.ts";
 import { controlStatus, parkForce, waitParked, wakeToServing, type Status } from "./flow.ts";
 import { smokeExtras } from "./smoke-extras.ts";
+import { HOLD_MINUTES, IDLE_MINUTES, PARK_WITHIN_MINUTES } from "./timing.ts";
 import type { Drill, DrillContext, DrillStep } from "./types.ts";
 
 const MIN = 60_000;
@@ -131,19 +132,20 @@ const steps: ReadonlyArray<DrillStep> = [
       const requests = arr(req["SpotInstanceRequests"]);
       const state = str(obj(requests[0])["State"]);
       ctx.facts.set("spotRequest", state ?? "none (on-demand)");
-      if (requests.length > 0 && state !== "disabled") throw new DozeboxCliError("problem", `Spot request ${String(state)}, want disabled`);
+      if (requests.length > 0 && state !== "disabled")
+        throw new DozeboxCliError("problem", `Spot request ${String(state)}, want disabled`);
     },
   },
   {
     id: "hold",
-    deadlineMs: 25 * MIN,
+    deadlineMs: 20 * MIN,
     when: (o) => o.withHold,
     run: async (ctx, signal) => {
       await wakeToServing(ctx, signal);
       const i = await runningInstance(ctx, signal);
       const bin = "/opt/dozebox/current/bin/dozebox";
-      await shell(ctx, i.id, `${bin} hold drill --payload marker --reason drill --for 15m`, signal);
-      await ctx.deps.clock.sleep(8 * MIN, signal); // idle_minutes 5 + 2 with the hold live
+      await shell(ctx, i.id, `${bin} hold drill --payload marker --reason drill --for ${HOLD_MINUTES}m`, signal);
+      await ctx.deps.clock.sleep((IDLE_MINUTES + 0.5) * MIN, signal); // past the idle window, inside the hold
       const still = await runningInstance(ctx, signal).catch(() => null);
       if (still === null) throw new DozeboxCliError("problem", "the box parked while a hold was live");
       await shell(ctx, i.id, `${bin} hold drill --payload marker --release`, signal);
@@ -151,7 +153,8 @@ const steps: ReadonlyArray<DrillStep> = [
       expectReason(await waitParked(ctx, signal), "idle");
       const took = ctx.deps.clock.now() - released;
       ctx.facts.set("parkAfterReleaseMs", took);
-      if (took > 7 * MIN) throw new DozeboxCliError("problem", `parked ${Math.round(took / 1000)} s after release`);
+      if (took > PARK_WITHIN_MINUTES * MIN)
+        throw new DozeboxCliError("problem", `parked ${Math.round(took / 1000)} s after release`);
     },
   },
   {

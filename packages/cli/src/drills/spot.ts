@@ -7,10 +7,11 @@ import { MINUTE, SECOND } from "@dozebox/core/time";
 import { DozeboxCliError } from "../command.ts";
 import { aws, arr, boxInstances, obj, record, runningInstance, shell, str, waitUntil } from "./box.ts";
 import { installScript, removeScript } from "./imds-proxy.ts";
+import { HOLD_MINUTES } from "./timing.ts";
 import { expectLifecycle, parkAndWait, servingOf, teardownSignal, wakeServing } from "./parked.ts";
 import type { Drill, DrillContext } from "./types.ts";
 
-const HOLD = "/opt/dozebox/current/bin/dozebox hold drill --payload marker --reason drill --for 15m";
+const HOLD = `/opt/dozebox/current/bin/dozebox hold drill --payload marker --reason drill --for ${HOLD_MINUTES}m`;
 const OPEN_REQUEST_STATES = new Set(["open", "disabled", "active"]);
 /** The park reason the agent records for a Spot notice (ParkReason in the records protocol). */
 const RECLAIM = "reclaim";

@@ -134,9 +134,9 @@ module "dozebox" {
   data_volume = { size_gb = 20 }
   snapshots   = { every_hours = 24, keep = 2, recycle_bin_days = 1 }
 
-  idle_minutes             = 5
+  idle_minutes             = 5                                # the validation minimum (terraform/variables.tf: 5 to 720); a drill would like 2
   wake_budget              = { per_hour = 30, per_day = 120 } # a drill session wakes the box many times an hour
-  no_progress_park_minutes = 30
+  no_progress_park_minutes = 30                               # the validation minimum
 
   caps = {
     awake_hours_per_day     = 12
