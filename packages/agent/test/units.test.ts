@@ -85,13 +85,16 @@ test("hash is stable for equal text and changes with the text", () => {
   assert.notEqual(b.hash, a.hash);
 });
 
-test("a reserved env key is rejected", () => {
+test("a reserved env key is rejected, in start.env and as an env secret", () => {
   for (const key of RESERVED_ENV) {
     const def: PayloadDefinition = { ...minimal, start: { ...minimal.start, env: { [key]: "x" } } };
-    assert.throws(
-      () => renderUnit(def, OPTS),
-      (e) => e instanceof RunnerError && e.code === "invalid_input",
-    );
+    const secret: PayloadDefinition = { ...minimal, secrets: [{ name: "tok", as: { env: key } }] };
+    for (const d of [def, secret]) {
+      assert.throws(
+        () => renderUnit(d, OPTS),
+        (e) => e instanceof RunnerError && e.code === "invalid_input",
+      );
+    }
   }
 });
 

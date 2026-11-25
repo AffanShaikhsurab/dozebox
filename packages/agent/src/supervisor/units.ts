@@ -74,6 +74,9 @@ export function renderUnit(def: PayloadDefinition, opts: RenderOptions): Rendere
     if (value.includes("\n")) throw invalid(`payload ${name}: ${key} contains a newline`);
   }
   const hasEnvSecret = (def.secrets ?? []).some((s) => "env" in s.as);
+  // EnvironmentFile= overrides Environment=, so an env secret must not carry a reserved name either.
+  const reservedSecret = (def.secrets ?? []).find((s) => "env" in s.as && RESERVED.has(s.as.env));
+  if (reservedSecret) throw invalid(`payload ${name}: secret ${reservedSecret.name} may not set a reserved env var`);
   const description = def.description === undefined ? "" : ` - ${def.description.replaceAll(/\s+/g, " ").trim()}`;
 
   const lines: string[] = [
