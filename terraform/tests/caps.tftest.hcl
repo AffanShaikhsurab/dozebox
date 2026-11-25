@@ -134,6 +134,13 @@ run "the_topic_admits_this_box_budget_only" {
     error_message = "Budgets may publish to the topic only for this box's budget."
   }
   assert {
+    condition = [for s in jsondecode(aws_sns_topic_policy.alerts.policy).Statement : s if try(s.Principal.Service, "") == "cloudwatch.amazonaws.com"][0].Condition == {
+      StringEquals = { "aws:SourceAccount" = "111122223333" }
+      ArnLike      = { "aws:SourceArn" = "arn:aws:cloudwatch:us-east-1:111122223333:alarm:dozebox-main-*" }
+    }
+    error_message = "CloudWatch alarms may publish to the topic only for this box's alarms."
+  }
+  assert {
     condition     = length([for s in jsondecode(aws_sns_topic_policy.alerts.policy).Statement : s if can(s.Principal.AWS) && s.Principal.AWS == "*"]) == 0
     error_message = "No statement opens the topic to every AWS principal."
   }
