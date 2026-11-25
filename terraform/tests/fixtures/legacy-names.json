@@ -1,0 +1,20 @@
+{
+  "box_log_group": "/t3box/main/box",
+  "control_log_group": "/aws/lambda/t3box-main-control",
+  "spot_group": "t3box-main",
+  "fallback_group": "t3box-main-od",
+  "control_function": "t3box-main-control",
+  "control_role": "t3box-main-control",
+  "scheduler_role": "t3box-main-scheduler",
+  "kill_role": "t3box-main-kill",
+  "kill_events_role": "t3box-main-kill-events",
+  "kill_document": "t3box-main-kill",
+  "reconcile_schedule": "t3box-main-reconcile",
+  "alert_topic": "t3box-main-alerts",
+  "budget": "t3box-main-monthly",
+  "data_volume": "t3box-main-data",
+  "data_volume_active_tag": "t3box:active",
+  "config_parameter": "/t3box/main/config",
+  "ssm_prefix": "/t3box/main/",
+  "tag_prefix": "t3box"
+}
