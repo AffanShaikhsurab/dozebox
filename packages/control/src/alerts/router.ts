@@ -9,6 +9,7 @@ import type { Outbox } from "./outbox.ts";
 export type AlertPathVerdict = { readonly level: "ok" | "warn" | "fail"; readonly why: string };
 
 const LAST_RESORT = "email";
+const breakerOf = (all: Readonly<Record<string, Breaker>>, id: string): Breaker => all[id] ?? CLOSED;
 
 export type RouterDeps = {
   readonly sinks: ReadonlyArray<AlertSink>;
@@ -37,7 +38,6 @@ export interface AlertRouter {
 
 export function makeAlertRouter(deps: RouterDeps): AlertRouter {
   const byId = new Map(deps.sinks.map((s) => [s.id, s]));
-  const breakerOf = (all: Readonly<Record<string, Breaker>>, id: string): Breaker => all[id] ?? CLOSED;
 
   return {
     submit: async (alert, token) => {
