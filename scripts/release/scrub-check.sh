@@ -6,6 +6,7 @@
 # Matched text is masked in the output (first 2 characters and the length), so the report can be shared.
 # Exit 0 when every scan is clean, 1 when any scan has a hit or a scanner is missing.
 set -euo pipefail
+export LC_ALL=C
 private="" report="" slug=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -48,7 +49,7 @@ fakes="$(grep -vE '^#|^$' "$repo/scripts/history/fake-ids.txt" 2> /dev/null | pa
 fakes="${fakes:-111122223333|i-0123456789abcdef0}"
 # hits <tsv> <mode> <pattern> <exclude>: "<sha>\t<file>\t<masked match>" per match.
 hits() {
-  cut -f3- "$1" | grep -n $2 -o -- "$3" 2> /dev/null | { if [ -n "$4" ]; then grep -vE -- "$4" || true; else cat; fi; } \
+  { cut -f3- "$1" | grep -n $2 -o -- "$3" 2> /dev/null || true; } | { if [ -n "$4" ]; then grep -vE -- "$4" || true; else cat; fi; } \
     | awk -F'\t' '
       NR == FNR { i = index($0, ":"); ln = substr($0, 1, i - 1); m = substr($0, i + 1)
                   masked[ln] = masked[ln] SUBSEP substr(m, 1, 2) ".." "(" length(m) ")"; next }
