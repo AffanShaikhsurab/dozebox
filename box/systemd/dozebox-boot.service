@@ -1,0 +1,15 @@
+[Unit]
+Description=Dozebox boot: attach and mount the data volume, write the boot timeline
+After=network-online.target
+Wants=network-online.target
+OnFailure=dozebox-park-now.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=/etc/dozebox/box.env
+ExecStart=/opt/dozebox/current/bin/dozebox-boot
+TimeoutStartSec=10min
+
+[Install]
+WantedBy=multi-user.target

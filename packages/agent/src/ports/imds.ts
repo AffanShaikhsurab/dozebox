@@ -10,4 +10,6 @@ export type InstanceFacts = {
 
 export interface Imds {
   readonly instance: (signal?: AbortSignal) => Promise<InstanceFacts>;
+  /** One instance tag (instance metadata tags are on in the launch template), or null when it is not set. */
+  readonly tag: (key: string, signal?: AbortSignal) => Promise<string | null>;
 }

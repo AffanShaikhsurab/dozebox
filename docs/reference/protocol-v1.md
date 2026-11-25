@@ -462,6 +462,22 @@ JSON Schema: `schema/v1/serving-record.json`.
 | `writer.bootId` | string | yes | minLength `8`, maxLength `64` |
 | `payload` | string | yes |  |
 
+### ReleaseRecord
+
+JSON Schema: `schema/v1/release-record.json`.
+
+| Field | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `v` | `1` | yes |  |
+| `at` | string | yes | pattern `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$` |
+| `writer` | object | yes |  |
+| `writer.instanceId` | string | yes | pattern `^i-[0-9a-f]{8,17}$` |
+| `writer.bootId` | string | yes | minLength `8`, maxLength `64` |
+| `version` | string | yes | pattern `^[0-9A-Za-z][0-9A-Za-z.+-]{0,39}$` |
+| `previous` | string or null | yes |  |
+| `outcome` | `"switched"` or `"rolled-back"` | yes |  |
+| `why` | string | no | maxLength `500` |
+
 ### SleepFence
 
 JSON Schema: `schema/v1/sleep-fence.json`.

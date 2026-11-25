@@ -1,0 +1,160 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import { RunnerError } from "@dozebox/core/errors";
+import { makeFakeExec, makeFakeFs } from "@dozebox/testkit/fakes";
+import { makeNodeFiles, type FsPromises } from "../src/adapters/files.ts";
+import { jailArgv } from "../src/jail/bwrap.ts";
+import { parseJailExecArgs, resolveJailExec } from "../src/jail/exec.ts";
+import { APPARMOR_PROFILE, jailReadiness, renderAppArmorProfile } from "../src/jail/ready.ts";
+import type { JailConfig } from "../src/jail/types.ts";
+
+const ON: JailConfig = { enabled: true, egress: "imds-only", allowHosts: [] };
+const WORK = "/data/payloads/web/work/t-1";
+
+const bad = (argv: string[]) => assert.throws(() => parseJailExecArgs(argv, "web"), RunnerError, argv.join(" "));
+const files = (seed: Record<string, string>) => makeNodeFiles(makeFakeFs(seed).fs.promises as unknown as FsPromises, 1);
+
+const pairs = (argv: ReadonlyArray<string>, flag: string): string[] =>
+  argv.flatMap((a, i) => (a === flag ? [argv[i + 1] ?? ""] : []));
+
+describe("jailArgv", () => {
+  it("is empty when the jail is off", () => {
+    assert.deepEqual(jailArgv({ ...ON, enabled: false }, "web", 60_001), []);
+  });
+
+  it("runs bwrap as the agent uid in the payload's agents slice, ending with --", () => {
+    const argv = jailArgv(ON, "web", 60_001, { bindRw: [WORK], context: "thread-9" });
+    assert.deepEqual(argv.slice(0, 8), [
+      "/usr/bin/systemd-run",
+      "--scope",
+      "--quiet",
+      "--collect",
+      "--slice=dozebox-agents-web.slice",
+      "--uid=60001",
+      "--gid=60001",
+      "--",
+    ]);
+    assert.deepEqual(argv.slice(8, 11), ["/usr/bin/env", "-i", "/usr/bin/bwrap"]);
+    assert.equal(argv.at(-1), "--");
+  });
+
+  it("unshares the user namespace explicitly and never --unshare-all or --unshare-net", () => {
+    const argv = jailArgv(ON, "web", 60_001);
+    for (const f of [
+      "--unshare-user",
+      "--unshare-pid",
+      "--unshare-ipc",
+      "--die-with-parent",
+      "--new-session",
+      "--clearenv",
+    ]) {
+      assert.ok(argv.includes(f), f);
+    }
+    assert.ok(!argv.includes("--unshare-all"));
+    assert.ok(!argv.includes("--unshare-net"), "agents need the network; egress rules apply instead");
+  });
+
+  it("binds only the work paths read-write and nothing of the runner's", () => {
+    const argv = jailArgv(ON, "web", 60_001, { bindRw: [WORK] });
+    assert.deepEqual(pairs(argv, "--bind"), [WORK]);
+    const all = argv.join(" ");
+    for (const hidden of ["/run/dozebox", "/data/dozebox", "/opt/dozebox", "/home", "/root", "/run/credentials"]) {
+      assert.ok(!all.includes(hidden), hidden);
+    }
+    assert.equal(argv[argv.indexOf("--chdir") + 1], WORK);
+  });
+
+  it("passes the context and the decoy profile; the decoy can be turned off", () => {
+    const argv = jailArgv(ON, "web", 60_001, { context: "thread-9" });
+    assert.ok(argv.join(" ").includes("--setenv DOZEBOX_CONTEXT thread-9"));
+    assert.ok(argv.join(" ").includes("--setenv AWS_CONFIG_FILE /etc/dozebox/aws-decoy.config"));
+    assert.ok(!jailArgv(ON, "web", 60_001, { decoy: false }).includes("AWS_CONFIG_FILE"));
+  });
+
+  it("refuses a uid below 60000 and a bad payload name", () => {
+    assert.throws(() => jailArgv(ON, "web", 1000), TypeError);
+    assert.throws(() => jailArgv(ON, "../x", 60_001), TypeError);
+  });
+});
+
+describe("jail exec arguments", () => {
+  it("parses context, binds and the command", () => {
+    assert.deepEqual(
+      parseJailExecArgs(["--context", "t-1", "--bind-rw", `${WORK}/`, "--", "claude", "-p", "x"], "web"),
+      {
+        context: "t-1",
+        bindRw: [WORK],
+        readOnly: [],
+        command: ["claude", "-p", "x"],
+      },
+    );
+  });
+
+  it("refuses paths outside the payload's data dir, .., relative paths and other payloads", () => {
+    bad(["--context", "c", "--bind-rw", "/data/dozebox", "--", "sh"]);
+    bad(["--context", "c", "--bind-rw", "/data/payloads/web/../../dozebox", "--", "sh"]);
+    bad(["--context", "c", "--bind-rw", "data/payloads/web/x", "--", "sh"]);
+    bad(["--context", "c", "--bind-rw", "/data/payloads/api/x", "--", "sh"]);
+    bad(["--context", "c", "--bind-rw", "/data/payloads/web", "--", "sh"]);
+    bad(["--context", "c", "--bind-rw", "/data/payloads/webx/y", "--", "sh"]);
+  });
+
+  it("needs a context, a command and known options", () => {
+    bad(["--", "sh"]);
+    bad(["--context", "c"]);
+    bad(["--context", "c", "--"]);
+    bad(["--context", "c d", "--", "sh"]);
+    bad(["--context", "c", "--privileged", "x", "--", "sh"]);
+    bad(["--context"]);
+  });
+
+  it("a symlink under the data dir that leads out is refused", async () => {
+    const deps = {
+      realpath: async (p: string) => (p.endsWith("/link") ? "/data/dozebox" : p),
+      config: ON,
+      payload: "web",
+      agentUid: 60_001,
+      decoy: true,
+    };
+    const ok = await resolveJailExec(deps, ["--context", "c", "--bind-rw", WORK, "--", "make"]);
+    assert.equal(ok.at(-1), "make");
+    await assert.rejects(
+      resolveJailExec(deps, ["--context", "c", "--bind-rw", `${WORK}/link`, "--", "make"]),
+      RunnerError,
+    );
+    await assert.rejects(
+      resolveJailExec({ ...deps, config: { ...ON, enabled: false } }, ["--context", "c", "--", "x"]),
+      RunnerError,
+    );
+  });
+});
+
+describe("jail readiness", () => {
+  const signal = new AbortController().signal;
+
+  it("ready when bwrap runs, the profile is there and the table is loaded", async () => {
+    const exec = makeFakeExec([{ match: () => true, outcome: { code: 0 } }]);
+    const r = await jailReadiness(
+      { exec, files: files({ [APPARMOR_PROFILE]: renderAppArmorProfile() }) },
+      { ...ON, tripwire: true },
+      signal,
+    );
+    assert.deepEqual(r, { ready: true, egress: "imds-only", missing: [] });
+  });
+
+  it("names every missing part", async () => {
+    const exec = makeFakeExec([
+      { match: ["/usr/bin/bwrap"], outcome: { throws: new Error("ENOENT") } },
+      { match: ["nft"], outcome: { code: 1 } },
+      { match: ["systemctl"], outcome: { code: 3 } },
+    ]);
+    const r = await jailReadiness({ exec, files: files({}) }, { ...ON, egress: "allowlist", tripwire: true }, signal);
+    assert.deepEqual(r, { ready: false, egress: "allowlist", missing: ["bwrap", "apparmor", "nftables", "tripwire"] });
+  });
+
+  it("the profile grants userns to bwrap only", () => {
+    const p = renderAppArmorProfile();
+    assert.match(p, /^profile dozebox-bwrap \/usr\/bin\/bwrap flags=\(unconfined\) \{$/m);
+    assert.match(p, /^ {2}userns,$/m);
+  });
+});

@@ -1,0 +1,8 @@
+[Unit]
+Description=Dozebox failsafe: park the box if the agent never served
+
+[Service]
+Type=oneshot
+TimeoutStartSec=5min
+EnvironmentFile=/etc/dozebox/box.env
+ExecStart=/opt/dozebox/stage0/failsafe.sh
