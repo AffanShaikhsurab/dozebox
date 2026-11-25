@@ -14,7 +14,8 @@ resource "aws_sns_topic_subscription" "email" {
 }
 
 # The topic's only policy: the account's own principals (by their IAM policies), plus each service sender. A file
-# that adds a service sender adds its statement here. CloudWatch alarms in this account need no statement.
+# that adds a service sender adds its statement here. A service principal is not covered by the account root
+# statement, so CloudWatch alarms need their own (without it every alarm action fails with "not authorized: SNS:Publish").
 resource "aws_sns_topic_policy" "alerts" {
   arn = aws_sns_topic.alerts.arn
   policy = jsonencode({
@@ -36,6 +37,17 @@ resource "aws_sns_topic_policy" "alerts" {
         Condition = {
           StringEquals = { "aws:SourceAccount" = local.account_id }
           ArnLike      = { "aws:SourceArn" = local.arns.budget }
+        }
+      },
+      {
+        Sid       = "OnlyThisBoxAlarmsPublish"
+        Effect    = "Allow"
+        Principal = { Service = "cloudwatch.amazonaws.com" }
+        Action    = "sns:Publish"
+        Resource  = aws_sns_topic.alerts.arn
+        Condition = {
+          StringEquals = { "aws:SourceAccount" = local.account_id }
+          ArnLike      = { "aws:SourceArn" = "arn:${local.partition}:cloudwatch:${local.region}:${local.account_id}:alarm:${local.name}-*" }
         }
       },
     ]
