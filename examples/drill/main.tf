@@ -172,3 +172,8 @@ output "state_table_name" {
   description = "DynamoDB state table."
   value       = module.dozebox.state_table_name
 }
+
+output "unfreeze_runbook" {
+  description = "The unfreeze SSM Automation document and its parameters."
+  value       = module.dozebox.unfreeze_runbook
+}
