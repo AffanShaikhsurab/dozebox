@@ -175,7 +175,10 @@ export async function record(ctx: DrillContext, name: string, signal?: AbortSign
 export async function cliOk(ctx: DrillContext, argv: ReadonlyArray<string>, signal: AbortSignal): Promise<Json> {
   const r = await ctx.cli(argv, signal);
   if (r.code !== 0) {
-    throw new DozeboxCliError("problem", `dozebox ${argv.join(" ")} exited ${r.code}: ${r.out.join(" ").slice(-400)}`);
+    // The head names the error; the tail is where JSON error bodies end. Encoded IAM messages are long.
+    const out = r.out.join(" ");
+    const text = out.length <= 900 ? out : `${out.slice(0, 600)} … ${out.slice(-300)}`;
+    throw new DozeboxCliError("problem", `dozebox ${argv.join(" ")} exited ${r.code}: ${text}`);
   }
   return obj(r.json);
 }
