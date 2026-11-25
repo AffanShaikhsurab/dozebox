@@ -2,6 +2,7 @@
 // still real, determinism, and the invariants on hand-made actions.
 import * as assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { CI_WAITS } from "../src/agent/examples/names.ts";
 import { Control } from "../src/control/control.ts";
 import { makeConfig } from "../src/config.ts";
 import { createWorldInvariants } from "../src/invariants/world.ts";
@@ -27,6 +28,12 @@ describe("seeded simulator", () => {
     const verdict = judgeCensus(c, knownClasses());
     const bad = runs.find((r) => r.errors.length > 0 || r.findings.some((f) => f.cls === "unknown"));
     assert.ok(verdict.ok, `${JSON.stringify(verdict.over)}\n${bad ? describeFailure(simulate(bad.seed)) : ""}`);
+  });
+
+  it("the CI-driven payload model holds the invariants on 200 seeds", () => {
+    const runs = Array.from({ length: 200 }, (_, i) => runSeed(i + 1, { payload: CI_WAITS }));
+    const bad = runs.find((r) => r.errors.length > 0 || r.findings.length > 0);
+    assert.ok(bad === undefined, bad ? describeFailure(simulate(bad.seed, { payload: CI_WAITS })) : "");
   });
 
   it("keeps each open finding real: its seed still shows its class", () => {

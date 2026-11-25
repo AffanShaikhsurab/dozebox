@@ -13,7 +13,9 @@ import { attachVolume, stopPersistent } from "../world/ec2.ts";
 import { setDesired } from "../world/group.ts";
 import type { BoxHandle, Instance, Notice, World } from "../world/world.ts";
 import type { Control } from "../control/control.ts";
-import { PayloadModel } from "./payload.ts";
+import { CiWaitsPayload } from "./examples/ciWaits.ts";
+import { CI_WAITS } from "./examples/names.ts";
+import { PayloadModel, type SimPayload, type WakeRequest } from "./payload.ts";
 import { Server } from "./server.ts";
 
 type ProcState = { readonly name: string; dead: boolean; calls: number; readonly killAt: number };
@@ -31,7 +33,7 @@ export class Box implements BoxHandle {
   bootFailure: { readonly killed: boolean } | null = null;
   unwellSince: number | undefined = undefined;
   unwellEnd: number | undefined = undefined;
-  readonly payload: PayloadModel;
+  readonly payload: SimPayload;
   private readonly w: World;
   private readonly control: Control;
   private readonly r: Rng;
@@ -55,11 +57,15 @@ export class Box implements BoxHandle {
     this.lastActivity = w.now;
     this.r = w.rng.fork(`box/${inst.id}/${w.now}`);
     this.server = new Server(w, this.log);
-    this.payload = new PayloadModel(w, this.r.fork("payload"), (req) => {
+    const publish = (req: WakeRequest): void => {
       // The agent publishes a wake request when the payload makes it; it outlives the box (part 4 wakes).
       if (w.cfg.bugs.includes("agent-drops-wake-requests")) return;
       w.at(w.draw(M.cliCallMs), () => void control.state.wakeRequests.push(req), "wake-request");
-    });
+    };
+    this.payload =
+      w.cfg.payload === CI_WAITS
+        ? new CiWaitsPayload(w, this.r.fork("payload"), publish)
+        : new PayloadModel(w, this.r.fork("payload"), publish);
   }
 
   /** This boot wrote `rec/serving` (the agent's first passing health check), as the judge reads it. */
@@ -81,9 +87,12 @@ export class Box implements BoxHandle {
     return this.payload.holds().some((h) => h.until > this.w.now);
   }
 
-  /** The newest progress the payload reported: a beat, or the end of a hold. */
+  /** The newest progress the payload reported: a beat, the end of a hold, or the end of a presence. */
   progressAt(): number {
-    const ends = this.payload.holds().map((h) => Math.min(h.until, this.w.now));
+    const ends = [
+      ...this.payload.holds().map((h) => Math.min(h.until, this.w.now)),
+      ...this.payload.presence().map((p) => Math.min(p.until, this.w.now)),
+    ];
     return Math.max(this.payload.lastProgressAt ?? Number.NEGATIVE_INFINITY, ...ends);
   }
 

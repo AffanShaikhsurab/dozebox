@@ -12,6 +12,8 @@ pnpm --filter @dozebox/sim sim:judge                 # re-introduced historic bu
 pnpm --filter @dozebox/sim test                      # 1,000 seeds plus the scenarios (SIM_SEEDS=n for more)
 ```
 
+`--payload` picks the payload model: `generic` (default) or the CI-driven model in `src/agent/examples/` (S3).
+
 ## What is modelled
 
 | File                       | What it is                                                                                                                                                                                                                                                                                                                              |

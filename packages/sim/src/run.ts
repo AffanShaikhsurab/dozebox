@@ -2,6 +2,7 @@
 // runs, inside a simulated control shell and agent. Seeded and deterministic: one seed is one simulated box over
 // `days`. Synchronous: the world is a discrete-event queue of generator processes.
 import type { ConfigOverrides, SimBug } from "./config.ts";
+import type { PayloadName } from "./agent/examples/names.ts";
 import { knownClasses } from "./known.ts";
 import { simulate } from "./simulate.ts";
 import { HOUR } from "./world/clock.ts";
@@ -14,6 +15,8 @@ export type SimOptions = {
   readonly faults?: Readonly<Record<string, number>>;
   /** The agent model: `protocol` (S2) or `health-only`. */
   readonly agent?: "protocol" | "health-only";
+  /** The payload model (S3): `generic` (default) or the CI-driven one. */
+  readonly payload?: PayloadName;
   /** Historic bugs re-introduced for the judge. */
   readonly bugs?: ReadonlyArray<SimBug>;
 };
@@ -67,6 +70,7 @@ export function toOverrides(opts: SimOptions = {}): ConfigOverrides {
     ...faults,
     ...(opts.days === undefined ? {} : { horizonMs: opts.days * 24 * HOUR }),
     ...(opts.agent === undefined ? {} : { agent: opts.agent }),
+    ...(opts.payload === undefined ? {} : { payload: opts.payload }),
     ...(opts.bugs === undefined ? {} : { bugs: opts.bugs }),
   };
 }

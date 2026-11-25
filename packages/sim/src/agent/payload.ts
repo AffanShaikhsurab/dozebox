@@ -15,7 +15,19 @@ const HOLD_FOR_MS = 15 * MINUTE;
 
 export type WakeRequest = { readonly key: string; readonly at: number };
 
-export class PayloadModel {
+/** What the agent asks of a payload model (S2/S3): the same members `PayloadModel` has always had. */
+export interface SimPayload {
+  lastInteractiveAt: number | null;
+  lastProgressAt: number | null;
+  start(carried?: ReadonlyArray<IdleHold>): void;
+  stop(): void;
+  reclaimNotice(): void;
+  interact(): void;
+  holds(): IdleHold[];
+  presence(): IdlePresence[];
+}
+
+export class PayloadModel implements SimPayload {
   lastInteractiveAt: number | null = null;
   lastProgressAt: number | null = null;
   private readonly held = new Map<string, IdleHold>();

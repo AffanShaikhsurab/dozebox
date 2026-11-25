@@ -4,6 +4,7 @@
 import { HOUR, MINUTE } from "./world/clock.ts";
 import { MEASURED as M } from "./measured.ts";
 import type { Rng } from "./prng.ts";
+import type { PayloadName } from "./agent/examples/names.ts";
 
 /** Historic bugs the judge re-introduces to prove the simulator still finds them (part 10 §10.7). */
 const SIM_BUGS = [
@@ -51,6 +52,8 @@ export type SimConfig = {
   readonly bugs: ReadonlyArray<SimBug>;
   /** `protocol`: the payload holds the box while it works, beats and leaves wakes (S2). */
   readonly agent: "protocol" | "health-only";
+  /** Which payload model the agent runs (S3): the generic one, or the CI-driven one. */
+  readonly payload: PayloadName;
 };
 
 export type ConfigOverrides = Partial<Omit<SimConfig, "capacityWindows" | "tagWindows">> & {
@@ -89,6 +92,7 @@ export function makeConfig(r: Rng, options: ConfigOverrides = {}): SimConfig {
     tagWindows: [] as Window[],
     bugs: [] as SimBug[],
     agent: "protocol" as const,
+    payload: "generic" as const,
   };
   const cfg: SimConfig = { ...drawn, ...options };
   if (!options.capacityWindows) {

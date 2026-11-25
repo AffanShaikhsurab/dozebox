@@ -1,7 +1,8 @@
 // `pnpm sim`: a census over seeds, judged against known.ts. Exit 0 when every class is at or under its ceiling and
 // nothing else fired. `--seed N [--trace 80]` replays one seed with its trace.
-// Usage: pnpm sim [--seeds 5000] [--from 1] [--workers N] [--agent protocol|health-only] [--json]
+// Usage: pnpm sim [--seeds 5000] [--from 1] [--workers N] [--agent protocol|health-only] [--payload NAME] [--json]
 import { parseArgs } from "node:util";
+import { CI_WAITS } from "../src/agent/examples/names.ts";
 import { isSimBug } from "../src/config.ts";
 import { judgeCensus, knownClasses } from "../src/known.ts";
 import { toOverrides, type SimOptions } from "../src/run.ts";
@@ -16,6 +17,7 @@ const { values } = parseArgs({
     trace: { type: "string", default: "60" },
     workers: { type: "string" },
     agent: { type: "string" },
+    payload: { type: "string" },
     json: { type: "boolean", default: false },
     bug: { type: "string", multiple: true },
     protocol: { type: "boolean", default: false },
@@ -23,11 +25,21 @@ const { values } = parseArgs({
 });
 const agent: SimOptions["agent"] =
   values.agent === "health-only" || values.agent === "protocol" ? values.agent : undefined;
+const payloadOf = (s: string | undefined): SimOptions["payload"] => {
+  if (s === undefined) return undefined;
+  if (s === "generic" || s === CI_WAITS) return s;
+  throw new Error(`unknown --payload ${s}`);
+};
+const payload = payloadOf(values.payload);
 const bugs = (values.bug ?? []).map((b) => {
   if (!isSimBug(b)) throw new Error(`unknown --bug ${b}`);
   return b;
 });
-const opts: SimOptions = { ...(agent === undefined ? {} : { agent }), ...(bugs.length > 0 ? { bugs } : {}) };
+const opts: SimOptions = {
+  ...(agent === undefined ? {} : { agent }),
+  ...(payload === undefined ? {} : { payload }),
+  ...(bugs.length > 0 ? { bugs } : {}),
+};
 
 if (values.seed !== undefined) {
   const r = simulate(Number(values.seed), toOverrides(opts));
