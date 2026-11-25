@@ -32,6 +32,6 @@ export async function swapVolume(deps: Deps, volumeId: string, reason: string): 
   }
 
   await deps.volumes.moveActive(boxId, previous, volumeId);
-  deps.log.log("info", "admin swap-volume", { volumeId, previous, reason });
+  deps.log.log("info", "admin swap-volume", { volumeId, previous, reasonChars: reason.length });
   return { ok: true, active: volumeId, previous };
 }
