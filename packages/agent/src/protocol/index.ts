@@ -25,3 +25,4 @@ export {
   type SocketKind,
 } from "./wire.ts";
 export { callAdmin, parseShim, shimMain, type ShimAnswer, type ShimCall } from "./shim.ts";
+export { establishedLocalPorts, SOURCE_PRESENCE_MS, sshPresenceSource, tcpPresenceSource } from "./sources.ts";
