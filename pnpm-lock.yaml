@@ -249,6 +249,10 @@ importers:
       typebox:
         specifier: 1.4.7
         version: 1.4.7
+    devDependencies:
+      '@dozebox/testkit':
+        specifier: workspace:*
+        version: link:../testkit
 
   packages/client:
     dependencies:

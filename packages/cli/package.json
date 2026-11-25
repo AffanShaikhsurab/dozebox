@@ -16,10 +16,16 @@
       "default": "./dist/index.js"
     }
   },
+  "scripts": {
+    "test": "node --conditions=@dozebox/source --test \"test/**/*.test.ts\""
+  },
   "dependencies": {
     "@dozebox/client": "workspace:*",
     "@dozebox/core": "workspace:*",
     "@dozebox/protocol": "workspace:*",
     "typebox": "1.4.7"
+  },
+  "devDependencies": {
+    "@dozebox/testkit": "workspace:*"
   }
 }
