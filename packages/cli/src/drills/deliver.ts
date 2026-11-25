@@ -42,6 +42,9 @@ export function installScript(version: string, sha: string): string {
     // install-agent finds bin/dozeboxd in place, so it never downloads; it switches, installs units and starts.
     `/opt/dozebox/stage0/install-agent.sh "$v" https://release.invalid '${sha}'`,
     'rm -rf "$d"',
+    // What the units did in their first seconds, for the report (a failed boot unit parks the box soon after).
+    'sleep 15; systemctl is-active dozebox-boot dozeboxd || true',
+    'journalctl -b -u dozebox-boot -u dozeboxd --no-pager -n 15 -o cat | cut -c1-200 || true',
     'echo "delivered $v"',
   ].join("\n");
 }
@@ -76,6 +79,6 @@ export async function deliverAgent(
     await shell(ctx, instanceId, `printf %s '${part}' >> /var/tmp/dzd/a.b64`, signal);
   }
   const out = await shell(ctx, instanceId, installScript(version, sha), signal, { timeoutSeconds: 600 });
-  ctx.log(`deliver: ${out.stdout.trim().split("\n").at(-1) ?? ""}`);
+  for (const line of out.stdout.trim().split("\n").slice(-18)) ctx.log(`deliver: ${line}`);
   ctx.facts.set("delivered", version);
 }

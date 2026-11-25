@@ -128,6 +128,7 @@ module "dozebox" {
   snapshots   = { every_hours = 24, keep = 2, recycle_bin_days = 1 }
 
   idle_minutes             = 5
+  wake_budget              = { per_hour = 30, per_day = 120 } # a drill session wakes the box many times an hour
   no_progress_park_minutes = 30
 
   caps = {
