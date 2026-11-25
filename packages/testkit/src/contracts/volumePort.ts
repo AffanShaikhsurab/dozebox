@@ -19,7 +19,10 @@ export type VolumeHarness = Seeds & {
   /** A snapshot to create volumes from (on targets without snapshots, any id the target accepts). */
   readonly seedSnapshot: (opts?: { readonly boxId?: string; readonly startedAt?: number }) => Promise<string>;
   /** A volume of `boxId` (`<prefix>:active` as `active`, default true) attached to a running machine. */
-  readonly seedAttached: (boxId: string, opts?: { readonly active?: boolean }) => Promise<{ readonly volumeId: string; readonly machineId: string }>;
+  readonly seedAttached: (
+    boxId: string,
+    opts?: { readonly active?: boolean },
+  ) => Promise<{ readonly volumeId: string; readonly machineId: string }>;
   readonly inject: (op: "describe" | "create", name: string, status: number) => void;
 };
 
