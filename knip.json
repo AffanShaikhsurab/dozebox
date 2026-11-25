@@ -12,5 +12,5 @@
     }
   },
   "ignore": ["legacy/**"],
-  "ignoreBinaries": ["terraform"]
+  "ignoreBinaries": ["terraform", "terraform-docs"]
 }
