@@ -46,8 +46,8 @@ test("a crash loop ends in ActiveState=failed, and OnFailure= sees it failed", {
   t.after(() => {
     for (const u of [crash, parkNow]) {
       try {
-        execFileSync("systemctl", ["stop", u]);
-        execFileSync("systemctl", ["reset-failed", u]);
+        execFileSync("systemctl", ["stop", u], { stdio: "ignore" });
+        execFileSync("systemctl", ["reset-failed", u], { stdio: "ignore" });
       } catch {
         // already gone
       }
