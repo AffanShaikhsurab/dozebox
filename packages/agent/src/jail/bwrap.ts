@@ -5,6 +5,7 @@ import type { JailConfig } from "./types.ts";
 
 export const BWRAP = "/usr/bin/bwrap";
 export const SYSTEMD_RUN = "/usr/bin/systemd-run";
+const ENV = "/usr/bin/env";
 export const DECOY_CONFIG = "/etc/dozebox/aws-decoy.config";
 export const JAIL_PATH = "/usr/local/bin:/usr/bin:/bin";
 
@@ -64,6 +65,7 @@ export function bwrapFlags(run: JailRun = {}): string[] {
 /**
  * The argv prefix that runs a command as the payload's agent user inside the jail, in the payload's agents slice
  * (`dozebox-agents-<payload>.slice`, child of `dozebox-agents.slice`), so a fork bomb hits that slice's limits.
+ * `env -i` first: bwrap's own environ is readable as /proc/1/environ inside the jail, so it must not carry the caller's.
  * Empty when the jail is off.
  */
 export function jailArgv(cfg: JailConfig, payload: string, uid: number, run: JailRun = {}): ReadonlyArray<string> {
@@ -79,6 +81,8 @@ export function jailArgv(cfg: JailConfig, payload: string, uid: number, run: Jai
     `--uid=${uid}`,
     `--gid=${uid}`,
     "--",
+    ENV,
+    "-i",
     BWRAP,
     ...bwrapFlags(run),
     "--",
