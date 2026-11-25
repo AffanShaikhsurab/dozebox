@@ -33,7 +33,7 @@ export function toVolumeView(v: Volume, prefix: string): VolumeView {
 }
 
 /** Every volume matching `filters`, across pages. */
-export async function describeVolumes(
+async function describeVolumes(
   ec2: EC2Client,
   input: { readonly Filters?: Array<{ Name: string; Values: string[] }>; readonly VolumeIds?: string[] },
 ): Promise<Volume[]> {

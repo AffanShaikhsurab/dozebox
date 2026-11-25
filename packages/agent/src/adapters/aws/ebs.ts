@@ -46,7 +46,8 @@ export function makeAwsVolumeAttach(deps: AwsVolumeAttachDeps): VolumeAttach {
           }),
         );
         const vs = out.Volumes ?? [];
-        if (vs.length > 1) throw new RunnerError("internal", false, `box ${boxId} has ${vs.length} volumes tagged active`);
+        if (vs.length > 1)
+          throw new RunnerError("internal", false, `box ${boxId} has ${vs.length} volumes tagged active`);
         return vs[0] ? view(vs[0]) : null;
       } catch (e) {
         throw fromAws(e);
