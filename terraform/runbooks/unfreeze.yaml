@@ -1,0 +1,46 @@
+description: |
+  Lifts the kill switch (part 8 §8.2): detaches the deny policy from the box and control roles and clears the freeze
+  record. It starts nothing; the next wake does. Started by dozebox unfreeze with a person's credentials.
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: The unfreeze role.
+  BoxRoleName:
+    type: String
+  ControlRoleName:
+    type: String
+  DenyPolicyArn:
+    type: String
+  FreezeParameter:
+    type: String
+    description: The SSM parameter that records the freeze.
+mainSteps:
+  # A role the policy is not attached to answers NoSuchEntity; that is already the wanted state.
+  - name: LiftTheBoxRole
+    action: aws:executeAwsApi
+    onFailure: Continue
+    isCritical: false
+    inputs:
+      Service: iam
+      Api: DetachRolePolicy
+      RoleName: "{{ BoxRoleName }}"
+      PolicyArn: "{{ DenyPolicyArn }}"
+  - name: LiftTheControlRole
+    action: aws:executeAwsApi
+    onFailure: Continue
+    isCritical: false
+    inputs:
+      Service: iam
+      Api: DetachRolePolicy
+      RoleName: "{{ ControlRoleName }}"
+      PolicyArn: "{{ DenyPolicyArn }}"
+  - name: ClearTheFreeze
+    action: aws:executeAwsApi
+    onFailure: Continue
+    isCritical: false
+    inputs:
+      Service: ssm
+      Api: DeleteParameter
+      Name: "{{ FreezeParameter }}"
