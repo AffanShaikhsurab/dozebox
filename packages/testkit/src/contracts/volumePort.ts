@@ -194,7 +194,7 @@ export function volumePortContract(name: string, make: () => Promise<VolumeHarne
       const box = fresh("box");
       const { volumeId } = await h.seedAttached(box, { active: false });
       await rejectsWith(h.volumes.deleteVolume(volumeId, fresh("tok")), "aws_conflict", true);
-      assert.equal((await h.volumes.describeBox(box)).length, 1);
+      assert.ok((await h.volumes.describeBox(box)).some((v) => v.id === volumeId));
     });
 
     test("describe throttled -> aws_throttled; create over the volume quota -> aws_limit", async () => {
