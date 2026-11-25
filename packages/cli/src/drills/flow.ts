@@ -42,7 +42,7 @@ export async function waitParked(ctx: DrillContext, signal: AbortSignal): Promis
 }
 
 /** A person's sleep request on the box: `POST /v1/sleep {"reason":"user","force":true}` on the admin socket. */
-export const SLEEP_BY_USER =
+const SLEEP_BY_USER =
   "curl -sS --fail-with-body --max-time 10 --unix-socket /run/dozebox/admin.sock -X POST " +
   "-H 'content-type: application/json' -H 'x-dozebox-payload: marker' " +
   `-d '{"reason":"user","force":true}' http://box/v1/sleep`;
