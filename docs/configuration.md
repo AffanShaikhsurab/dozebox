@@ -34,6 +34,8 @@ Secrets are never inputs. Fields that end in `secret` take the name of a SecureS
 | log\_retention\_days | Retention of every log group the module creates. | `number` | `30` | no |
 | enable\_ssm\_session | Adds the scoped Session Manager policy to the instance role. | `bool` | `false` | no |
 | tags | Added to every resource. The module adds <prefix>:box = <box\_id>. | `map(string)` | `{}` | no |
+| drill\_mode | Test stacks only. Uses a data volume without prevent\_destroy so a drill can tear the stack down. | `bool` | `false` | no |
+| iam\_permissions\_boundary | ARN of a managed policy set as the permissions boundary of every IAM role the module creates; null for none. For accounts whose deploy principal may only create bounded roles. | `string` | `null` | no |
 
 ### Outputs
 
@@ -48,4 +50,7 @@ Secrets are never inputs. Fields that end in `secret` take the name of a SecureS
 | instance\_role\_arn | Role of the box. |
 | state\_table\_name | DynamoDB table (lease, outbox, ledgers). |
 | dashboard\_url | CloudWatch dashboard. |
+| data\_volume\_id | The volume tagged active at apply time. |
+| persistent\_instance\_id | The persistent Spot instance (machine\_mode persistent), else null. |
+| iam\_policy\_sizes | Characters of every managed policy as AWS counts them (limit 6,144; the module's budget 5,500). |
 <!-- END_TF_DOCS -->
