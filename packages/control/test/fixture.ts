@@ -3,6 +3,7 @@
 import type { Compute } from "@dozebox/control/ports/compute";
 import { makeFakeAws, type FakeAws } from "@dozebox/testkit/fakes";
 import type { ControlConfig } from "../src/config.ts";
+import type { AlertSink } from "../src/ports/alertSink.ts";
 import { assembleDeps, type Deps, type WakeIdempotency } from "../src/deps.ts";
 import type { FunctionUrlEvent, FunctionUrlResult } from "../src/http/event.ts";
 import { route } from "../src/http/router.ts";
@@ -88,7 +89,11 @@ export function httpEvent(method: string, path: string, opts: CallOptions = {}):
 }
 
 export function makeWorld(
-  opts: { readonly config?: Partial<ControlConfig>; readonly idempotency?: WakeIdempotency } = {},
+  opts: {
+    readonly config?: Partial<ControlConfig>;
+    readonly idempotency?: WakeIdempotency;
+    readonly sinks?: ReadonlyArray<AlertSink>;
+  } = {},
 ): World {
   const aws = makeFakeAws();
   const computeCalls: ComputeCall[] = [];
@@ -102,6 +107,7 @@ export function makeWorld(
     sink: (line) => lines.push(line),
     invocationId: "inv-1",
     ...(opts.idempotency === undefined ? {} : { idempotency: opts.idempotency }),
+    ...(opts.sinks === undefined ? {} : { sinks: opts.sinks }),
     ports: {
       compute: spyCompute(aws.compute, computeCalls),
       records: aws.ssm.store(ROOT),
