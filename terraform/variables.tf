@@ -21,11 +21,12 @@ variable "name_prefix" {
 }
 
 variable "instance" {
-  description = "Instance types (first is preferred), CPU architecture, machine mode, AMI parameter (default: Canonical Ubuntu 24.04 for the arch) and root disk size."
+  description = "Instance types (first is preferred), CPU architecture, machine mode, purchase (spot or on-demand persistent instance), AMI parameter (default: Canonical Ubuntu 24.04 for the arch) and root disk size."
   type = object({
     types             = list(string)
     arch              = optional(string, "arm64")
     machine_mode      = optional(string, "persistent")
+    purchase          = optional(string, "spot")
     ami_ssm_parameter = optional(string)
     root_volume_gb    = optional(number, 30)
   })
@@ -43,8 +44,8 @@ variable "instance" {
     error_message = "instance.arch must be arm64 or x86_64."
   }
   validation {
-    condition     = contains(["persistent", "group"], var.instance.machine_mode)
-    error_message = "instance.machine_mode must be persistent or group."
+    condition     = contains(["persistent", "group"], var.instance.machine_mode) && contains(["spot", "on-demand"], var.instance.purchase)
+    error_message = "instance.machine_mode must be persistent or group, and instance.purchase spot or on-demand."
   }
   validation {
     condition     = var.instance.root_volume_gb >= 8 && var.instance.root_volume_gb <= 1024

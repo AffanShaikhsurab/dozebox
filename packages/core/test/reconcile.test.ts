@@ -2,7 +2,14 @@
 // exhaustive check of the safety rules over every combination of observed facts.
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { decideReconcile, type Action, type Desired, type Ec2State, type Observed } from "../src/reconcile/decide.ts";
+import {
+  agentPark,
+  decideReconcile,
+  type Action,
+  type Desired,
+  type Ec2State,
+  type Observed,
+} from "../src/reconcile/decide.ts";
 
 const T0 = Date.UTC(2026, 10, 24, 21, 0, 0);
 const MIN = 60_000;
@@ -293,4 +300,34 @@ test("decideReconcile safety over every combination of observed facts", () => {
                 if (a.kind === "stop-persistent" && want === "awake") assert.ok(frozen || holder === G, what);
               }
   assert.equal(checked, STATES.length * 4 * 3 * 3 * 2 * 2 * 2);
+});
+
+const afterStop = (at: number, reason = "user") => ({ sleepFence: { at, phase: "after-stop" as const, reason } });
+const observed = (over: Partial<Observed>): Observed => ({ ...base, ...over });
+
+test("agentPark: the agent's own park (after-stop fence) becomes desired asleep at the fence time (R2)", () => {
+  const fence = afterStop;
+  const o = observed;
+  assert.deepEqual(agentPark(awake(T0 - 10 * MIN), o(fence(T0 - MIN))), {
+    want: "asleep",
+    since: T0 - MIN,
+    reason: "park:agent:user",
+    origin: "auto",
+  });
+  assert.equal(agentPark(asleep(), o(fence(T0 - MIN))), null, "already asleep");
+  assert.equal(agentPark(awake(T0), o(fence(T0 - MIN))), null, "a wake after the park wins");
+  assert.equal(
+    agentPark(
+      awake(T0 - 10 * MIN),
+      o({ ...fence(T0 - 3 * MIN), persistent: persistent("running", { launchedAt: T0 - MIN }) }),
+    ),
+    null,
+    "a boot after the fence",
+  );
+  assert.equal(agentPark(awake(T0 - 10 * MIN), o(fence(T0 - MIN, "reclaim"))), null, "a Spot reclaim is not a park");
+  assert.equal(
+    agentPark(awake(T0 - 10 * MIN), o({ sleepFence: { at: T0 - MIN, phase: "before-stop", reason: "idle" } })),
+    null,
+    "still parking",
+  );
 });
