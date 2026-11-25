@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import { makeFallbackDrill } from "../src/drills/fallback.ts";
 import { spotDrill } from "../src/drills/spot.ts";
@@ -20,21 +23,30 @@ import {
 const SPOT_STEPS = ["wake", "hold", "notice", "reclaim", "request-open", "wake-again"];
 
 /** A Spot box that stops itself once the notice proxy is installed; `because` is what its last-words say. */
-function spotWorld(because: string, requestState = "disabled") {
-  const world = { state: "stopped", scripts: [] as string[] };
+function spotWorld(because: string, requestState = "disabled", activePolls = 0) {
+  const world = { state: "stopped", scripts: [] as string[], activeLeft: activePolls, requestPolls: 0 };
   const ctx = makeCtx({
     cli: (argv) => {
       if (argv[0] === "wake") {
         world.state = "running";
-        return ok(servingStatus("i-spot", "spot"));
+        return ok({});
       }
+      if (argv[0] === "status") return ok(world.state === "running" ? servingStatus("i-spot", "spot") : {});
       if (argv[0] === "park") world.state = "stopped";
       return ok({});
     },
   });
   ctx.deps.awsCli.answer = router({
     "ec2 describe-instances": () => reservations([instance({ id: "i-spot", state: world.state, spot: true })]),
-    "ec2 describe-spot-instance-requests": () => ({ SpotInstanceRequests: [{ State: requestState }] }),
+    "ec2 describe-spot-instance-requests": () => {
+      world.requestPolls += 1;
+      // A stopped box whose Spot request still says active: a wake now would be sent to the fallback.
+      if (world.state === "stopped" && world.activeLeft > 0) {
+        world.activeLeft -= 1;
+        return { SpotInstanceRequests: [{ State: "active" }] };
+      }
+      return { SpotInstanceRequests: [{ State: requestState }] };
+    },
     "ssm get-parameter": () => ({
       Parameter: {
         Value: JSON.stringify({
@@ -69,6 +81,31 @@ describe("drill spot", () => {
     assert.match(proxy ?? "", /spot\/instance-action/);
     assert.equal(ctx.facts.get("spot.parkedBecause"), "reclaim");
     assert.equal(ctx.cliCalls.at(-1)?.[0], "park");
+  });
+
+  it("does not wake until the Spot request has finished stopping", async () => {
+    const { ctx, world } = spotWorld("reclaim", "disabled", 3);
+    const r = await play(spotDrill, ctx);
+    assert.equal(r.failure, null, message(r.failure));
+    assert.equal(world.activeLeft, 0);
+    assert.ok(world.requestPolls >= 4);
+    assert.equal(ctx.cliCalls.find((c) => c[0] === "wake")?.length, 1);
+  });
+
+  it("pushes the agent to the instance the wake starts when --deliver is set", async () => {
+    const { ctx, world } = spotWorld("reclaim");
+    const dir = mkdtempSync(join(tmpdir(), "dz-spot-"));
+    const tarball = join(dir, "dozebox-agent-0.0.1-linux-aarch64.tar.gz");
+    writeFileSync(tarball, "x");
+    Object.assign(ctx.options, { deliver: tarball });
+    try {
+      const r = await play(spotDrill, ctx);
+      assert.equal(r.failure, null, message(r.failure));
+      assert.ok(world.scripts.some((s) => s.includes("install-agent.sh")));
+      assert.equal(ctx.facts.get("delivered"), "0.0.1");
+    } finally {
+      rmSync(dir, { recursive: true });
+    }
   });
 
   it("fails when the last words give another reason, and still parks", async () => {
@@ -117,19 +154,24 @@ function fallbackWorld(opts: FallbackOpts = {}) {
     puts: [] as string[],
     deleted: 0,
     delivered: [] as string[],
+    fbWoken: false,
   };
   const ctx = makeCtx({
     cli: (argv) => {
-      if (argv[0] === "wake" && !argv.includes("--wait")) {
+      if (argv[0] === "wake" && !w.fbWoken) {
+        // The first wake meets the planted capacity error and goes to the group; the later one starts the Spot box.
+        w.fbWoken = true;
         w.fb = "running";
         w.groupDesired = 1;
         return ok({ state: "launching" });
       }
       if (argv[0] === "wake") {
         w.persistent = "running";
-        return ok(servingStatus("i-p", "spot"));
+        return ok({});
       }
-      if (argv[0] === "status") return ok(servingStatus("i-fb", "on-demand", "fallback"));
+      if (argv[0] === "status") {
+        return ok(w.fb === "running" ? servingStatus("i-fb", "on-demand", "fallback") : servingStatus("i-p", "spot"));
+      }
       if (argv[0] === "park") {
         w.persistent = "stopped";
         w.fb = "none";
@@ -200,7 +242,8 @@ describe("drill fallback", () => {
     assert.equal(planted.pk.S, "kv#last-start-error");
     assert.equal(planted.fencing.N, "7");
     assert.equal((JSON.parse(planted.value.S) as { kind: string }).kind, "capacity");
-    assert.deepEqual(w.delivered, ["i-fb"]);
+    // The Spot box has never run before this drill, so it gets the agent too.
+    assert.deepEqual(w.delivered, ["i-fb", "i-p"]);
     assert.equal(w.deleted, 1, "an item that did not exist is deleted again, once");
     assert.equal(w.groupDesired, 0);
   });

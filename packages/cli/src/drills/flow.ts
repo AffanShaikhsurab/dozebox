@@ -11,12 +11,16 @@ export async function controlStatus(ctx: DrillContext, signal: AbortSignal): Pro
 }
 
 /** Wake, push the agent when asked, and wait until the control status says serving. */
-export async function wakeToServing(ctx: DrillContext, signal: AbortSignal): Promise<Status> {
+export async function wakeToServing(
+  ctx: DrillContext,
+  signal: AbortSignal,
+  deliver: typeof deliverAgent = deliverAgent,
+): Promise<Status> {
   await cliOk(ctx, ["wake"], signal);
   await directTick(ctx, signal);
   if (ctx.options.deliver !== null) {
     const i = await waitUntil(ctx, signal, POLL_MS, () => runningInstance(ctx, signal).catch(() => null));
-    await deliverAgent(ctx, i.id, signal);
+    await deliver(ctx, i.id, signal);
   }
   const s = await waitUntil(ctx, signal, POLL_MS, async () => {
     const st = await controlStatus(ctx, signal);
