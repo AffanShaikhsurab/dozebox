@@ -4,6 +4,7 @@
 import { strict as assert } from "node:assert";
 import { describe, test } from "node:test";
 import { decideReconcile } from "@dozebox/core/reconcile";
+import { makeFakeAlertSink } from "@dozebox/testkit/fakes";
 import { act } from "../src/reconcile/act.ts";
 import { observe } from "../src/reconcile/observe.ts";
 import { tick } from "../src/reconcile/tick.ts";
@@ -117,6 +118,21 @@ describe("tick", () => {
     await tick(w.deps, { trigger: "schedule" });
     assert.deepEqual(w.aws.ec2.calls.at(-1)?.op, "stop");
     assert.equal(w.aws.ec2.calls.at(-1)?.id, id);
+  });
+
+  test("a wake that never serves is paged through the outbox by the tick, once", async () => {
+    const ntfy = makeFakeAlertSink("ntfy");
+    const w = makeWorld({ sinks: [ntfy, makeFakeAlertSink("email")] });
+    w.aws.ec2.addMachine({ boxId: "main", role: "persistent", state: "stopped", lifecycle: "spot" });
+    await w.call("POST", "/v1/wake");
+    for (let i = 0; i < 20; i++) {
+      await tick(w.deps, { trigger: "schedule" });
+      w.aws.clock.advance(MIN);
+    }
+    assert.deepEqual(
+      ntfy.delivered.map((a) => a.key),
+      ["wake-unresolved"],
+    );
   });
 });
 

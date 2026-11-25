@@ -5,7 +5,17 @@ import type { StatusFacts } from "../status/build.ts";
 
 export type TickDeps = Pick<
   Deps,
-  "config" | "clock" | "compute" | "records" | "state" | "desired" | "volumes" | "leases" | "log" | "metrics"
+  | "config"
+  | "clock"
+  | "compute"
+  | "records"
+  | "state"
+  | "desired"
+  | "volumes"
+  | "leases"
+  | "log"
+  | "metrics"
+  | "afterTick"
 >;
 
 export type Snapshot = {

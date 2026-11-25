@@ -30,6 +30,11 @@ export async function tick(deps: TickDeps, ctx: TickContext): Promise<TickResult
   const observed = caps?.noOnDemand === true ? { ...snapshot.observed, onDemandAllowed: false } : snapshot.observed;
   const action = decideReconcile(desired, observed);
   const outcome = await act(deps, action, { lease: held, snapshot: { ...snapshot, desired, observed } });
+  if (held.mayContinue(deps.clock.now())) {
+    // The Lambda timeout bounds the drain; sinks take their own per-call timeouts.
+    const after = await deps.afterTick.run(held.lease.token, new AbortController().signal);
+    if (after.judge.kind !== "ok") deps.log.log("warn", "outside judge", { verdict: after.judge.kind });
+  }
   deps.log.log("info", "reconcile", {
     trigger: ctx.trigger,
     action: action.kind,

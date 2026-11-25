@@ -8,6 +8,9 @@
 //   last-start-error  LastStartError    written by the tick's act step (C3)
 //   caps              CapsView          written by the tick (C3): awake and On-Demand minutes, month spend
 //   awake-log         AwakeLog          written by the tick (C3): running intervals of the last 24 h
+//   alert-breakers    Breaker by sink   written by the alert router under the lease (C4)
+//   alert-ledger      Ledger            core admission ledger, written by the alert router (C4)
+//   judge-marks       JudgeMarks        what the outside judge already reported (C6)
 //   alerts-test       {at}              idempotency-style entry with a 60 s TTL: one test alert a minute
 import { RunnerError } from "@dozebox/core/errors";
 import type { Desired } from "@dozebox/core/reconcile";
@@ -73,6 +76,9 @@ export const KEYS = {
   caps: "caps",
   awakeLog: "awake-log",
   alertsTest: "alerts-test",
+  alertBreakers: "alert-breakers",
+  alertLedger: "alert-ledger",
+  judgeMarks: "judge-marks",
 } as const;
 
 /** Read `key` and check it against `schema`; a missing or mismatched value is null. */
