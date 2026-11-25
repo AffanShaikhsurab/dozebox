@@ -21,7 +21,7 @@ export type WakeEntry = {
   readonly expiresAt: number;
 };
 
-export type PresenceEntry = {
+type PresenceEntry = {
   readonly payload: string;
   readonly id: string;
   readonly kind: PresenceKind;
@@ -29,7 +29,7 @@ export type PresenceEntry = {
   readonly label: string | null;
 };
 
-export type BeatEntry = {
+type BeatEntry = {
   readonly payload: string;
   readonly kind: "progress" | "loop";
   readonly name: string;

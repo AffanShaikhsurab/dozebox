@@ -4,9 +4,9 @@
 import type { JailConfig } from "./types.ts";
 
 export const BWRAP = "/usr/bin/bwrap";
-export const SYSTEMD_RUN = "/usr/bin/systemd-run";
+const SYSTEMD_RUN = "/usr/bin/systemd-run";
 export const DECOY_CONFIG = "/etc/dozebox/aws-decoy.config";
-export const JAIL_PATH = "/usr/local/bin:/usr/bin:/bin";
+const JAIL_PATH = "/usr/local/bin:/usr/bin:/bin";
 
 export type JailRun = {
   /** Read-write binds, each under `/data/payloads/<payload>/` (checked by `parseJailExecArgs`). */

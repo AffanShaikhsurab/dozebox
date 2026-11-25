@@ -65,4 +65,3 @@ test("a second notice while the first park runs does nothing", async () => {
   await first;
   assert.deepEqual(events, ["reclaim-notice", "parked"]);
 });
-

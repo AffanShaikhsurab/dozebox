@@ -5,7 +5,7 @@ import { ProtocolError } from "./errors.ts";
 import { LIMITS } from "./limits.ts";
 
 const HOUR_MS = 60 * 60_000;
-export const DEFAULT_DEDUPE_SECONDS = 3600;
+const DEFAULT_DEDUPE_SECONDS = 3600;
 
 export interface AttentionGate {
   /** The earlier alert id when `input.key` is inside its dedupe window, else null. Throws `rate_limited`. */

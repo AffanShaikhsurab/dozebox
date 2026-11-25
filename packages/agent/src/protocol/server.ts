@@ -14,7 +14,7 @@ import type { ProtocolStore } from "./store.ts";
 export const SOCKET_DIR = "/run/dozebox";
 export const ADMIN_SOCKET = "/run/dozebox/admin.sock";
 export const PRESENCE_EVERY_MS = 30_000;
-export const PRESENCE_SAMPLE_MS = 2_000;
+const PRESENCE_SAMPLE_MS = 2_000;
 /** Runner presence sources write under this payload name; their ids start with `src:`. */
 export const RUNNER_PAYLOAD = "runner";
 
