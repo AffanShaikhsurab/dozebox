@@ -19,7 +19,7 @@ apply at the next payload restart.
 | `data_volume` | `{ size_gb = 100 }`                              | 20 to 4096 GiB, encrypted. Holds all payload state.                        |
 | `caps`        | `{ monthly_budget_usd = 60 }`                    | See [Spending limits](#spending-limits).                                   |
 | `payloads`    | `{ app = jsondecode(file("${path.module}/app.json")) }` | 1 to 4 [payload definitions](./payloads.md).                        |
-| `agent`       | `{ version = "none" }`                           | `none` boots, logs and powers off, for test stacks. A real agent release is planned. |
+| `agent`       | `{ version = "none" }`                           | `none` boots, logs and powers off, for test stacks. The agent is built; its release artifact is planned. |
 
 ## Names
 
@@ -32,7 +32,7 @@ apply at the next payload restart.
 | `tags`        | `{}`       | Added to every resource. The module adds `<prefix>:box`.                           |
 
 `ssm_prefix` and `tag_prefix` exist so an old stack can keep its names ([decision 0009](./decisions/0009-name-prefix.md),
-[Operations](./operations.md#legacy-names)). Today the module builds both from `name_prefix`.
+[Operations](./operations.md#legacy-names)). Without them both follow `name_prefix`.
 
 ## When the box sleeps
 
