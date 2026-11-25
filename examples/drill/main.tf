@@ -33,6 +33,12 @@ variable "front_door" {
   default     = false
 }
 
+variable "iam_permissions_boundary" {
+  description = "Permissions boundary on every role; the test account's deploy user may only create bounded roles."
+  type        = string
+  default     = "arn:aws:iam::111122223333:policy/dozebox-test-boundary"
+}
+
 variable "region" {
   description = "Test account region."
   type        = string
@@ -45,20 +51,28 @@ variable "test_tag" {
   default     = "drill"
 }
 
+locals {
+  # On every resource: default_tags for most, and the module's tags input for what default_tags cannot reach (launch
+  # template tag specifications, so instances, volumes, ENIs and Spot requests are tagged on create, and group tags).
+  test_tags = {
+    "dozebox:test"  = var.test_tag
+    "dozebox:owner" = "orchestrator"
+  }
+}
+
 provider "aws" {
   region = var.region
   default_tags {
-    tags = {
-      "dozebox:test"  = var.test_tag
-      "dozebox:owner" = "drill"
-    }
+    tags = local.test_tags
   }
 }
 
 module "dozebox" {
   source = "../../terraform"
 
-  box_id = var.box_id
+  box_id                   = var.box_id
+  tags                     = local.test_tags
+  iam_permissions_boundary = var.iam_permissions_boundary
 
   instance = {
     types        = ["t4g.small", "t4g.medium"]

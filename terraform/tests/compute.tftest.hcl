@@ -232,3 +232,40 @@ run "no_inbound_rule_unless_ssh_cidrs" {
     error_message = "The security group has no inbound rule by default."
   }
 }
+
+# An account that only allows creating tagged EC2 resources (the test account) accepts every launch: the instance,
+# its volumes, its ENI and the persistent Spot request carry the operator's tags in the launch request.
+run "launches_are_tagged_on_create" {
+  command = plan
+  variables {
+    tags     = { "dozebox:test" = "unit" }
+    fallback = { enabled = true }
+  }
+
+  assert {
+    condition = (
+      sort([for t in aws_launch_template.box["persistent"].tag_specifications : t.resource_type]) == tolist(["instance", "network-interface", "spot-instances-request", "volume"])
+      && sort([for t in aws_launch_template.box["group"].tag_specifications : t.resource_type]) == tolist(["instance", "network-interface", "volume"])
+    )
+    error_message = "The persistent template tags instance, volume, ENI and Spot request; the group template the first three."
+  }
+  assert {
+    condition = alltrue(flatten([for lt in aws_launch_template.box : [
+      for t in lt.tag_specifications : t.tags["dozebox:test"] == "unit" && t.tags["dozebox:box"] == "a2345678901234567890"
+    ]]))
+    error_message = "Every tag specification carries the module tags and the box tag."
+  }
+  assert {
+    condition     = aws_instance.persistent[0].tags["dozebox:test"] == "unit"
+    error_message = "The persistent instance carries the module tags."
+  }
+  assert {
+    condition     = one([for t in aws_autoscaling_group.fallback[0].tag : t if t.key == "dozebox:test"]).propagate_at_launch
+    error_message = "The fallback group propagates the module tags to what it launches."
+  }
+  assert {
+    # local.data_volume_tags: an earlier run of this file created the volume, and the volume ignores tag changes.
+    condition     = local.data_volume_tags["dozebox:test"] == "unit" && local.data_volume_tags["dozebox:active"] == "true"
+    error_message = "The data volume carries the module tags and active = true."
+  }
+}
