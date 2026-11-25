@@ -31,6 +31,8 @@ jobs:
       - run: terraform fmt -check -recursive terraform
       - run: terraform -chdir=terraform init -backend=false -input=false
       - run: terraform -chdir=terraform test
+      - run: terraform -chdir=terraform/bootstrap init -backend=false -input=false
+      - run: terraform -chdir=terraform/bootstrap test
   legacy:
     runs-on: ubuntu-24.04
     steps:

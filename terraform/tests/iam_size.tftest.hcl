@@ -112,3 +112,34 @@ run "session_manager_policy_only_when_asked" {
     error_message = "The Session Manager policy exists only with enable_ssm_session."
   }
 }
+
+# Accounts whose deploy principal may only create bounded roles set iam_permissions_boundary; every role gets it.
+# scripts/test/terraform-iam.test.ts checks that each aws_iam_role block in terraform/*.tf passes the input.
+run "every_role_carries_the_permissions_boundary" {
+  command = plan
+  variables {
+    iam_permissions_boundary = "arn:aws:iam::111122223333:policy/test-boundary"
+  }
+
+  assert {
+    condition     = alltrue([for r in local.roles : r.permissions_boundary == "arn:aws:iam::111122223333:policy/test-boundary"])
+    error_message = "Every role must carry iam_permissions_boundary."
+  }
+}
+
+run "no_permissions_boundary_by_default" {
+  command = plan
+
+  assert {
+    condition     = alltrue([for r in local.roles : r.permissions_boundary == null])
+    error_message = "Without iam_permissions_boundary, no role has a boundary."
+  }
+}
+
+run "rejects_a_permissions_boundary_that_is_not_a_policy_arn" {
+  command = plan
+  variables {
+    iam_permissions_boundary = "dozebox-test-boundary"
+  }
+  expect_failures = [var.iam_permissions_boundary]
+}
