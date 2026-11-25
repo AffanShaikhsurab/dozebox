@@ -72,17 +72,15 @@ export type Snapshot = {
 
 /** A box that was reclaimed counts as "replacing" for this long after the interruption. */
 export const REPLACING_WINDOW_MS = 15 * MINUTE;
-/** A machine that launches this soon after a wake request is the one that wake started. */
-export const WAKE_LAUNCH_WINDOW_MS = 10 * MINUTE;
 
 export function timeMs(iso: unknown): number | null {
   const ms = Date.parse(String(iso ?? ""));
   return Number.isNaN(ms) ? null : ms;
 }
-export const isoOf = (ms: number): Iso => new Date(ms).toISOString();
+const isoOf = (ms: number): Iso => new Date(ms).toISOString();
 
-export const isInService = (i: AsgInstanceFacts): boolean => i.lifecycleState === "InService";
-export const isPending = (i: AsgInstanceFacts): boolean =>
+const isInService = (i: AsgInstanceFacts): boolean => i.lifecycleState === "InService";
+const isPending = (i: AsgInstanceFacts): boolean =>
   typeof i.lifecycleState === "string" && i.lifecycleState.startsWith("Pending");
 export const isLive = (i: AsgInstanceFacts): boolean => isInService(i) || isPending(i);
 export const isLiveState = (state: unknown): boolean => state === "pending" || state === "running";
