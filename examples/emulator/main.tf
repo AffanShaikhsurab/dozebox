@@ -40,6 +40,7 @@ module "dozebox" {
   front_door_enabled = false
   tripwire_enabled   = false
   restore_test       = { enabled = false }
+  drill_mode         = true # test-only: lets the emulator run destroy the whole stack
 
   payloads = {
     marker = jsondecode(file("${path.module}/../payloads/marker.json"))

@@ -8,6 +8,11 @@ output "region" {
   value       = local.region
 }
 
+output "control_url" {
+  description = "Base URL of the control API: the Function URL (AWS_IAM with front_door_enabled, else public). CloudFront is not built yet."
+  value       = trimsuffix(aws_lambda_function_url.control.function_url, "/")
+}
+
 output "control_function_name" {
   description = "For aws lambda invoke admin calls."
   value       = local.names.control_function
@@ -41,4 +46,19 @@ output "state_table_name" {
 output "dashboard_url" {
   description = "CloudWatch dashboard."
   value       = "https://${local.region}.console.aws.amazon.com/cloudwatch/home?region=${local.region}#dashboards/dashboard/${local.names.dashboard}"
+}
+
+output "data_volume_id" {
+  description = "The volume tagged active at apply time."
+  value       = local.data_volume.id
+}
+
+output "persistent_instance_id" {
+  description = "The persistent Spot instance (machine_mode persistent), else null."
+  value       = one(aws_instance.persistent[*].id)
+}
+
+output "iam_policy_sizes" {
+  description = "Characters of every managed policy as AWS counts them (limit 6,144; the module's budget 5,500)."
+  value       = { for name, p in local.all_policies : name => length(jsonencode(jsondecode(p.policy))) }
 }
