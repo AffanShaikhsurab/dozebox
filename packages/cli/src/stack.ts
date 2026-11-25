@@ -125,7 +125,15 @@ export async function readStack(
     const cached = fromCache(stackDir, await deps.fs.readText(stackFile(stackDir)));
     if (cached !== null) return cached;
   }
-  const outputs = await deps.terraform.output(stackDir);
+  let outputs: TerraformOutputs;
+  try {
+    outputs = await deps.terraform.output(stackDir);
+  } catch (e) {
+    if (!(e instanceof DozeboxCliError) || e.code !== "problem") throw e;
+    throw new DozeboxCliError("not-set-up", `No stack in ${stackDir} (${e.message}); run \`dozebox setup\` first.`, {
+      cause: e,
+    });
+  }
   const stack = stackFromOutputs(stackDir, outputs);
   await deps.fs.writeText(stackFile(stackDir), cacheText(outputs));
   return stack;
