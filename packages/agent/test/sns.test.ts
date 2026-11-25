@@ -2,14 +2,14 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { SNSClient } from "@aws-sdk/client-sns";
 import { rejectsWith } from "@dozebox/testkit/contracts";
-import { offlineConfig, stubSdk } from "@dozebox/testkit/wire";
+import { offlineConfig, stubHandlers } from "@dozebox/testkit/wire";
 import { makeAwsBoxNotifier } from "../src/adapters/aws/sns.ts";
 
 const TOPIC = "arn:aws:sns:us-east-1:000000000000:dozebox-box-1-alerts";
 
 function setup() {
   const sns = new SNSClient(offlineConfig);
-  const stub = stubSdk(sns);
+  const stub = stubHandlers(sns);
   stub.on("PublishCommand", () => ({ MessageId: "m-9" }));
   return { stub, notifier: makeAwsBoxNotifier({ sns, topicArn: TOPIC }) };
 }

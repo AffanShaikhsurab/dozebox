@@ -7,10 +7,10 @@
     },
     "packages/*": {
       "entry": ["src/**/index.ts", "src/*/v1.ts", "src/v1/index.ts", "scripts/*.ts", "test/**/*.test.ts"],
-      "project": ["src/**/*.ts", "scripts/**/*.ts", "test/**/*.ts"]
+      "project": ["src/**/*.ts", "scripts/**/*.ts", "test/**/*.ts"],
+      "ignoreDependencies": ["@aws-sdk/client-(budgets|cloudwatch-logs|dynamodb|sns|ssm)"]
     }
   },
   "ignore": ["legacy/**"],
-  "ignoreBinaries": ["terraform"],
-  "ignoreDependencies": ["@aws-sdk/client-auto-scaling", "@aws-sdk/client-ec2"]
+  "ignoreBinaries": ["terraform", "terraform-docs"]
 }

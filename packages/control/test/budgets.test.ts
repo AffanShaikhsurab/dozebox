@@ -3,14 +3,14 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { BudgetsClient } from "@aws-sdk/client-budgets";
 import { rejectsWith, spendPortContract } from "@dozebox/testkit/contracts";
-import { offlineConfig, stubSdk, type SdkStub } from "@dozebox/testkit/wire";
+import { offlineConfig, stubHandlers, type HandlerStub } from "@dozebox/testkit/wire";
 import { makeAwsSpend } from "../src/adapters/aws/budgets.ts";
 
 const UPDATED = new Date("2026-11-25T03:00:00Z");
 
 function setup(budget: () => unknown) {
   const budgets = new BudgetsClient(offlineConfig);
-  const stub = stubSdk(budgets);
+  const stub = stubHandlers(budgets);
   stub.on("DescribeBudgetCommand", () => ({ Budget: budget() }));
   const spend = makeAwsSpend({
     budgets,
@@ -27,7 +27,7 @@ const withSpend = (amount: string, unit = "USD", updated: Date | null = UPDATED)
   ...(updated === null ? {} : { LastUpdatedTime: updated }),
 });
 
-const stubs = new WeakMap<object, SdkStub>();
+const stubs = new WeakMap<object, HandlerStub>();
 spendPortContract("aws budgets adapter (stubbed client)", async () => ({
   spendWith: async (usd) => {
     const { stub, spend } = setup(() => (usd === null ? { BudgetName: "b" } : withSpend(String(usd))));

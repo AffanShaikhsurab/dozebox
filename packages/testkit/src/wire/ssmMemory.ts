@@ -1,7 +1,7 @@
 // An in-memory Parameter Store behind a stubbed SSM client, for offline adapter tests: PutParameter (Overwrite,
 // tiers, no downgrade from Advanced), GetParameter, GetParametersByPath (Recursive, MaxResults, NextToken),
 // DeleteParameter, with the error names SSM returns. Only what the record adapters send.
-import { sdkError, stubSdk, type SdkStub } from "./stub.ts";
+import { sdkError, stubHandlers, type HandlerStub } from "./handlerStub.ts";
 
 export type SsmParameter = {
   readonly value: string;
@@ -11,14 +11,14 @@ export type SsmParameter = {
 };
 
 export type SsmMemory = {
-  readonly stub: SdkStub;
+  readonly stub: HandlerStub;
   readonly parameters: Map<string, SsmParameter>;
 };
 
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
 
 export function ssmMemory(client: object, now: () => number = Date.now): SsmMemory {
-  const stub = stubSdk(client);
+  const stub = stubHandlers(client);
   const parameters = new Map<string, SsmParameter>();
   const view = (name: string, p: SsmParameter) => ({
     Name: name,
