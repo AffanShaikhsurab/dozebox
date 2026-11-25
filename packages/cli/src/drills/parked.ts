@@ -3,6 +3,8 @@
 import { MINUTE } from "@dozebox/core/time";
 import { DozeboxCliError } from "../command.ts";
 import { boxInstances, cliOk, obj, str, waitUntil, type BoxInstance } from "./box.ts";
+import { deliverAgent } from "./deliver.ts";
+import { wakeToServing } from "./flow.ts";
 import { directTick, POLL_MS } from "./tick.ts";
 import type { DrillContext } from "./types.ts";
 
@@ -55,14 +57,15 @@ export function waitServing(ctx: DrillContext, signal: AbortSignal): Promise<Ser
   });
 }
 
-/** `dozebox wake --wait --until serving`; answers the control function's status when the box serves. */
-export function wakeServing(
+/**
+ * Wakes the box, pushes the agent when `--deliver` is set, and answers the control function's status once it serves.
+ * Not `dozebox wake --wait`: a box that cannot download the agent never serves until the drill pushes it.
+ */
+export const wakeServing = (
   ctx: DrillContext,
   signal: AbortSignal,
-  timeoutS = 14 * 60,
-): Promise<Readonly<Record<string, unknown>>> {
-  return cliOk(ctx, ["wake", "--wait", "--until", "serving", "--timeout", String(timeoutS)], signal);
-}
+  deliver?: typeof deliverAgent,
+): Promise<Readonly<Record<string, unknown>>> => wakeToServing(ctx, signal, deliver);
 
 export type Serving = {
   readonly id: string;
