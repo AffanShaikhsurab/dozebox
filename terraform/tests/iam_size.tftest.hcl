@@ -50,6 +50,28 @@ mock_provider "aws" {
   mock_resource "aws_ebs_volume" {
     defaults = { id = "vol-0123456789abcdef0" }
   }
+  mock_resource "aws_cloudwatch_event_rule" {
+    defaults = { arn = "arn:aws:events:ap-southeast-2:111122223333:rule/dozebox-main-mock" }
+  }
+  mock_resource "aws_cloudwatch_metric_alarm" {
+    defaults = { arn = "arn:aws:cloudwatch:ap-southeast-2:111122223333:alarm:dozebox-main-mock" }
+  }
+  override_resource {
+    target = aws_lambda_function.control
+    values = { arn = "arn:aws:lambda:ap-southeast-2:111122223333:function:dozebox-main-control", version = "3" }
+  }
+  override_resource {
+    target = aws_lambda_alias.live
+    values = { arn = "arn:aws:lambda:ap-southeast-2:111122223333:function:dozebox-main-control:live" }
+  }
+  override_resource {
+    target = aws_lambda_function_url.control
+    values = { function_url = "https://abcdefghijklmnopqrstuvwxyz012345.lambda-url.ap-southeast-2.on.aws/" }
+  }
+  override_resource {
+    target = aws_sqs_queue.control_dlq
+    values = { arn = "arn:aws:sqs:ap-southeast-2:111122223333:dozebox-main-control-dlq" }
+  }
 }
 
 variables {
@@ -91,8 +113,8 @@ run "every_managed_policy_fits_in_the_worst_case" {
     error_message = "A role has more than 8 managed policies (default quota 20)."
   }
   assert {
-    condition     = length(local.all_policies) == 15 && length(output.iam_policy_sizes) == 15
-    error_message = "With ssm session on, the module has 15 managed policies and iam_policy_sizes reports each."
+    condition     = length(local.all_policies) == 17 && length(output.iam_policy_sizes) == 17
+    error_message = "With ssm session on, the module has 17 managed policies (T4/T5 add kill_events and frozen) and iam_policy_sizes reports each."
   }
   assert {
     condition     = length(aws_iam_role_policy_attachment.managed) == sum([for role, list in local.role_policies : length(list)])

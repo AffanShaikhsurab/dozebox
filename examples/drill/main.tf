@@ -145,3 +145,23 @@ output "iam_policy_sizes" {
   description = "Characters of every managed policy."
   value       = module.dozebox.iam_policy_sizes
 }
+
+output "control_url" {
+  description = "Base URL of the control API."
+  value       = module.dozebox.control_url
+}
+
+output "control_function_name" {
+  description = "The control function."
+  value       = module.dozebox.control_function_name
+}
+
+output "wake_token_parameter" {
+  description = "Name of the wake token SecureString."
+  value       = module.dozebox.wake_token_parameter
+}
+
+output "state_table_name" {
+  description = "DynamoDB state table."
+  value       = module.dozebox.state_table_name
+}
