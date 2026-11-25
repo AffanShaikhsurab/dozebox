@@ -79,11 +79,12 @@ resource "aws_launch_template" "box" {
   }
 
   # Everything a launch creates is tagged in the launch request itself, so an account that only allows creating tagged
-  # EC2 resources accepts it. The persistent instance's Spot request is tagged too; groups make no such request.
+  # EC2 resources accepts it. The persistent Spot instance's request is tagged too (EC2 refuses that tag when the launch
+  # makes no Spot request: groups and an On-Demand persistent instance).
   dynamic "tag_specifications" {
     for_each = merge(
       { instance = local.name, volume = "${local.name}-root", network-interface = "${local.name}-eni" },
-      each.key == "persistent" ? { spot-instances-request = local.name } : {},
+      each.key == "persistent" && var.instance.purchase == "spot" ? { spot-instances-request = local.name } : {},
     )
     content {
       resource_type = tag_specifications.key
