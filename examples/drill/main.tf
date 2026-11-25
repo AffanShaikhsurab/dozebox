@@ -33,6 +33,12 @@ variable "front_door" {
   default     = false
 }
 
+variable "iam_permissions_boundary" {
+  description = "Permissions boundary for every role, when the test account requires one."
+  type        = string
+  default     = null
+}
+
 variable "region" {
   description = "Test account region."
   type        = string
@@ -87,6 +93,8 @@ module "dozebox" {
     marker = jsondecode(file("${path.module}/../payloads/marker.json"))
   }
   agent = { version = var.agent_version }
+
+  iam_permissions_boundary = var.iam_permissions_boundary
 }
 
 output "box_id" {
@@ -102,4 +110,24 @@ output "ssm_prefix" {
 output "alert_topic_arn" {
   description = "SNS topic."
   value       = module.dozebox.alert_topic_arn
+}
+
+output "control_url" {
+  description = "Base URL of the control API."
+  value       = module.dozebox.control_url
+}
+
+output "control_function_name" {
+  description = "The control function."
+  value       = module.dozebox.control_function_name
+}
+
+output "wake_token_parameter" {
+  description = "Name of the wake token SecureString."
+  value       = module.dozebox.wake_token_parameter
+}
+
+output "state_table_name" {
+  description = "DynamoDB state table."
+  value       = module.dozebox.state_table_name
 }

@@ -8,6 +8,11 @@ output "region" {
   value       = local.region
 }
 
+output "control_url" {
+  description = "Base URL of the control API: the Function URL (AWS_IAM with front_door_enabled, else public). CloudFront is not built yet."
+  value       = trimsuffix(aws_lambda_function_url.control.function_url, "/")
+}
+
 output "control_function_name" {
   description = "For aws lambda invoke admin calls."
   value       = local.names.control_function

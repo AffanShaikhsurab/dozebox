@@ -34,6 +34,8 @@ Secrets are never inputs. Fields that end in `secret` take the name of a SecureS
 | log\_retention\_days | Retention of every log group the module creates. | `number` | `30` | no |
 | enable\_ssm\_session | Adds the scoped Session Manager policy to the instance role. | `bool` | `false` | no |
 | tags | Added to every resource. The module adds <prefix>:box = <box\_id>. | `map(string)` | `{}` | no |
+| control\_bundle\_path | Zip of the control function (control.mjs exporting handler). Null deploys a placeholder that answers 503 not\_deployed. | `string` | `null` | no |
+| iam\_permissions\_boundary | ARN of a permissions boundary for every role the module creates, or null for none. | `string` | `null` | no |
 
 ### Outputs
 
@@ -41,6 +43,7 @@ Secrets are never inputs. Fields that end in `secret` take the name of a SecureS
 |------|-------------|
 | box\_id | The box id. |
 | region | The region the stack is in. |
+| control\_url | Base URL of the control API: the Function URL (AWS\_IAM with front\_door\_enabled, else public). CloudFront is not built yet. |
 | control\_function\_name | For aws lambda invoke admin calls. |
 | ssm\_prefix | /<prefix>/<box\_id>/. |
 | wake\_token\_parameter | Name of the SecureString holding the wake token (not the value). |
