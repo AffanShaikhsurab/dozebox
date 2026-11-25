@@ -94,12 +94,17 @@ resource "aws_lambda_function_url" "control" {
   function_name      = aws_lambda_function.control.function_name
   qualifier          = aws_lambda_alias.live.name
   authorization_type = local.control_url_auth
+
+  depends_on = [aws_lambda_function_event_invoke_config.control]
 }
 
 # Without the front door the URL is public and the wake token is the gate. Since October 2025 a public URL needs both
 # statements (notes/06b §1.1); the second is limited to calls that come through the URL.
+# Lambda refuses concurrent changes to one function's policy (409 ResourceConflictException, seen on the phase 1 real
+# run), so the permissions below are written one after another: URL, public URL, invoke via URL, then the rules.
 resource "aws_lambda_permission" "control_url_public" {
-  count = local.control_url_auth == "NONE" ? 1 : 0
+  count      = local.control_url_auth == "NONE" ? 1 : 0
+  depends_on = [aws_lambda_function_url.control]
 
   statement_id           = "AllowPublicFunctionUrl"
   action                 = "lambda:InvokeFunctionUrl"
@@ -110,7 +115,8 @@ resource "aws_lambda_permission" "control_url_public" {
 }
 
 resource "aws_lambda_permission" "control_url_invoke" {
-  count = local.control_url_auth == "NONE" ? 1 : 0
+  count      = local.control_url_auth == "NONE" ? 1 : 0
+  depends_on = [aws_lambda_permission.control_url_public]
 
   statement_id             = "AllowPublicInvokeViaFunctionUrl"
   action                   = "lambda:InvokeFunction"
@@ -181,13 +187,25 @@ resource "aws_cloudwatch_event_target" "control" {
   arn  = aws_lambda_alias.live.arn
 }
 
-resource "aws_lambda_permission" "control_events" {
-  for_each = local.control_event_rules
+# One statement per rule, each only for its rule (source_arn), written one after the other (see control_url_public).
+resource "aws_lambda_permission" "control_events_state" {
+  depends_on = [aws_lambda_permission.control_url_invoke]
 
-  statement_id  = "AllowRule-${each.key}"
+  statement_id  = "AllowRule-ec2-state"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.control.function_name
   qualifier     = aws_lambda_alias.live.name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.control[each.key].arn
+  source_arn    = aws_cloudwatch_event_rule.control["ec2-state"].arn
+}
+
+resource "aws_lambda_permission" "control_events_spot" {
+  depends_on = [aws_lambda_permission.control_events_state]
+
+  statement_id  = "AllowRule-spot-warning"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.control.function_name
+  qualifier     = aws_lambda_alias.live.name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.control["spot-warning"].arn
 }
