@@ -54,7 +54,10 @@ describe("alert router", () => {
     await w.router.submit(w.alert(), 1);
     await w.router.submit(w.alert({ severity: "notify" }), 1);
     await w.router.drain(signal, 1);
-    assert.deepEqual(w.sink("email").delivered.map((a) => a.severity), ["page"]);
+    assert.deepEqual(
+      w.sink("email").delivered.map((a) => a.severity),
+      ["page"],
+    );
     assert.equal((await w.router.pathVerdict()).level, "warn");
   });
 
