@@ -20,27 +20,31 @@ locals {
       unfreeze        = aws_iam_policy.unfreeze
       scheduler       = aws_iam_policy.scheduler
       snapshots       = aws_iam_policy.snapshots
+      kill_events     = aws_iam_policy.kill_events
+      frozen          = aws_iam_policy.frozen # attached by the kill runbook only, so it is in no role's list
     },
     var.enable_ssm_session ? { box_ssm_session = aws_iam_policy.box_ssm_session[0] } : {},
   )
 
   # Each role's managed policies by key of all_policies; at most 8 per role (tests/iam_size.tftest.hcl).
   role_policy_keys = {
-    box       = concat(["box_records", "box_compute", "box_alerts", "box_logs"], var.enable_ssm_session ? ["box_ssm_session"] : [])
-    control   = ["control_ec2", "control_volumes", "control_records", "control_state", "control_alerts", "control_spend"]
-    kill      = ["kill"]
-    unfreeze  = ["unfreeze"]
-    scheduler = ["scheduler"]
-    snapshots = ["snapshots"]
+    box         = concat(["box_records", "box_compute", "box_alerts", "box_logs"], var.enable_ssm_session ? ["box_ssm_session"] : [])
+    control     = ["control_ec2", "control_volumes", "control_records", "control_state", "control_alerts", "control_spend"]
+    kill        = ["kill"]
+    unfreeze    = ["unfreeze"]
+    scheduler   = ["scheduler"]
+    snapshots   = ["snapshots"]
+    kill_events = ["kill_events"]
   }
   role_policies = { for role, keys in local.role_policy_keys : role => [for k in keys : local.all_policies[k]] }
   roles = {
-    box       = aws_iam_role.box
-    control   = aws_iam_role.control
-    kill      = aws_iam_role.kill
-    unfreeze  = aws_iam_role.unfreeze
-    scheduler = aws_iam_role.scheduler
-    snapshots = aws_iam_role.snapshots
+    box         = aws_iam_role.box
+    control     = aws_iam_role.control
+    kill        = aws_iam_role.kill
+    unfreeze    = aws_iam_role.unfreeze
+    scheduler   = aws_iam_role.scheduler
+    snapshots   = aws_iam_role.snapshots
+    kill_events = aws_iam_role.kill_events
   }
 
   # The policy documents as HCL objects, keyed like all_policies (sizes are measured on the rendered JSON).
@@ -60,6 +64,8 @@ locals {
     unfreeze        = local.unfreeze_policy
     scheduler       = local.scheduler_policy
     snapshots       = local.snapshots_policy
+    kill_events     = local.kill_events_policy
+    frozen          = local.frozen_policy
   }
 
   # Per role, the actions its Allow statements grant, and those granted without a condition on the box tag, for

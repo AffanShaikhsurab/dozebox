@@ -50,6 +50,28 @@ mock_provider "aws" {
   mock_resource "aws_ebs_volume" {
     defaults = { id = "vol-0123456789abcdef0" }
   }
+  mock_resource "aws_cloudwatch_event_rule" {
+    defaults = { arn = "arn:aws:events:ap-southeast-2:111122223333:rule/dozebox-main-mock" }
+  }
+  mock_resource "aws_cloudwatch_metric_alarm" {
+    defaults = { arn = "arn:aws:cloudwatch:ap-southeast-2:111122223333:alarm:dozebox-main-mock" }
+  }
+  override_resource {
+    target = aws_lambda_function.control
+    values = { arn = "arn:aws:lambda:ap-southeast-2:111122223333:function:dozebox-main-control", version = "3" }
+  }
+  override_resource {
+    target = aws_lambda_alias.live
+    values = { arn = "arn:aws:lambda:ap-southeast-2:111122223333:function:dozebox-main-control:live" }
+  }
+  override_resource {
+    target = aws_lambda_function_url.control
+    values = { function_url = "https://abcdefghijklmnopqrstuvwxyz012345.lambda-url.ap-southeast-2.on.aws/" }
+  }
+  override_resource {
+    target = aws_sqs_queue.control_dlq
+    values = { arn = "arn:aws:sqs:ap-southeast-2:111122223333:dozebox-main-control-dlq" }
+  }
 }
 
 variables {
