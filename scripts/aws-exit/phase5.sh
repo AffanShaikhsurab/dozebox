@@ -17,9 +17,11 @@ finish() {
 trap finish EXIT
 warm_spend_ok
 warm_prepare
+# Smoke first: it writes the marker data and parks the box, so the snapshot the restore drill needs has content.
+dz drill smoke --stack "$WARM" --with-hold --keep "${DELIVER[@]}" --report drills/phase5-smoke.json || true
+dz snapshots create --stack "$WARM" --label drill-restore --json > /dev/null || true
 dz drill restore --stack "$WARM" "${DELIVER[@]}" --report drills/phase5-restore.json || true
 dz drill kill --stack "$WARM" "${DELIVER[@]}" --report drills/phase5-kill.json || true
-dz drill smoke --stack "$WARM" --with-hold --keep "${DELIVER[@]}" --report drills/phase5-smoke.json || true
 dz drill front-door --stack "$WARM" --report drills/phase5-front-door.json || true
 ok=true
 for r in drills/phase5-restore.json drills/phase5-kill.json drills/phase5-smoke.json drills/phase5-front-door.json; do
