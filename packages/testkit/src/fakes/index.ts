@@ -38,3 +38,9 @@ export {
   type FaultOp,
   type Faults,
 } from "./aws/index.ts";
+
+// One file per lane; a lane adds fakes to its own file only.
+export * from "./fakes-agent.ts";
+export * from "./fakes-cli.ts";
+export * from "./fakes-control.ts";
+export * from "./fakes-sim.ts";
