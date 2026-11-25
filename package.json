@@ -24,7 +24,6 @@
     "check:sizes": "node scripts/check-sizes.ts",
     "check:licenses": "pnpm -r licenses list --prod --json | node scripts/check-licenses.ts --allow MIT,ISC,BSD-2-Clause,BSD-3-Clause,Apache-2.0,0BSD",
     "check:schema": "pnpm -r --if-present check:schema",
-    "test:legacy": "node --test \"legacy/runner/test/**/*.node-test.ts\"",
     "tf:test": "terraform -chdir=terraform init -backend=false -input=false && terraform -chdir=terraform test && terraform -chdir=terraform/bootstrap init -backend=false -input=false && terraform -chdir=terraform/bootstrap test",
     "tf:examples": "for d in minimal drill emulator legacy-t3box; do terraform -chdir=examples/$d init -backend=false -input=false > /dev/null && terraform -chdir=examples/$d validate || exit 1; done",
     "check": "pnpm fmt:check && pnpm lint && pnpm typecheck && pnpm test && pnpm check:schema && pnpm check:sizes && pnpm knip"
