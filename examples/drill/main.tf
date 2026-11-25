@@ -39,6 +39,16 @@ variable "iam_permissions_boundary" {
   default     = "arn:aws:iam::111122223333:policy/dozebox-test-boundary"
 }
 
+variable "network" {
+  description = "The module's network input. The default creates a VPC; an account that may not create one passes an existing VPC and subnet (TF_VAR_network)."
+  type = object({
+    create     = optional(bool, true)
+    vpc_id     = optional(string)
+    subnet_ids = optional(list(string), [])
+  })
+  default = {}
+}
+
 variable "region" {
   description = "Test account region."
   type        = string
@@ -79,6 +89,7 @@ module "dozebox" {
     arch         = "arm64"
     machine_mode = "persistent"
   }
+  network     = var.network
   data_volume = { size_gb = 20 }
   snapshots   = { every_hours = 24, keep = 2, recycle_bin_days = 1 }
 
