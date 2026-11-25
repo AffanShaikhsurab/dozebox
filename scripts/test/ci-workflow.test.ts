@@ -36,3 +36,14 @@ test("ci-ok needs every other job and rejects failure, cancelled and skipped", (
 test("ci.yml runs on pull requests, pushes to main and the merge queue", () => {
   assert.deepEqual(Object.keys(ci.on).toSorted(), ["merge_group", "pull_request", "push"]);
 });
+
+test("scripts/ci/dzci.sh runs every command ci.yml runs", () => {
+  const dzci = readFileSync("scripts/ci/dzci.sh", "utf8");
+  const commands = Object.entries(ci.jobs)
+    .filter(([name]) => name !== "ci-ok")
+    .flatMap(([, job]) => job.steps.flatMap((s) => (s.run ? [s.run.trim()] : [])));
+  for (const required of ["pnpm check", "pnpm sim --seeds 2000", "pnpm sim:judge", "pnpm docs:check"]) {
+    assert.ok(commands.includes(required), `ci.yml runs ${required}`);
+  }
+  for (const command of commands) assert.ok(dzci.includes(command), `dzci.sh runs ${command}`);
+});
