@@ -11,8 +11,10 @@ import type { RecordStore } from "../../ports/records.ts";
 import type { WakeTokenSource } from "../../ports/secrets.ts";
 import type { Spend } from "../../ports/spend.ts";
 import type { StateTable } from "../../ports/state.ts";
+import type { Volumes } from "../../ports/volumes.ts";
 import { asgClient, makeAwsGroup } from "./asg.ts";
 import { makeAwsSpend } from "./budgets.ts";
+import { makeAwsVolumes } from "./ebs.ts";
 import { makeAwsStateTable } from "./dynamodb.ts";
 import { ec2Client, makeAwsCompute, makeAwsMachines } from "./ec2.ts";
 import { makeAwsWakeToken } from "./secrets.ts";
@@ -26,6 +28,7 @@ export type AwsPorts = {
   readonly spend: Spend;
   readonly notifier: Notifier;
   readonly wakeToken: WakeTokenSource;
+  readonly volumes: Volumes;
 };
 
 /** The account id from an ARN such as the alert topic's (`arn:aws:sns:<region>:<account>:<name>`). */
@@ -54,5 +57,6 @@ export function makeAwsPorts(cfg: ControlConfig, now: () => number): AwsPorts {
     }),
     notifier: makeAwsNotifier({ sns: new SNSClient({ region }), topicArn: cfg.alertTopicArn }),
     wakeToken: makeAwsWakeToken({ ssm, root: cfg.ssmPrefix }),
+    volumes: makeAwsVolumes({ ec2, prefix: cfg.box.prefix }),
   };
 }

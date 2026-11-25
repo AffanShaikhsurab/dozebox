@@ -44,13 +44,15 @@ describe("event shapes", () => {
     assert.ok(w.lines.some((l) => l.includes('"requestId":"req-42"')));
   });
 
-  test("the schedule runs the tick seam, which acts on nothing until C3", async () => {
+  test("the schedule runs one reconcile tick", async () => {
     const w = makeWorld();
     w.aws.ec2.addMachine({ boxId: "main", role: "persistent", state: "stopped", lifecycle: "spot" });
     await w.call("POST", "/v1/wake");
     assert.equal(await handlerOf(w)({ dozebox: "reconcile", v: 1 }), undefined);
-    assert.ok(w.lines.some((l) => l.includes("reconcile tick not built yet")));
-    assert.deepEqual(w.aws.ec2.calls, []);
+    assert.deepEqual(
+      w.aws.ec2.calls.map((c) => c.op),
+      ["start"],
+    );
   });
 
   test("a Spot warning for the box's machine writes the interruption record and nothing else (R1)", async () => {

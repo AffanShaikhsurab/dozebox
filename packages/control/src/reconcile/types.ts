@@ -1,32 +1,20 @@
-// C3: the types observe and act share. `tick(deps: Deps, ctx: TickContext): Promise<void>` itself stays in C1's
-// `reconcile/tick.ts` (C3 fills its body). TickDeps is the part of C1's `Deps` observe and act read, plus what C2
-// and C3 add to `Deps` (`volumes`, `leases`).
+// C3: the types observe and act share. TickDeps is the part of C1's `Deps` the tick reads.
 import type { Action, Desired, Observed } from "@dozebox/core/reconcile";
-import type { Compute } from "../ports/compute.ts";
-import type { RecordStore } from "../ports/records.ts";
-import type { StateTable } from "../ports/state.ts";
-import type { Volumes } from "../ports/volumes.ts";
-import type { LeaseKeeper } from "../state/index.ts";
+import type { Deps } from "../deps.ts";
+import type { StatusFacts } from "../status/build.ts";
 
-export type TickDeps = {
-  readonly config: {
-    readonly box: { readonly id: string };
-    readonly groups: { readonly spot: string | null; readonly fallback: string | null };
-  };
-  readonly clock: { readonly now: () => number };
-  readonly compute: Compute;
-  readonly records: RecordStore;
-  readonly state: StateTable;
-  readonly desired: { readonly read: () => Promise<Desired> };
-  /** Added to C1's Deps by C3 (C1's AwsPorts has no volumes port yet). */
-  readonly volumes: Volumes;
-  /** Added to C1's Deps by C2. */
-  readonly leases: LeaseKeeper;
-};
+export type TickDeps = Pick<
+  Deps,
+  "config" | "clock" | "compute" | "records" | "state" | "desired" | "volumes" | "leases" | "log" | "metrics"
+>;
 
 export type Snapshot = {
   readonly desired: Desired;
   readonly observed: Observed;
+  /** The facts the snapshot was built from (status and caps read them too). */
+  readonly facts: StatusFacts;
+  /** The group raise-fallback and lower-fallback act on (the fallback group, else the Spot group). */
+  readonly groupName: string | null;
 };
 
 export type ActOutcome =
