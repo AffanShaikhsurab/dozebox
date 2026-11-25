@@ -5,7 +5,7 @@ import type { Files } from "../ports/files.ts";
 import { DECOY_CONFIG } from "./bwrap.ts";
 
 export const TRIPWIRE_PORT = 7311;
-export const TRIPWIRE_HELPER = "/opt/dozebox/current/bin/dozebox-tripwire";
+const TRIPWIRE_HELPER = "/opt/dozebox/current/bin/dozebox-tripwire";
 export const TRIPWIRE_HITS = "/var/lib/dozebox/tripwire/hits.jsonl";
 const MAX_HITS_KEPT = 200;
 
