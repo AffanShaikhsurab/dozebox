@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { DozeboxCliError } from "../src/command.ts";
-import { frontDoorDrill } from "../src/drills/front-door.ts";
+import { makeFrontDoorDrill } from "../src/drills/front-door.ts";
 import { killDrill } from "../src/drills/kill.ts";
 import { restoreDrill } from "../src/drills/restore.ts";
 import {
@@ -252,13 +252,28 @@ describe("drill restore", () => {
   });
 });
 
+function withDomain(cli: (argv: ReadonlyArray<string>) => ReturnType<typeof ok>): TestCtx {
+  const base = makeCtx({ cli });
+  return {
+    ...base,
+    stack: async () => ({ ...(await base.stack()), frontDoorDomain: "d111111abcdef8.cloudfront.net" }),
+  };
+}
+
 describe("drill front-door", () => {
-  it("is blocked with no steps", async () => {
-    assert.match(frontDoorDrill.blocked ?? "", /no CloudFront or WAF permissions/);
-    assert.equal(frontDoorDrill.steps.length, 0);
-    const ctx = makeCtx({ cli: () => ok({}) });
-    assert.equal(await frontDoorDrill.estimateUsd(ctx), 0);
-    await frontDoorDrill.teardown(ctx);
-    assert.equal(ctx.deps.awsCli.calls.length, 0);
+  it("fails when a wrong token is not refused", async () => {
+    const ctx = withDomain(() => ok({}));
+    ctx.deps.aws.params.set("/dozebox/main/wake-token", { value: "t", secure: true });
+    const drill = makeFrontDoorDrill(async () => new Response(JSON.stringify({ v: 1 }), { status: 200 }));
+    const r = await play(drill, ctx);
+    assert.deepEqual(r.ran, ["enable", "status", "wrong-token"]);
+    assert.match(message(r.failure), /answered 200, want 401/);
+  });
+
+  it("teardown turns the front door off even when the park fails", async () => {
+    const ctx = withDomain((argv) => (argv[0] === "park" ? { code: 1, json: null, out: ["no"] } : ok({})));
+    await assert.rejects(makeFrontDoorDrill(async () => new Response("", { status: 401 })).teardown(ctx));
+    assert.equal(ctx.deps.fs.files.get("stack/front-door.auto.tfvars.json"), '{"front_door":false}\n');
+    assert.ok(ctx.cliCalls.some((c) => c[0] === "deploy"));
   });
 });

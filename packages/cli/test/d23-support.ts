@@ -49,6 +49,11 @@ export function makeCtx(opts: {
 export const ok = (json: unknown): CliRun => ({ code: 0, json, out: [] });
 
 /** Fake SSM Run Command: every script sent is kept; `stdout` decides what the command printed. */
+/** A ListCommandInvocations --details answer. */
+export const invocation = (status: string, code: number, output = ""): unknown => ({
+  CommandInvocations: [{ Status: status, CommandPlugins: [{ ResponseCode: code, Output: output }] }],
+});
+
 export function ssmRoutes(
   scripts: string[],
   stdout: (script: string) => string = () => "",
@@ -63,12 +68,7 @@ export function ssmRoutes(
       onSend(script);
       return { Command: { CommandId: `cmd-${scripts.length}` } };
     },
-    "ssm get-command-invocation": () => ({
-      Status: "Success",
-      ResponseCode: 0,
-      StandardOutputContent: stdout(scripts.at(-1) ?? ""),
-      StandardErrorContent: "",
-    }),
+    "ssm list-command-invocations": () => invocation("Success", 0, stdout(scripts.at(-1) ?? "")),
   };
 }
 

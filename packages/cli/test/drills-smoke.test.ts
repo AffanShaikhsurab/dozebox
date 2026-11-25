@@ -58,8 +58,10 @@ function ssm(stdout: (script: string) => string) {
       last = (JSON.parse(args[args.indexOf("--parameters") + 1] ?? "{}") as { commands: string[] }).commands[0] ?? "";
       return { Command: { CommandId: "c-1" } };
     }
-    if (args[1] === "get-command-invocation") {
-      return { Status: "Success", ResponseCode: 0, StandardOutputContent: stdout(last) };
+    if (args[1] === "list-command-invocations") {
+      return {
+        CommandInvocations: [{ Status: "Success", CommandPlugins: [{ ResponseCode: 0, Output: stdout(last) }] }],
+      };
     }
     return null;
   };
