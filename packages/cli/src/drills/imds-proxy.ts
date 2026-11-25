@@ -41,7 +41,7 @@ export const installScript = (): string =>
     `cat > ${SCRIPT_PATH} <<'DRILL_PROXY_EOF'`,
     PROXY_JS.trimEnd(),
     "DRILL_PROXY_EOF",
-    `systemd-run --unit ${PROXY_UNIT} --collect ${NODE} ${SCRIPT_PATH}`,
+    `systemd-run --unit ${PROXY_UNIT} --collect --setenv=LD_LIBRARY_PATH=/opt/dozebox/current/lib/so ${NODE} ${SCRIPT_PATH}`,
     "code=000",
     "for i in 1 2 3 4 5 6 7 8 9 10; do",
     `  code=$(curl -s -o /dev/null -w '%{http_code}' ${PROXY_URL}/latest/meta-data/spot/instance-action || true)`,
