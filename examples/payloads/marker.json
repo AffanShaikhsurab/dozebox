@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "name": "marker",
+  "description": "Test payload for drills: serves /health and proves a restore by a nonce file.",
+  "user": "marker",
+  "protocol": "none",
+  "start": {
+    "command": ["/usr/bin/node", "/opt/marker/server.mjs"],
+    "env": { "MARKER_DIR": "/data/payloads/marker" }
+  },
+  "health": {
+    "http": { "url": "http://127.0.0.1:8080/health", "expectStatus": 200 },
+    "startPeriodSeconds": 30
+  }
+}
