@@ -6,17 +6,14 @@ import { makeTokenCheck, tokenHeaders, type TokenCheck } from "./http/auth.ts";
 import type { FunctionUrlResult } from "./http/event.ts";
 import { makeLogger, makeMetrics, type Logger, type LogSink, type Metrics } from "./log.ts";
 import { makeDesiredStore, makeWakeLedger, type DesiredStore, type WakeLedgerStore } from "./state/desired.ts";
+import { makeStateIdempotency } from "./state/idempotency.ts";
+import { makeLeaseKeeper, type LeaseKeeper } from "./state/lease.ts";
 
-/**
- * Answers stored by `Idempotency-Key` (part 6 §6.3: a repeat returns the same 202 and does nothing). C2 replaces the
- * default, which remembers nothing, with entries in the state table kept 24 h.
- */
+/** Answers stored by `Idempotency-Key` (part 6 §6.3: a repeat returns the same 202 and does nothing), 24 h. */
 export type WakeIdempotency = {
   readonly recall: (key: string) => Promise<FunctionUrlResult | null>;
   readonly remember: (key: string, answer: FunctionUrlResult) => Promise<void>;
 };
-
-const NO_IDEMPOTENCY: WakeIdempotency = { recall: async () => null, remember: async () => {} };
 
 export type Deps = AwsPorts & {
   readonly config: ControlConfig;
@@ -28,6 +25,7 @@ export type Deps = AwsPorts & {
   readonly desired: DesiredStore;
   readonly wakeLedger: WakeLedgerStore;
   readonly idempotency: WakeIdempotency;
+  readonly leases: LeaseKeeper;
   /** The id this container holds the reconcile lease with. */
   readonly invocationId: string;
   /** The current Lambda request id, set by the handler for log lines. */
@@ -51,6 +49,7 @@ export function assembleDeps(o: AssembleOptions): Deps {
     requestId: () => requestId,
     ...(o.sink === undefined ? {} : { sink: o.sink }),
   };
+  const invocationId = o.invocationId ?? crypto.randomUUID();
   const headers = tokenHeaders(o.config.http?.tokenHeaders ?? []);
   return {
     ...o.ports,
@@ -62,8 +61,9 @@ export function assembleDeps(o: AssembleOptions): Deps {
     tokenHeaders: headers,
     desired: makeDesiredStore(o.ports.state),
     wakeLedger: makeWakeLedger(o.ports.state),
-    idempotency: o.idempotency ?? NO_IDEMPOTENCY,
-    invocationId: o.invocationId ?? crypto.randomUUID(),
+    idempotency: o.idempotency ?? makeStateIdempotency<FunctionUrlResult>(o.ports.state, "wake"),
+    leases: makeLeaseKeeper({ state: o.ports.state, clock: { now: o.now }, holder: invocationId }),
+    invocationId,
     setRequestId: (id) => {
       requestId = id;
     },
