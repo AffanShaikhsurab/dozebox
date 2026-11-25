@@ -98,6 +98,56 @@ export const ControlStatus = Type.Object({
 });
 export type ControlStatus = Static<typeof ControlStatus>;
 
+/** What `/v1/wake` and `/v1/park` did: `already-awake` wrote nothing (the box was already wanted awake). */
+export const ControlDecision = Type.Union([Type.Literal("accept"), Type.Literal("already-awake")]);
+export type ControlDecision = Static<typeof ControlDecision>;
+
+/** The `202` body of `POST /v1/wake` and `POST /v1/park`: the status after the request, and the decision. */
+export const ControlAnswer = Type.Object({ ...ControlStatus.properties, decision: ControlDecision });
+export type ControlAnswer = Static<typeof ControlAnswer>;
+
+/** Error codes of the control API (part 5 §5.3). Readers treat an unknown code by its HTTP status. */
+export const ControlErrorCode = Type.Union([
+  Type.Literal("bad_request"),
+  Type.Literal("unauthorized"),
+  Type.Literal("not_found"),
+  Type.Literal("method_not_allowed"),
+  Type.Literal("too_large"),
+  Type.Literal("frozen"),
+  Type.Literal("wake_budget"),
+  Type.Literal("wake_breaker"),
+  Type.Literal("rate_limited"),
+  Type.Literal("internal"),
+]);
+export type ControlErrorCode = Static<typeof ControlErrorCode>;
+
+/** HTTP status and retryability of each control API error code. */
+export const CONTROL_ERROR_STATUS: Readonly<
+  Record<ControlErrorCode, { readonly status: number; readonly retryable: boolean }>
+> = {
+  bad_request: { status: 400, retryable: false },
+  unauthorized: { status: 401, retryable: false },
+  not_found: { status: 404, retryable: false },
+  method_not_allowed: { status: 405, retryable: false },
+  too_large: { status: 413, retryable: false },
+  frozen: { status: 423, retryable: false },
+  wake_budget: { status: 429, retryable: true },
+  wake_breaker: { status: 429, retryable: true },
+  rate_limited: { status: 429, retryable: true },
+  internal: { status: 500, retryable: true },
+};
+
+/** Every control API error body. `retryAfterSeconds` equals the `Retry-After` header of a 429. */
+export const ControlErrorBody = Type.Object({
+  error: Type.Object({
+    code: ControlErrorCode,
+    message: Type.String({ maxLength: 500 }),
+    retryable: Type.Boolean(),
+    retryAfterSeconds: Type.Optional(Type.Integer({ minimum: 0 })),
+  }),
+});
+export type ControlErrorBody = Static<typeof ControlErrorBody>;
+
 /** Unknown `state` reads as this (the box is up in a way this client does not know yet). */
 export const CONTROL_STATE_FALLBACK: ControlState = "running";
 /** Unknown summary or alert-path `level` reads as this. */
