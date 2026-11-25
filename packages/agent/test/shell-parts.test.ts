@@ -156,6 +156,7 @@ test("AWS composition: every port, the notifier per topic, no call at build time
     "notifierFor",
     "params",
     "recordWriter",
+    "secrets",
     "selfStop",
     "volumes",
   ]);
