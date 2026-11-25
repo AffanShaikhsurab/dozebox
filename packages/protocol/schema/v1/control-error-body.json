@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dozebox.dev/schema/v1/control-error-body.json",
+  "title": "ControlErrorBody",
+  "type": "object",
+  "required": [
+    "error"
+  ],
+  "properties": {
+    "error": {
+      "type": "object",
+      "required": [
+        "code",
+        "message",
+        "retryable"
+      ],
+      "properties": {
+        "code": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "bad_request"
+            },
+            {
+              "type": "string",
+              "const": "unauthorized"
+            },
+            {
+              "type": "string",
+              "const": "not_found"
+            },
+            {
+              "type": "string",
+              "const": "method_not_allowed"
+            },
+            {
+              "type": "string",
+              "const": "too_large"
+            },
+            {
+              "type": "string",
+              "const": "frozen"
+            },
+            {
+              "type": "string",
+              "const": "wake_budget"
+            },
+            {
+              "type": "string",
+              "const": "wake_breaker"
+            },
+            {
+              "type": "string",
+              "const": "rate_limited"
+            },
+            {
+              "type": "string",
+              "const": "internal"
+            }
+          ]
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "retryAfterSeconds": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

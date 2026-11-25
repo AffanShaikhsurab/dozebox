@@ -1,0 +1,29 @@
+{
+  "v": 1,
+  "box": "main",
+  "desired": "asleep",
+  "state": "parked",
+  "since": "2026-11-25T00:05:00.000Z",
+  "frozen": false,
+  "machine": "persistent",
+  "caps": {
+    "awakeHoursToday": 0,
+    "awakeHoursCap": 16,
+    "onDemandHoursToday": 0,
+    "onDemandHoursCap": 3,
+    "monthSpendUsd": null,
+    "monthBudgetUsd": 60
+  },
+  "alertPath": {
+    "level": "info"
+  },
+  "summary": {
+    "level": "info",
+    "headline": "dozebox is asleep",
+    "detail": "",
+    "next": "",
+    "actions": [
+      "wake"
+    ]
+  }
+}

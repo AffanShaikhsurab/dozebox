@@ -1,0 +1,51 @@
+{
+  "v": 1,
+  "box": "main",
+  "desired": "awake",
+  "state": "running",
+  "since": "2026-11-25T00:00:00.000Z",
+  "frozen": false,
+  "instance": {
+    "id": "i-00000000000000001",
+    "type": "t4g.medium",
+    "az": "us-east-1a",
+    "launchedAt": "2026-11-25T00:00:00.000Z",
+    "lifecycle": "spot"
+  },
+  "machine": "persistent",
+  "servingSince": "2026-11-25T00:02:00.000Z",
+  "liveness": {
+    "at": "2026-11-25T00:02:00.000Z",
+    "payloads": [
+      {
+        "name": "web",
+        "health": "ok",
+        "lastProgressAt": "2026-11-25T00:02:00.000Z"
+      }
+    ],
+    "idleSleepAt": null,
+    "awakeBecause": [
+      "web/build-7"
+    ]
+  },
+  "caps": {
+    "awakeHoursToday": 0,
+    "awakeHoursCap": 16,
+    "onDemandHoursToday": 0,
+    "onDemandHoursCap": 3,
+    "monthSpendUsd": null,
+    "monthBudgetUsd": 60
+  },
+  "alertPath": {
+    "level": "info"
+  },
+  "summary": {
+    "level": "ok",
+    "headline": "Working",
+    "detail": "1 payload busy.",
+    "next": "",
+    "actions": [
+      "park"
+    ]
+  }
+}
