@@ -122,25 +122,25 @@ export async function shell(
   );
   const commandId = str(obj(sent["Command"])["CommandId"]);
   if (commandId === null) throw new DozeboxCliError("aws", "ssm send-command answered no CommandId");
+  // ListCommandInvocations, not GetCommandInvocation: a restricted operator may have only the former, and with
+  // --details it carries the same status, exit code and output (stdout, then stderr after an ERROR banner).
   const result = await waitUntil(ctx, signal, 2_000, async () => {
-    let inv: Json;
-    try {
-      inv = await aws(
-        ctx,
-        ["ssm", "get-command-invocation", "--command-id", commandId, "--instance-id", instanceId],
-        signal,
-      );
-    } catch (e) {
-      if (e instanceof DozeboxCliError && e.message.includes("InvocationDoesNotExist")) return null;
-      throw e;
-    }
+    const out = await aws(
+      ctx,
+      ["ssm", "list-command-invocations", "--command-id", commandId, "--instance-id", instanceId, "--details"],
+      signal,
+    );
+    const inv = obj(arr(out["CommandInvocations"])[0]);
     const status = str(inv["Status"]) ?? "";
     if (!DONE.has(status)) return null;
+    const plugin = obj(arr(inv["CommandPlugins"])[0]);
+    const output = str(plugin["Output"]) ?? "";
+    const [stdout = "", stderr = ""] = output.split(/-{5,}ERROR-{5,}\n?/);
     return {
       status,
-      code: typeof inv["ResponseCode"] === "number" ? inv["ResponseCode"] : -1,
-      stdout: str(inv["StandardOutputContent"]) ?? "",
-      stderr: str(inv["StandardErrorContent"]) ?? "",
+      code: typeof plugin["ResponseCode"] === "number" ? plugin["ResponseCode"] : -1,
+      stdout,
+      stderr,
     };
   });
   if (opts.check !== false && result.status !== "Success") {

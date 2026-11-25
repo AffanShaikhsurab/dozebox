@@ -5,6 +5,7 @@ import { spotDrill } from "../src/drills/spot.ts";
 import {
   after,
   instance,
+  invocation,
   makeCtx,
   message,
   ok,
@@ -92,8 +93,8 @@ describe("drill spot", () => {
     // The hold fails: the box is still running when teardown starts.
     const base = ctx.deps.awsCli.answer;
     ctx.deps.awsCli.answer = (args) => {
-      if (args[1] === "get-command-invocation" && world.scripts.length === 1) {
-        return { Status: "Failed", ResponseCode: 1 };
+      if (args[1] === "list-command-invocations" && world.scripts.length === 1) {
+        return invocation("Failed", 1);
       }
       return base(args);
     };
