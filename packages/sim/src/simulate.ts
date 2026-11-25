@@ -3,6 +3,7 @@
 import { Box } from "./agent/box.ts";
 import { makeConfig, type ConfigOverrides, type SimConfig } from "./config.ts";
 import { Control } from "./control/control.ts";
+import { checkInvariants, type TraceEvent } from "./invariants.ts";
 import { createWorldInvariants, type WorldViolation } from "./invariants/world.ts";
 import { createRng } from "./prng.ts";
 import { schedule } from "./scenario.ts";
@@ -14,6 +15,7 @@ export type SeedResult = {
   readonly violations: ReadonlyArray<WorldViolation>;
   readonly errors: ReadonlyArray<string>;
   readonly trace: ReadonlyArray<string>;
+  readonly protocol: ReadonlyArray<TraceEvent>;
   readonly awakeMs: number;
   readonly wakes: number;
   readonly cfg: SimConfig;
@@ -45,13 +47,20 @@ export function simulate(seed: number, options: ConfigOverrides = {}): SeedResul
     invariants.step();
   });
   if (w.errors.length === 0) invariants.finish();
+  // A health-only payload speaks no protocol: its invariants do not apply.
+  const protocol = (cfg.agent === "protocol" ? checkInvariants(w.protocol) : []).map((v) => ({
+    rule: `protocol/${v.id}`,
+    at: v.at,
+    message: v.detail,
+  }));
   return {
     seed,
-    violations: invariants.violations,
+    violations: [...invariants.violations, ...protocol],
     errors: w.errors.map(
       ({ name, error }) => `${name}: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
     ),
     trace: w.trace,
+    protocol: w.protocol,
     awakeMs,
     wakes,
     cfg,

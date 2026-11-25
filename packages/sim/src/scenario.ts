@@ -17,19 +17,7 @@ export function schedule(w: World, control: Control): void {
   const wake = (attempt = 0): void => {
     const at = w.now;
     w.log("person: wake");
-    w.hooks.event({
-      type: "wake-request",
-      at,
-      truth: {
-        persistent: w.persistent.state,
-        request: w.spot.state,
-        parking: [...w.boxes.values()].some((b) => !b.dead && b.parking),
-        dying: w.group.entries.some((e) => {
-          const i = w.instances.get(e.id);
-          return i !== undefined && i.state !== "running" && i.state !== "pending";
-        }),
-      },
-    });
+    w.hooks.event({ type: "wake-request", at, truth: w.wakeTruth() });
     control.invoke(
       "POST /v1/wake",
       (inv) => control.wake(inv),

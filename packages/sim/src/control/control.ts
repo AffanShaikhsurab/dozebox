@@ -104,7 +104,8 @@ export class Control {
   writePark(origin: Desired["origin"], reason: string, by: "user" | "agent", ifNoWakeSince: number | null): boolean {
     const w = this.w;
     const d = this.state.desired;
-    if (ifNoWakeSince !== null && d.want === "awake" && d.since > ifNoWakeSince) return false;
+    const woken = d.want === "awake" && Math.max(d.since, this.state.lastWakeAt ?? 0) > (ifNoWakeSince ?? Infinity);
+    if (woken) return false;
     this.state.desired = decidePark(w.now, origin, reason);
     w.hooks.event({ type: "park", at: w.now, by });
     return true;

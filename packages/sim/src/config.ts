@@ -6,11 +6,23 @@ import { MEASURED as M } from "./measured.ts";
 import type { Rng } from "./prng.ts";
 
 /** Historic bugs the judge re-introduces to prove the simulator still finds them (part 10 §10.7). */
-export type SimBug =
-  /** W2: a park does not write `desired = asleep`, so an older wake intent undoes a sleep. */
-  | "park-leaves-no-record"
-  /** D-E: a boot refused by a stale volume tag is not reported, so the box shows running. */
-  | "boot-error-hidden";
+const SIM_BUGS = [
+  // W2: a park does not write `desired = asleep`, so an older wake intent undoes a sleep.
+  "park-leaves-no-record",
+  // D-E: a boot refused by a stale volume tag is not reported, so the box shows running.
+  "boot-error-hidden",
+  // S2 broken agents: each one must trip its protocol invariant.
+  "agent-ignores-holds",
+  "agent-ignores-presence",
+  "agent-drops-wake-requests",
+  "agent-ignores-no-progress",
+  "agent-keeps-holds",
+  "agent-double-park",
+] as const;
+
+export type SimBug = (typeof SIM_BUGS)[number];
+
+export const isSimBug = (s: string): s is SimBug => (SIM_BUGS as ReadonlyArray<string>).includes(s);
 
 type Window = readonly [number, number];
 

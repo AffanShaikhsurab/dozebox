@@ -2,6 +2,7 @@
 // nothing else fired. `--seed N [--trace 80]` replays one seed with its trace.
 // Usage: pnpm sim [--seeds 5000] [--from 1] [--workers N] [--agent protocol|health-only] [--json]
 import { parseArgs } from "node:util";
+import { isSimBug } from "../src/config.ts";
 import { judgeCensus, knownClasses } from "../src/known.ts";
 import { toOverrides, type SimOptions } from "../src/run.ts";
 import { describeFailure, simulate } from "../src/simulate.ts";
@@ -16,15 +17,26 @@ const { values } = parseArgs({
     workers: { type: "string" },
     agent: { type: "string" },
     json: { type: "boolean", default: false },
+    bug: { type: "string", multiple: true },
+    protocol: { type: "boolean", default: false },
   },
 });
 const agent: SimOptions["agent"] =
   values.agent === "health-only" || values.agent === "protocol" ? values.agent : undefined;
-const opts: SimOptions = agent === undefined ? {} : { agent };
+const bugs = (values.bug ?? []).map((b) => {
+  if (!isSimBug(b)) throw new Error(`unknown --bug ${b}`);
+  return b;
+});
+const opts: SimOptions = { ...(agent === undefined ? {} : { agent }), ...(bugs.length > 0 ? { bugs } : {}) };
 
 if (values.seed !== undefined) {
   const r = simulate(Number(values.seed), toOverrides(opts));
   const tail = Number(values.trace);
+  if (values.protocol)
+    for (const e of r.protocol)
+      console.log(
+        `P ${new Date(e.at).toISOString().slice(11, 19)} ${e.kind} ${e.key ?? ""} ${e.until === undefined ? "" : new Date(e.until).toISOString().slice(11, 19)}`,
+      );
   if (r.violations.length === 0 && r.errors.length === 0) {
     console.log(r.trace.slice(-tail).join("\n"));
     console.log(`seed ${r.seed}: ok (${r.wakes} wakes, awake ${Math.round(r.awakeMs / 60_000)} min)`);

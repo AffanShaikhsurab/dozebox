@@ -25,6 +25,8 @@ export type ControlState = {
   /** Written by the judge (R3) when a wake is neither serving nor failed in time. */
   wakeFailure: { readonly at: number; readonly reason: string } | null;
   lease: { holder: number; expiresAt: number; token: number } | null;
+  /** Timed wake requests the agent handed over at park (part 4 wakes): the tick wakes the box at each. */
+  wakeRequests: Array<{ readonly key: string; readonly at: number }>;
 };
 
 export function newControlState(): ControlState {
@@ -42,5 +44,6 @@ export function newControlState(): ControlState {
     bootError: null,
     wakeFailure: null,
     lease: null,
+    wakeRequests: [],
   };
 }

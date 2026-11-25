@@ -4,6 +4,7 @@
 import { draw, MEASURED as M, type Span } from "../measured.ts";
 import type { Rng } from "../prng.ts";
 import type { SimConfig } from "../config.ts";
+import type { TraceEvent } from "../invariants.ts";
 import { Clock, EPOCH, HOUR } from "./clock.ts";
 
 type Ec2State = "pending" | "running" | "stopping" | "stopped" | "shutting-down" | "terminated";
@@ -45,6 +46,7 @@ export type BoxHandle = {
   readonly serving: () => boolean;
   /** A payload hold is live (protocol mode): the idle rule does not apply. */
   readonly held: () => boolean;
+  readonly progressAt: () => number;
   readonly kill: (reason: string) => void;
   readonly onVolumeAttached: () => void;
   readonly setNotice: (n: Notice) => void;
@@ -141,6 +143,10 @@ export class World extends Clock {
   /** Every write of `desired = awake`: when and by which invocation. */
   readonly intentWrites: Array<{ readonly at: number; readonly by: number | null }> = [];
   lastActivity = Number.NEGATIVE_INFINITY;
+  /** The protocol trace (S2): what payloads asked for and what the agents did. */
+  readonly protocol: TraceEvent[] = [];
+  /** Holds a broken agent keeps on disk across a boot (judge bug `agent-keeps-holds`). */
+  carriedHolds: ReadonlyArray<{ readonly key: string; readonly kind: "work" | "wait"; readonly until: number }> = [];
   current: Invocation | null = null;
   readonly persistent: Instance;
   spot: SpotRequest;
@@ -276,6 +282,19 @@ export class World extends Clock {
     return this.volumes.some((v) =>
       v.attachments.some((a) => this.instances.get(a.instanceId)?.kind === "group" && a.state !== "detaching"),
     );
+  }
+
+  /** The world as a wake request finds it (for the invariants' classes). */
+  wakeTruth(): WakeTruth {
+    return {
+      persistent: this.persistent.state,
+      request: this.spot.state,
+      parking: [...this.boxes.values()].some((b) => !b.dead && b.parking),
+      dying: this.group.entries.some((e) => {
+        const i = this.instances.get(e.id);
+        return i !== undefined && i.state !== "running" && i.state !== "pending";
+      }),
+    };
   }
 
   holdsVolume(id: string): boolean {
