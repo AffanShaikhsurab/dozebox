@@ -43,4 +43,6 @@ jobs:
           esac
           flag=""
           if [ "$MODE" = "prerelease" ]; then flag="--prerelease"; fi
-          gh release create "v$VERSION" $flag --title "v$VERSION" --notes "Built from ${GITHUB_SHA}."
+          node scripts/release/build-agent.ts --version "$VERSION" --arch aarch64 --arch x86_64 --out dist/release
+          gh release create "v$VERSION" $flag --title "v$VERSION" --notes "Built from ${GITHUB_SHA}." \
+            dist/release/*.tar.gz dist/release/SHA256SUMS
