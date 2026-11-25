@@ -6,4 +6,13 @@ export {
   type RestoreTestResult,
   type RestoreTestState,
 } from "../restore-test/run.ts";
-export { makeOutsideJudge, type JudgeDeps, type JudgeVerdict, type OutsideJudge } from "./outside.ts";
+export {
+  makeOutsideJudge,
+  NO_MARKS,
+  SILENT_AFTER_MS,
+  WAKE_UNRESOLVED_MS,
+  type JudgeDeps,
+  type JudgeMarks,
+  type JudgeVerdict,
+  type OutsideJudge,
+} from "./outside.ts";

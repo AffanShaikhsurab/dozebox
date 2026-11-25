@@ -1,7 +1,7 @@
 // Every exported request, response, event, record and config type, in the order the docs list them.
 import type { TSchema } from "typebox";
 import { BoxConfig, OperatorConfig } from "./config/v1.ts";
-import { ControlStatus } from "./control/v1.ts";
+import { ControlAnswer, ControlErrorBody, ControlStatus } from "./control/v1.ts";
 import { PayloadDefinition } from "./payload/v1.ts";
 import {
   BootTimelineRecord,
@@ -76,6 +76,8 @@ export const SCHEMAS: ReadonlyArray<SchemaEntry> = [
   { title: "ServingRecord", group: "Records", schema: ServingRecord },
   { title: "SleepFence", group: "Records", schema: SleepFence },
   { title: "ControlStatus", group: "Control API", schema: ControlStatus },
+  { title: "ControlAnswer", group: "Control API", schema: ControlAnswer },
+  { title: "ControlErrorBody", group: "Control API", schema: ControlErrorBody },
   { title: "PayloadDefinition", group: "Payload definition", schema: PayloadDefinition },
   { title: "BoxConfig", group: "Config", schema: BoxConfig },
   { title: "OperatorConfig", group: "Config", schema: OperatorConfig },
