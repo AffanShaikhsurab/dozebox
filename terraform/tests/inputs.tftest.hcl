@@ -13,6 +13,14 @@ mock_provider "aws" {
     target = data.aws_partition.current
     values = { partition = "aws" }
   }
+  override_data {
+    target = data.aws_ec2_instance_type_offerings.home
+    values = { locations = ["us-east-1a", "us-east-1b"] }
+  }
+  override_data {
+    target = data.aws_ssm_parameter.ami
+    values = { insecure_value = "ami-0123456789abcdef0", value = "ami-0123456789abcdef0" }
+  }
 }
 
 variables {

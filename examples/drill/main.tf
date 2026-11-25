@@ -34,9 +34,19 @@ variable "front_door" {
 }
 
 variable "iam_permissions_boundary" {
-  description = "Permissions boundary for every role, when the test account requires one."
+  description = "Permissions boundary on every role; the test account's deploy user may only create bounded roles."
   type        = string
-  default     = null
+  default     = "arn:aws:iam::111122223333:policy/dozebox-test-boundary"
+}
+
+variable "network" {
+  description = "The module's network input. The default creates a VPC; an account that may not create one passes an existing VPC and subnet (TF_VAR_network)."
+  type = object({
+    create     = optional(bool, true)
+    vpc_id     = optional(string)
+    subnet_ids = optional(list(string), [])
+  })
+  default = {}
 }
 
 variable "region" {
@@ -51,26 +61,35 @@ variable "test_tag" {
   default     = "drill"
 }
 
+locals {
+  # On every resource: default_tags for most, and the module's tags input for what default_tags cannot reach (launch
+  # template tag specifications, so instances, volumes, ENIs and Spot requests are tagged on create, and group tags).
+  test_tags = {
+    "dozebox:test"  = var.test_tag
+    "dozebox:owner" = "orchestrator"
+  }
+}
+
 provider "aws" {
   region = var.region
   default_tags {
-    tags = {
-      "dozebox:test"  = var.test_tag
-      "dozebox:owner" = "drill"
-    }
+    tags = local.test_tags
   }
 }
 
 module "dozebox" {
   source = "../../terraform"
 
-  box_id = var.box_id
+  box_id                   = var.box_id
+  tags                     = local.test_tags
+  iam_permissions_boundary = var.iam_permissions_boundary
 
   instance = {
     types        = ["t4g.small", "t4g.medium"]
     arch         = "arm64"
     machine_mode = "persistent"
   }
+  network     = var.network
   data_volume = { size_gb = 20 }
   snapshots   = { every_hours = 24, keep = 2, recycle_bin_days = 1 }
 
@@ -89,12 +108,12 @@ module "dozebox" {
   fis_enabled        = true
   enable_ssm_session = true # the drill reads /data through SSM Run Command
 
+  drill_mode = true # test-only: the data volume has no prevent_destroy, so the drill can tear down
+
   payloads = {
     marker = jsondecode(file("${path.module}/../payloads/marker.json"))
   }
   agent = { version = var.agent_version }
-
-  iam_permissions_boundary = var.iam_permissions_boundary
 }
 
 output "box_id" {
@@ -110,6 +129,21 @@ output "ssm_prefix" {
 output "alert_topic_arn" {
   description = "SNS topic."
   value       = module.dozebox.alert_topic_arn
+}
+
+output "data_volume_id" {
+  description = "The data volume."
+  value       = module.dozebox.data_volume_id
+}
+
+output "persistent_instance_id" {
+  description = "The persistent Spot instance."
+  value       = module.dozebox.persistent_instance_id
+}
+
+output "iam_policy_sizes" {
+  description = "Characters of every managed policy."
+  value       = module.dozebox.iam_policy_sizes
 }
 
 output "control_url" {

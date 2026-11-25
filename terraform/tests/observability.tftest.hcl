@@ -43,6 +43,35 @@ mock_provider "aws" {
     target = aws_sqs_queue.control_dlq
     values = { arn = "arn:aws:sqs:us-east-1:111122223333:dozebox-main-control-dlq" }
   }
+  override_data {
+    target = data.aws_ec2_instance_type_offerings.home
+    values = { locations = ["us-east-1b", "us-east-1a", "us-east-1a", "us-east-1c"] }
+  }
+  override_data {
+    target = data.aws_ssm_parameter.ami
+    values = { insecure_value = "ami-0123456789abcdef0", value = "ami-0123456789abcdef0" }
+  }
+  mock_resource "aws_iam_instance_profile" {
+    defaults = { arn = "arn:aws:iam::111122223333:instance-profile/dozebox-main-box" }
+  }
+  mock_resource "aws_launch_template" {
+    defaults = { id = "lt-0123456789abcdef0", arn = "arn:aws:ec2:us-east-1:111122223333:launch-template/lt-0123456789abcdef0" }
+  }
+  mock_resource "aws_security_group" {
+    defaults = { id = "sg-0123456789abcdef0", arn = "arn:aws:ec2:us-east-1:111122223333:security-group/sg-0123456789abcdef0" }
+  }
+  mock_resource "aws_subnet" {
+    defaults = { id = "subnet-0123456789abcdef0" }
+  }
+  mock_resource "aws_vpc" {
+    defaults = { id = "vpc-0123456789abcdef0" }
+  }
+  mock_resource "aws_instance" {
+    defaults = { id = "i-0123456789abcdef0" }
+  }
+  mock_resource "aws_ebs_volume" {
+    defaults = { id = "vol-0123456789abcdef0" }
+  }
 }
 
 variables {
