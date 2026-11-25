@@ -16,7 +16,7 @@ The base URL is the module output `control_url` (`terraform -chdir=.dozebox outp
 With the front door on, a CloudFront distribution with a WAF rate rule (`waf_rate_limit_per_5min`) sits in front of
 the Function URL, so browsers and webhooks reach the API without AWS credentials. Its address is the output
 `front_door_domain_name` (with `front_door_distribution_id` and `waf_web_acl_arn`; all `null` when it is off).
-Planned: `control_url` still prints the Function URL; use `https://<front_door_domain_name>` until it follows.
+The `control_url` output is `https://<front_door_domain_name>` with the front door on, and the Function URL without a trailing slash with it off.
 
 ## Authentication
 
@@ -135,5 +135,5 @@ with your credentials:
 ```
 
 The actions are `park`, `operator-hold`, `status` (with `records`), `swap-volume` and `rebuild`. The CLI sends them for
-`dozebox park`, `status --records`, `restore`, `move-az` and `rebuild`. Planned: the control function does not handle
+`dozebox park`, `status --records`, `restore`, `move-az` and `rebuild`. Planned ([issue 16](https://github.com/AffanShaikhsurab/dozebox/issues/16)): the control function does not handle
 admin events yet, so those commands fail against a real stack. The wake token cannot send them; that is the point.
