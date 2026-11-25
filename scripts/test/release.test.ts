@@ -6,7 +6,7 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writ
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
-import { buildRelease, launcher, parseArgs } from "../release/build-agent.ts";
+import { buildRelease, launcher, NATIVE_LIBS, parseArgs } from "../release/build-agent.ts";
 
 const VERSION = "0.1.0-rc.1";
 const name = `dozebox-agent-${VERSION}-linux-aarch64`;
@@ -28,8 +28,17 @@ before(async () => {
   writeFileSync(join(nodeDir, "bin", "node"), `#!/bin/sh\nexec "${process.execPath}" "$@"\n`);
   chmodSync(join(nodeDir, "bin", "node"), 0o755);
   writeFileSync(join(nodeDir, "LICENSE"), "fake node license\n");
+  mkdirSync(join(tmp, "so"));
+  // Not a real library name: a fake libatomic.so.1 on the path would break the real node the launcher test runs.
+  writeFileSync(join(tmp, "so", "libdztest.so.1"), "fake lib\n");
   outDir = join(tmp, "out");
-  [tarball = ""] = await buildRelease({ version: VERSION, arches: ["aarch64"], outDir, nodeDir });
+  [tarball = ""] = await buildRelease({
+    version: VERSION,
+    arches: ["aarch64"],
+    outDir,
+    nodeDir,
+    soDir: join(tmp, "so"),
+  });
   extracted = join(tmp, "extracted");
   mkdirSync(extracted);
   tar(["-xzf", tarball, "-C", extracted]);
@@ -54,6 +63,7 @@ test("the tarball is named for the version and arch, with the release contents a
     "lib/dozebox-tripwire.mjs",
     "node/bin/node",
     "node/LICENSE",
+    "lib/so/libdztest.so.1",
     "examples/marker/server.mjs",
     "VERSION",
   ]) {
@@ -82,6 +92,7 @@ test("the launchers are executable and the same tarball is built twice", async (
     arches: ["aarch64"],
     outDir: again,
     nodeDir: join(tmp, "fake-node"),
+    soDir: join(tmp, "so"),
   });
   assert.deepEqual(readFileSync(second ?? ""), readFileSync(tarball));
 });
@@ -102,10 +113,29 @@ test("the bundles are self-contained: the launcher runs with no node_modules", (
 test("the slim tarball has no node/ and names the Node build in NODE", () => {
   const slim = join(outDir, "slim", `${name}.tar.gz`);
   const entries = tar(["-tzf", slim]).split("\n").filter(Boolean);
-  assert.ok(entries.includes("NODE") && entries.includes("bin/dozeboxd"));
+  for (const want of ["NODE", "bin/dozeboxd", "lib/so/libdztest.so.1"]) assert.ok(entries.includes(want), want);
   assert.ok(!entries.some((e) => e.startsWith("node/")));
   assert.match(tar(["-xzOf", slim, "NODE"]), /^v\d+\.\d+\.\d+ [0-9a-f]{64}\n$/);
   assert.match(readFileSync(join(outDir, "slim", "SHA256SUMS"), "utf8"), new RegExp(`  ${name}\\.tar\\.gz\\n$`));
+});
+
+test("the launchers put the bundled shared libraries first on the library path", () => {
+  // Ubuntu 24.04 has no libatomic1, which the arm64 node links: without lib/so first, node does not start.
+  const dir = join(tmp, "ld");
+  mkdirSync(join(dir, "bin"), { recursive: true });
+  mkdirSync(join(dir, "node", "bin"), { recursive: true });
+  writeFileSync(join(dir, "VERSION"), `${VERSION}\n`);
+  writeFileSync(join(dir, "bin", "dozeboxd"), launcher("dozeboxd"), { mode: 0o755 });
+  writeFileSync(join(dir, "node", "bin", "node"), '#!/bin/sh\necho "$LD_LIBRARY_PATH"\n', { mode: 0o755 });
+  const run = (ld: string | undefined): string => {
+    const env = { ...process.env };
+    if (ld === undefined) delete env.LD_LIBRARY_PATH;
+    else env.LD_LIBRARY_PATH = ld;
+    return spawnSync(join(dir, "bin", "dozeboxd"), [], { encoding: "utf8", env }).stdout.trim();
+  };
+  assert.equal(run(undefined), `${join(dir, "bin")}/../lib/so`);
+  assert.equal(run("/elsewhere"), `${join(dir, "bin")}/../lib/so:/elsewhere`);
+  assert.ok(NATIVE_LIBS.aarch64.some((l) => l.name === "libatomic.so.1"));
 });
 
 test("arguments: version is required and checked, arch is checked", () => {

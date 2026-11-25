@@ -1,7 +1,8 @@
 // Builds the agent release tarballs that box/stage0/install-agent.sh downloads.
 //   node scripts/release/build-agent.ts --version <semver> [--arch aarch64] [--arch x86_64] [--out dist/release]
 //                                       [--node-dir <extracted node dir>]
-// Each tarball holds the release dir's contents at its root: bin/ launchers, lib/ bundles, node/, systemd/, examples/.
+// Each tarball holds the release dir's contents at its root: bin/ launchers, lib/ bundles and lib/so shared libraries,
+// node/, systemd/, examples/.
 // `slim/` gets the same tarballs without node/ (a NODE file names the Node build instead), small enough for
 // `dozebox drill --deliver` to push through SSM Run Command.
 import { createHash } from "node:crypto";
@@ -46,12 +47,43 @@ export type ReleaseOptions = {
   readonly outDir: string;
   /** An extracted Node dir (bin/node, LICENSE) used instead of downloading; for tests. */
   readonly nodeDir?: string;
+  /** A dir of shared libraries used instead of NATIVE_LIBS; for tests. */
+  readonly soDir?: string;
+};
+
+/**
+ * Shared libraries the official Node build links that the module's default AMI (Ubuntu 24.04 server) lacks: node
+ * needs libatomic.so.1 (both arches) and stock Ubuntu does not install libatomic1. Taken from Ubuntu noble's release
+ * pocket (never removed from the pool), checked, shipped in lib/so (full and slim) and found via LD_LIBRARY_PATH.
+ */
+export const NATIVE_LIBS: Readonly<
+  Record<
+    Arch,
+    ReadonlyArray<{ readonly url: string; readonly sha256: string; readonly path: string; readonly name: string }>
+  >
+> = {
+  aarch64: [
+    {
+      url: "https://ports.ubuntu.com/ubuntu-ports/pool/main/g/gcc-14/libatomic1_14-20240412-0ubuntu1_arm64.deb",
+      sha256: "017fa4bd88e8ff1cbaf75a26765b8c1255a5cd91d6ce838273bcb64190f15e37",
+      path: "usr/lib/aarch64-linux-gnu/libatomic.so.1.2.0",
+      name: "libatomic.so.1",
+    },
+  ],
+  x86_64: [
+    {
+      url: "https://archive.ubuntu.com/ubuntu/pool/main/g/gcc-14/libatomic1_14-20240412-0ubuntu1_amd64.deb",
+      sha256: "f496d80626e1512456273965d44f47b281edf53fa26d0d8bd0defc5be7e4601c",
+      path: "usr/lib/x86_64-linux-gnu/libatomic.so.1.2.0",
+      name: "libatomic.so.1",
+    },
+  ],
 };
 
 export const sha256 = (data: Buffer): string => createHash("sha256").update(data).digest("hex");
 
 export const launcher = (lib: string): string =>
-  `#!/bin/sh\nhere="$(dirname "$(readlink -f "$0")")"\nDOZEBOX_AGENT_VERSION="$(cat "$here/../VERSION")"\nexport DOZEBOX_AGENT_VERSION\nexec "$here/../node/bin/node" "$here/../lib/${lib}.mjs" "$@"\n`;
+  `#!/bin/sh\nhere="$(dirname "$(readlink -f "$0")")"\nDOZEBOX_AGENT_VERSION="$(cat "$here/../VERSION")"\nexport DOZEBOX_AGENT_VERSION\nLD_LIBRARY_PATH="$here/../lib/so\${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"\nexport LD_LIBRARY_PATH\nexec "$here/../node/bin/node" "$here/../lib/${lib}.mjs" "$@"\n`;
 
 function run(cmd: string, args: ReadonlyArray<string>): void {
   const r = spawnSync(cmd, args, { stdio: ["ignore", "inherit", "inherit"] });
@@ -88,6 +120,27 @@ async function fetchNode(arch: Arch, cacheDir: string): Promise<{ readonly dir: 
   return { dir, sha: want };
 }
 
+/** Download (or reuse) the Ubuntu packages of NATIVE_LIBS[arch], check them, extract the libraries into one dir. */
+async function fetchNativeLibs(arch: Arch, cacheDir: string): Promise<string> {
+  const out = join(cacheDir, `so-${arch}`);
+  mkdirSync(out, { recursive: true });
+  for (const lib of NATIVE_LIBS[arch]) {
+    if (existsSync(join(out, lib.name))) continue;
+    const deb = join(cacheDir, lib.url.slice(lib.url.lastIndexOf("/") + 1));
+    if (!existsSync(deb)) await download(lib.url, deb);
+    if (sha256(readFileSync(deb)) !== lib.sha256) {
+      rmSync(deb);
+      throw new Error(`${lib.url} does not match its pinned SHA-256; deleted it`);
+    }
+    const x = join(cacheDir, `deb-${lib.name}`);
+    rmSync(x, { recursive: true, force: true });
+    run("dpkg-deb", ["-x", deb, x]);
+    copyFileSync(join(x, lib.path), join(out, lib.name));
+    rmSync(x, { recursive: true, force: true });
+  }
+  return out;
+}
+
 /** `node` null: a slim release, with NODE naming the Node build to fetch instead of node/. */
 function assemble(
   stage: string,
@@ -95,9 +148,11 @@ function assemble(
   node: { readonly dir: string } | { readonly nodeLine: string },
   libDir: string,
   root: string,
+  soDir: string,
 ): void {
   rmSync(stage, { recursive: true, force: true });
-  for (const d of ["bin", "lib", "systemd", "examples/marker"]) mkdirSync(join(stage, d), { recursive: true });
+  for (const d of ["bin", "lib/so", "systemd", "examples/marker"]) mkdirSync(join(stage, d), { recursive: true });
+  for (const so of readdirSync(soDir)) copyFileSync(join(soDir, so), join(stage, "lib", "so", so));
   for (const [bin, lib] of Object.entries(LAUNCHERS)) {
     writeFileSync(join(stage, "bin", bin), launcher(lib), { mode: 0o755 });
     chmodSync(join(stage, "bin", bin), 0o755);
@@ -161,9 +216,10 @@ export async function buildRelease(opts: ReleaseOptions): Promise<ReadonlyArray<
       : await fetchNode(arch, join(outDir, ".cache"));
     const name = `dozebox-agent-${opts.version}-linux-${arch}`;
     const stage = join(work, name);
-    assemble(stage, opts.version, node, libDir, ROOT);
+    const soDir = opts.soDir ? resolve(opts.soDir) : await fetchNativeLibs(arch, join(outDir, ".cache"));
+    assemble(stage, opts.version, node, libDir, ROOT, soDir);
     tarballs.push(pack(stage, join(outDir, `${name}.tar.gz`)));
-    assemble(stage, opts.version, { nodeLine: `v${NODE_VERSION} ${node.sha}` }, libDir, ROOT);
+    assemble(stage, opts.version, { nodeLine: `v${NODE_VERSION} ${node.sha}` }, libDir, ROOT, soDir);
     pack(stage, join(slimDir, `${name}.tar.gz`));
   }
   writeSums(outDir);
