@@ -79,6 +79,15 @@ describe("restore test", () => {
     assert.equal((await t.rt.step(WEEK, 1)).phase, "running");
   });
 
+  test("next week's test of the same snapshot sends a new token", async () => {
+    const t = setup({ phase: "idle", lastResult: null });
+    await t.rt.step(0, 1);
+    await t.rt.step(CLOSE, 2);
+    await t.rt.step(CLOSE + WEEK, 3);
+    assert.equal(t.created.length, 2);
+    assert.notEqual(t.created[0]?.token, t.created[1]?.token);
+  });
+
   test("a retried start with the same snapshot sends the same token", async () => {
     const t = setup({ phase: "idle", lastResult: null }, { failFirstWrite: true });
     await assert.rejects(t.rt.step(1000, 1), /write failed/);
