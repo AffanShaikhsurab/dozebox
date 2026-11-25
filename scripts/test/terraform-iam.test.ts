@@ -29,3 +29,15 @@ test("every aws_iam_policy is listed in iam_index.tf", () => {
   );
   assert.deepEqual(missing, [], `add these to local.all_policies in iam_index.tf: ${missing.join(", ")}`);
 });
+
+
+test("no Elastic IP: a parked box must not hold a billed public address", () => {
+  assert.deepEqual(resourceNames("aws_eip"), []);
+});
+
+test("the guarded data volume keeps prevent_destroy", () => {
+  const volume = sources.find((s) => s.file === "volume.tf");
+  assert.ok(volume, "terraform/volume.tf is missing");
+  const block = /^resource\s+"aws_ebs_volume"\s+"data"\s+\{[\s\S]*?^\}/m.exec(volume.text)?.[0] ?? "";
+  assert.match(block, /prevent_destroy\s*=\s*true/);
+});
