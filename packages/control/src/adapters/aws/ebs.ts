@@ -1,14 +1,18 @@
-// AWS adapter for the box's data volumes (EBS through the EC2 API): describe by tag, move the `active` tag, and
-// create from a snapshot with CreateVolume's ClientToken. Never detaches or deletes anything.
+// AWS adapter for the box's data volumes (EBS through the EC2 API): describe by tag, move the `active` tag, create
+// from a snapshot with CreateVolume's ClientToken, find the newest snapshot, and detach or delete only what the port
+// allows: a detach never forces, and a delete only takes an unattached, inactive volume that carries the box tag.
 import {
   CreateTagsCommand,
   CreateVolumeCommand,
+  DeleteVolumeCommand,
+  DescribeSnapshotsCommand,
   DescribeVolumesCommand,
+  DetachVolumeCommand,
   type EC2Client,
   type Volume,
 } from "@aws-sdk/client-ec2";
 import { fromAws, RunnerError } from "@dozebox/core/errors";
-import type { AttachmentState, VolumeState, VolumeView, Volumes } from "../../ports/volumes.ts";
+import type { AttachmentState, SnapshotView, VolumeState, VolumeView, Volumes } from "../../ports/volumes.ts";
 
 const VOLUME_STATES: ReadonlySet<string> = new Set(["creating", "available", "in-use", "deleting", "deleted", "error"]);
 const ATTACHMENT_STATES: ReadonlySet<string> = new Set(["attaching", "attached", "detaching", "detached", "busy"]);
@@ -46,6 +50,28 @@ async function describeVolumes(
   } while (next);
   return found;
 }
+
+/** The newest completed snapshot of `filters`, across pages. */
+async function newestOf(
+  ec2: EC2Client,
+  filters: Array<{ Name: string; Values: string[] }>,
+): Promise<SnapshotView | null> {
+  let best: SnapshotView | null = null;
+  let next: string | undefined;
+  do {
+    const out = await ec2.send(new DescribeSnapshotsCommand({ OwnerIds: ["self"], Filters: filters, NextToken: next }));
+    for (const s of out.Snapshots ?? []) {
+      if (!s.SnapshotId || !s.StartTime) continue;
+      const startedAt = s.StartTime.getTime();
+      if (best === null || startedAt > best.startedAt)
+        best = { id: s.SnapshotId, startedAt, sizeGiB: s.VolumeSize ?? 0 };
+    }
+    next = out.NextToken;
+  } while (next);
+  return best;
+}
+
+const isNotFound = (e: unknown): boolean => fromAws(e).code === "aws_not_found";
 
 export type AwsVolumesDeps = { readonly ec2: EC2Client; readonly prefix?: string };
 
@@ -107,6 +133,59 @@ export function makeAwsVolumes(deps: AwsVolumesDeps): Volumes {
         );
         if (!out.VolumeId) throw new RunnerError("internal", false, "CreateVolume returned no volume id");
         return out.VolumeId;
+      } catch (e) {
+        throw fromAws(e);
+      }
+    },
+    detach: async (volumeId, machineId) => {
+      try {
+        const [v] = await describeVolumes(ec2, { VolumeIds: [volumeId] });
+        const a = v?.Attachments?.find((x) => x.InstanceId === machineId);
+        if (!a || a.State === "detaching" || a.State === "detached") return;
+        try {
+          await ec2.send(new DetachVolumeCommand({ VolumeId: volumeId, InstanceId: machineId }));
+        } catch (e) {
+          // Detached between the describe and the call.
+          if (!isNotFound(e)) throw e;
+        }
+      } catch (e) {
+        throw fromAws(e);
+      }
+    },
+    newestSnapshot: async (boxId) => {
+      try {
+        return await newestOf(ec2, [
+          { Name: `tag:${boxTag}`, Values: [boxId] },
+          { Name: "status", Values: ["completed"] },
+        ]);
+      } catch (e) {
+        throw fromAws(e);
+      }
+    },
+    deleteVolume: async (volumeId) => {
+      try {
+        let v: Volume | undefined;
+        try {
+          [v] = await describeVolumes(ec2, { VolumeIds: [volumeId] });
+        } catch (e) {
+          if (isNotFound(e)) return;
+          throw e;
+        }
+        if (!v || v.State === "deleting" || v.State === "deleted") return;
+        if (tag(v, activeTag) === "true") {
+          throw new RunnerError("invalid_input", false, `volume ${volumeId} is the active volume`);
+        }
+        if (tag(v, boxTag) === undefined) {
+          throw new RunnerError("invalid_input", false, `volume ${volumeId} has no ${boxTag} tag`);
+        }
+        if ((v.Attachments ?? []).length > 0) {
+          throw new RunnerError("aws_conflict", true, `volume ${volumeId} is still attached`);
+        }
+        try {
+          await ec2.send(new DeleteVolumeCommand({ VolumeId: volumeId }));
+        } catch (e) {
+          if (!isNotFound(e)) throw e;
+        }
       } catch (e) {
         throw fromAws(e);
       }

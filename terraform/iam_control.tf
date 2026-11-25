@@ -98,6 +98,14 @@ locals {
         Resource  = [local.arns.instances]
         Condition = { StringEquals = { (local.box_tag) = var.box_id } }
       },
+      # The weekly restore test deletes its scratch volume; the active data volume can never match.
+      {
+        Sid       = "DeleteOnlyInactiveVolumesOfThisBox"
+        Effect    = "Allow"
+        Action    = ["ec2:DeleteVolume"]
+        Resource  = [local.arns.volumes]
+        Condition = { StringEquals = { (local.box_tag) = var.box_id, "aws:ResourceTag/${local.tag_prefix}:active" = "false" } }
+      },
       {
         Sid       = "SnapshotOnlyTheActiveDataVolume"
         Effect    = "Allow"
@@ -230,7 +238,7 @@ resource "aws_iam_policy" "control_ec2" {
 
 resource "aws_iam_policy" "control_volumes" {
   name        = "${local.names.control_role}-volumes"
-  description = "Control ${var.box_id}: attach, detach, snapshot and restore the active data volume. No deletes."
+  description = "Control ${var.box_id}: attach, detach, snapshot and restore the active data volume; delete inactive scratch volumes."
   policy      = jsonencode(local.control_volumes_policy)
   tags        = local.tags
 }

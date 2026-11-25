@@ -26,7 +26,12 @@ export type FakeEbs = {
     readonly zone?: string;
     readonly sizeGiB?: number;
   }) => string;
-  readonly addSnapshot: (sizeGiB?: number) => string;
+  readonly addSnapshot: (opts?: {
+    readonly boxId?: string;
+    readonly sizeGiB?: number;
+    /** Epoch ms; defaults to now. */
+    readonly startedAt?: number;
+  }) => string;
   /** The volume's tags, for assertions. */
   readonly tagsOf: (id: string) => ReadonlyMap<string, string> | null;
 };
@@ -41,7 +46,10 @@ export function makeFakeEbs(deps: {
 }): FakeEbs {
   const { clock, faults, tags, ec2, timing } = deps;
   const volumes = new Map<string, Volume>();
-  const snapshots = new Map<string, number>();
+  const snapshots = new Map<
+    string,
+    { readonly boxId: string | undefined; readonly sizeGiB: number; readonly startedAt: number }
+  >();
   const byToken = new Map<string, { readonly id: string; readonly snapshotId: string; readonly zone: string }>();
 
   const get = (id: string): Volume => {
@@ -117,12 +125,34 @@ export function makeFakeEbs(deps: {
           }
           return seen.id;
         }
-        const size = snapshots.get(snapshotId);
-        if (size === undefined)
+        const snap = snapshots.get(snapshotId);
+        if (snap === undefined)
           throw awsError("InvalidSnapshot.NotFound", `The snapshot '${snapshotId}' does not exist.`);
-        const id = add(boxId, false, zone, size, clock.now());
+        const id = add(boxId, false, zone, snap.sizeGiB, clock.now());
         byToken.set(token, { id, snapshotId, zone });
         return id;
+      },
+      detach: async (volumeId, machineId) => {
+        faults.check("ebs.detach");
+        const v = get(volumeId);
+        if (v.attachment?.machineId === machineId) v.attachment = null;
+      },
+      newestSnapshot: async (boxId) => {
+        faults.check("ebs.snapshots");
+        const newest = [...snapshots]
+          .filter(([, s]) => s.boxId === boxId)
+          .toSorted(([, a], [, b]) => b.startedAt - a.startedAt)[0];
+        return newest ? { id: newest[0], startedAt: newest[1].startedAt, sizeGiB: newest[1].sizeGiB } : null;
+      },
+      deleteVolume: async (volumeId) => {
+        faults.check("ebs.delete");
+        const v = volumes.get(volumeId);
+        if (!v) return;
+        if (isActive(v) || !v.tags.has(tags.box)) {
+          throw new RunnerError("invalid_input", false, `volume ${volumeId} is the active volume or has no box tag`);
+        }
+        if (v.attachment) throw awsError("VolumeInUse", `The volume '${volumeId}' is attached.`);
+        volumes.delete(volumeId);
       },
     },
     attach: {
@@ -165,9 +195,9 @@ export function makeFakeEbs(deps: {
     },
     addVolume: ({ boxId, active, zone = "us-east-1a", sizeGiB = 8 }) =>
       add(boxId, active, zone, sizeGiB, clock.now() - timing.createMs),
-    addSnapshot: (sizeGiB = 8) => {
+    addSnapshot: ({ boxId, sizeGiB = 8, startedAt = clock.now() } = {}) => {
       const id = deps.newId("snap");
-      snapshots.set(id, sizeGiB);
+      snapshots.set(id, { boxId, sizeGiB, startedAt });
       return id;
     },
     tagsOf: (id) => volumes.get(id)?.tags ?? null,

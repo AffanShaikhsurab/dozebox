@@ -93,8 +93,17 @@ export async function act(deps: TickDeps, action: Action, ctx: Ctx): Promise<Act
       await deps.compute.setGroupDesired(group, 0, token);
       return { kind: "acted", action: action.kind, token };
     }
-    case "release-volume":
-      // The Volumes port has no detach (the adapters never detach); the hand-off lands with the fallback drills.
-      return skip("no-detach-port");
+    case "release-volume": {
+      // The fallback hand-off: the stopped persistent instance releases the volume so the group's instance can
+      // attach it. Only while this wake still stands, and only if the volume still hangs on that stopped instance.
+      const desired = await deps.desired.read();
+      if (desired.want !== "awake" || desiredOrder(desired) !== desiredOrder(ctx.snapshot.desired)) {
+        return skip("desired-changed");
+      }
+      const m = await deps.compute.describePersistent(box);
+      if (m === null || m.id !== action.from || m.state !== "stopped") return skip("state-changed");
+      await deps.volumes.detach(action.volumeId, action.from, token);
+      return { kind: "acted", action: action.kind, token };
+    }
   }
 }

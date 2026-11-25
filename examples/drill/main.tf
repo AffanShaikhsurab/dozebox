@@ -27,6 +27,12 @@ variable "alert_email" {
   default     = null
 }
 
+variable "control_bundle_path" {
+  description = "The built control bundle (absolute path to packages/control/dist/control.zip); null deploys the placeholder that answers 503."
+  type        = string
+  default     = null
+}
+
 variable "front_door" {
   description = "Put CloudFront and WAF in front of the control API."
   type        = bool
@@ -83,12 +89,16 @@ module "dozebox" {
   box_id                   = var.box_id
   tags                     = local.test_tags
   iam_permissions_boundary = var.iam_permissions_boundary
+  control_bundle_path      = var.control_bundle_path
 
   instance = {
-    types        = ["t4g.small", "t4g.medium"]
+    # Several types: t4g.small alone had no Spot capacity in us-east-1a (2026-11-25). The persistent instance uses the
+    # first; the fallback group may use any.
+    types        = ["t4g.medium", "t4g.large", "m7g.medium", "m7g.large"]
     arch         = "arm64"
     machine_mode = "persistent"
   }
+  fallback    = { types = ["t4g.medium", "t4g.large", "m7g.medium", "m7g.large"] }
   network     = var.network
   data_volume = { size_gb = 20 }
   snapshots   = { every_hours = 24, keep = 2, recycle_bin_days = 1 }
@@ -98,7 +108,7 @@ module "dozebox" {
 
   caps = {
     awake_hours_per_day     = 2
-    on_demand_hours_per_day = 1
+    on_demand_hours_per_day = 12 # drills run On-Demand (maintainer, 2026-11-25); the cap must not park them
     monthly_budget_usd      = 25
     max_spot_price_per_hour = 0.03
   }
@@ -164,4 +174,9 @@ output "wake_token_parameter" {
 output "state_table_name" {
   description = "DynamoDB state table."
   value       = module.dozebox.state_table_name
+}
+
+output "unfreeze_runbook" {
+  description = "The unfreeze SSM Automation document and its parameters."
+  value       = module.dozebox.unfreeze_runbook
 }

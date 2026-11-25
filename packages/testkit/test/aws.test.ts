@@ -122,7 +122,7 @@ test("EBS: two active volumes is an error, a reused token with other parameters 
     aws.ebs.attach.findActive("b1"),
     (e: unknown) => e instanceof RunnerError && e.code === "internal",
   );
-  const snap = aws.ebs.addSnapshot(20);
+  const snap = aws.ebs.addSnapshot({ sizeGiB: 20 });
   const id = await aws.ebs.volumes.createFromSnapshot({
     boxId: "b2",
     snapshotId: snap,
