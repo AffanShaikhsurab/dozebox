@@ -45,6 +45,17 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm docs:check
+  licenses:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check:licenses
   terraform:
     runs-on: ubuntu-24.04
     steps:
@@ -76,7 +87,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   ci-ok:
     if: always()
-    needs: [node, sim, docs, terraform, legacy, gitleaks]
+    needs: [node, sim, docs, licenses, terraform, legacy, gitleaks]
     runs-on: ubuntu-24.04
     steps:
       - name: Every required job succeeded (failure, cancelled and skipped all fail)

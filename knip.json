@@ -5,6 +5,10 @@
       "entry": ["scripts/*.ts", "scripts/release/*.ts", "scripts/test/**/*.test.ts"],
       "project": ["scripts/**/*.ts"]
     },
+    "packages/cli": {
+      "entry": ["src/**/index.ts", "src/bin.ts", "scripts/*.ts", "test/**/*.test.ts"],
+      "project": ["src/**/*.ts", "scripts/**/*.ts", "test/**/*.ts"]
+    },
     "packages/*": {
       "entry": ["src/**/index.ts", "src/*/v1.ts", "src/v1/index.ts", "scripts/*.ts", "test/**/*.test.ts"],
       "project": ["src/**/*.ts", "scripts/**/*.ts", "test/**/*.ts"]
