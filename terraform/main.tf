@@ -8,13 +8,18 @@ locals {
   region     = data.aws_region.current.region
 
   # Every name, SSM path and tag key starts with the prefix, so two prefixes never collide in one account (ADR 0009).
-  tag_prefix = var.name_prefix
+  tag_prefix = coalesce(var.tag_prefix, var.name_prefix)
   name       = "${var.name_prefix}-${var.box_id}"
   tags       = merge(var.tags, { "${local.tag_prefix}:box" = var.box_id })
 
-  ssm_prefix     = "/${var.name_prefix}/${var.box_id}/"
-  ssm_box_arn    = "arn:${local.partition}:ssm:${local.region}:${local.account_id}:parameter/${var.name_prefix}/${var.box_id}"
-  ssm_shared_arn = "arn:${local.partition}:ssm:${local.region}:${local.account_id}:parameter/${var.name_prefix}/shared"
+  # T6: var.ssm_prefix and var.tag_prefix let a stack adopted from the old runner keep its SSM paths and tag keys. Shared
+  # secrets sit next to the box prefix (/<root>/shared); the default keeps /<name_prefix>/shared.
+  ssm_prefix     = coalesce(var.ssm_prefix, "/${var.name_prefix}/${var.box_id}/")
+  ssm_box_path   = trimsuffix(local.ssm_prefix, "/")
+  ssm_segments   = split("/", local.ssm_box_path)
+  ssm_root_path  = var.ssm_prefix == null ? "/${var.name_prefix}" : join("/", slice(local.ssm_segments, 0, length(local.ssm_segments) - 1))
+  ssm_box_arn    = "arn:${local.partition}:ssm:${local.region}:${local.account_id}:parameter${local.ssm_box_path}"
+  ssm_shared_arn = "arn:${local.partition}:ssm:${local.region}:${local.account_id}:parameter${local.ssm_root_path}/shared"
 
   # Names every file of the module builds on. A policy names a resource by these, not by a resource reference, so a
   # policy never waits on (or cycles with) the resource it scopes.
@@ -26,7 +31,7 @@ locals {
     control_function  = "${local.name}-control"
     state_table       = local.name
     alert_topic       = "${local.name}-alerts"
-    box_log_group     = "/${var.name_prefix}/${var.box_id}/box"
+    box_log_group     = "${local.ssm_box_path}/box"
     control_log_group = "/aws/lambda/${local.name}-control"
     dashboard         = local.name
     budget            = "${local.name}-monthly"
