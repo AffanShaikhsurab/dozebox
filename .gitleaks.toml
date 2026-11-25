@@ -17,3 +17,8 @@ regexes = [
 # redaction fixtures that the old runner's tests feed to its scrubbers. legacy/ is deleted before the public release.
 description = "Old runner test fixtures"
 paths = ['''^legacy/runner/test/''']
+
+[[allowlists]]
+# RFC 8291 Appendix A published Web Push test vector (auth secret, salt, keys), reviewed 2026-11-25.
+description = "RFC 8291 test vector"
+paths = ['''^packages/control/test/webpush\.test\.ts$''']

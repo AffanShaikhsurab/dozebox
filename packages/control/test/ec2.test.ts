@@ -74,6 +74,8 @@ describe("describePersistent", () => {
       launchedAt: Date.UTC(2026, 10, 24, 20, 10, 3),
       stoppingAt: Date.UTC(2026, 10, 24, 21, 0, 5),
       spotRequest: "disabled",
+      type: "t4g.medium",
+      zone: "us-east-1a",
     });
     assert.deepEqual(stub.sent("DescribeInstancesCommand")[0]?.["Filters"], [
       { Name: "tag:dozebox:box", Values: ["main"] },
