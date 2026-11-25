@@ -55,6 +55,24 @@ variable "network" {
   default = {}
 }
 
+variable "marker_nonce" {
+  description = "Written by the marker payload into /data/payloads/marker/nonce on its first start; the smoke drill reads it back."
+  type        = string
+  default     = "drill-nonce"
+}
+
+variable "agent_artifact_base_url" {
+  description = "Where stage 0 downloads the agent release (https); null for the module default."
+  type        = string
+  default     = null
+}
+
+variable "agent_sha256" {
+  description = "SHA-256 of the agent tarball per arch (arm64, x86_64), from the release's SHA256SUMS."
+  type        = map(string)
+  default     = null
+}
+
 variable "region" {
   description = "Test account region."
   type        = string
@@ -70,6 +88,12 @@ variable "test_tag" {
 locals {
   # On every resource: default_tags for most, and the module's tags input for what default_tags cannot reach (launch
   # template tag specifications, so instances, volumes, ENIs and Spot requests are tagged on create, and group tags).
+  marker = jsondecode(file("${path.module}/../payloads/marker.json"))
+  # The nonce reaches the payload through its start env.
+  marker_payload = merge(local.marker, {
+    start = merge(local.marker.start, { env = merge(local.marker.start.env, { MARKER_NONCE = var.marker_nonce }) })
+  })
+
   test_tags = {
     "dozebox:test"  = var.test_tag
     "dozebox:owner" = "orchestrator"
@@ -118,9 +142,14 @@ module "dozebox" {
   drill_mode = true # test-only: the data volume has no prevent_destroy, so the drill can tear down
 
   payloads = {
-    marker = jsondecode(file("${path.module}/../payloads/marker.json"))
+    marker = local.marker_payload
   }
-  agent = { version = var.agent_version }
+  agent = {
+    version = var.agent_version
+    # A drill stack points at its own pre-release (warm.auto.tfvars.json); the public default otherwise.
+    artifact_base_url = coalesce(var.agent_artifact_base_url, "https://github.com/dozebox/dozebox/releases/download/v${var.agent_version}")
+    sha256            = var.agent_sha256
+  }
 }
 
 output "box_id" {
@@ -176,4 +205,29 @@ output "state_table_name" {
 output "unfreeze_runbook" {
   description = "The unfreeze SSM Automation document and its parameters."
   value       = module.dozebox.unfreeze_runbook
+}
+
+output "region" {
+  description = "The stack's region."
+  value       = module.dozebox.region
+}
+
+output "tag_prefix" {
+  description = "Tag key prefix."
+  value       = module.dozebox.tag_prefix
+}
+
+output "instance_role_arn" {
+  description = "The box role."
+  value       = module.dozebox.instance_role_arn
+}
+
+output "front_door_domain_name" {
+  description = "CloudFront domain, or null without the front door."
+  value       = module.dozebox.front_door_domain_name
+}
+
+output "marker_nonce" {
+  description = "The marker payload's nonce (the smoke drill compares /data/payloads/marker/nonce with it)."
+  value       = var.marker_nonce
 }
