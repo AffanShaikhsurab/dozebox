@@ -1,7 +1,6 @@
 {
   "name": "dozebox",
   "version": "0.0.0",
-  "private": true,
   "description": "The dozebox command.",
   "license": "MIT",
   "type": "module",
@@ -9,18 +8,17 @@
     "node": ">=24.12"
   },
   "bin": {
-    "dozebox": "./src/bin.ts"
+    "dozebox": "./dist/dozebox.mjs"
   },
   "sideEffects": false,
   "exports": {
     ".": {
-      "@dozebox/source": "./src/index.ts",
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "@dozebox/source": "./src/index.ts"
     }
   },
   "scripts": {
-    "test": "node --conditions=@dozebox/source --test \"test/**/*.test.ts\""
+    "test": "node --conditions=@dozebox/source --test \"test/**/*.test.ts\"",
+    "build": "node scripts/build.ts"
   },
   "dependencies": {
     "@aws-crypto/sha256-js": "5.2.0",
@@ -32,13 +30,37 @@
     "@aws-sdk/client-ssm": "3.1176.0",
     "@aws-sdk/client-sts": "3.1176.0",
     "@aws-sdk/credential-provider-node": "3.972.98",
+    "@smithy/signature-v4": "5.7.5"
+  },
+  "devDependencies": {
     "@dozebox/client": "workspace:*",
     "@dozebox/core": "workspace:*",
     "@dozebox/protocol": "workspace:*",
-    "@smithy/signature-v4": "5.7.5",
+    "@dozebox/testkit": "workspace:*",
+    "esbuild": "0.28.2",
     "typebox": "1.4.7"
   },
-  "devDependencies": {
-    "@dozebox/testkit": "workspace:*"
-  }
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AffanShaikhsurab/dozebox.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/AffanShaikhsurab/dozebox#readme",
+  "bugs": {
+    "url": "https://github.com/AffanShaikhsurab/dozebox/issues"
+  },
+  "keywords": [
+    "dozebox",
+    "cli",
+    "ec2",
+    "aws"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
 }
