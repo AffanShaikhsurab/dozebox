@@ -12,6 +12,8 @@ import { runInstallHook } from "./install.ts";
 import { writeCredentials } from "./secrets.ts";
 import { parseStates, systemctl } from "./systemctl.ts";
 import { renderUnit } from "./units.ts";
+import { ensureUser } from "./users.ts";
+import { socketPath } from "../protocol/server.ts";
 
 export type SupervisorDeps = {
   readonly exec: Exec;
@@ -36,38 +38,16 @@ export function makeSupervisor(deps: SupervisorDeps): PayloadSupervisor {
   // Payloads whose drop-in this process rendered; one that leaves the config is stopped, its file stays.
   const rendered = new Set<string>();
 
-  const ensureUser = async (def: PayloadDefinition, signal: AbortSignal): Promise<void> => {
-    const probe = await deps.exec.run(["id", "-u", def.user], { signal });
-    if (probe.code === 0) return;
-    const add = await deps.exec.run(
-      [
-        "useradd",
-        "--system",
-        "--create-home",
-        "--home-dir",
-        `/data/home/${def.user}`,
-        "--shell",
-        "/bin/bash",
-        "--user-group",
-        def.user,
-      ],
-      { signal },
-    );
-    if (add.code !== 0) {
-      throw new RunnerError("internal", false, `useradd ${def.user}: exit ${add.code}: ${add.stderr.trim()}`);
-    }
-  };
-
   /** Prepare one payload up to its drop-in; true when the drop-in file changed. */
   const prepare = async (def: PayloadDefinition, signal: AbortSignal): Promise<boolean> => {
-    await ensureUser(def, signal);
+    await ensureUser(deps.exec, def.user, signal);
     const dir = `/data/payloads/${def.name}`;
     const mk = await deps.exec.run(["install", "-d", "-o", def.user, "-g", def.user, "-m", "0750", dir], { signal });
     if (mk.code !== 0)
       throw new RunnerError("internal", false, `install -d ${dir}: exit ${mk.code}: ${mk.stderr.trim()}`);
     const credentials = await writeCredentials(deps, def);
     const options = {
-      socketPath: `/run/dozebox/sockets/${def.name}.sock`,
+      socketPath: socketPath(def.name),
       credentials,
       execPrefix: deps.execPrefix,
       boxId: deps.boxId,

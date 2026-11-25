@@ -1,178 +1,387 @@
-// The loops of A3 and A5, built together because they share state: one phase, one supervisor, one health loop whose
-// strikes and serving time the idle loop and the park read. `main.ts` passes them to `runAgent({ extra })`.
+// The agent's services, built once after the first config load (run.ts `prepare`): one phase, one supervisor, the
+// protocol store and server (A2), the coalescing record publisher and the alert forwarder (A7), and the loops that
+// share them. The core loops (A3/A5) live here; agent-view.ts builds status and liveness.
 //
 // - payloads: (re)start every payload when the config's definitions change (immediately, then every 5 minutes).
 // - health:   checks and strikes; the first healthy check writes `rec/serving` and publishes the boot timeline.
-// - idle:     the idle verdict; parks with reason `idle`.
+// - idle:     the idle verdict over the protocol store's holds and presence; parks with reason `idle`.
+// - spot, disk, net, logs (A6/A7), alerts (retry), liveness, and with the jail on: egress, tripwire (A8).
+import { randomUUID } from "node:crypto";
+import * as fsp from "node:fs/promises";
+import { availableParallelism, totalmem } from "node:os";
 import { RunnerError } from "@dozebox/core/errors";
+import type { IdleVerdict } from "@dozebox/core/idle";
 import { MINUTE, toInstant } from "@dozebox/core/time";
-import { bootTimeOf, makeBootTimeline, type BootTimeline } from "./boot/timeline.ts";
+import { makeAlertForwarder } from "./alerts/index.ts";
+import { buildLiveness, buildStatus } from "./agent-view.ts";
+import { bootTimeOf, makeBootTimeline } from "./boot/timeline.ts";
 import type { ConfigLoader } from "./config/load.ts";
 import type { Deps } from "./deps.ts";
+import { diskLoop, type DiskReading } from "./disk/index.ts";
 import { messageOf } from "./errors.ts";
 import { makeActivitySampler } from "./idle/activity.ts";
 import { idleLoop } from "./idle/loop.ts";
 import { park } from "./idle/park.ts";
+import { jailLoops } from "./jail-loops.ts";
+import { jailReadiness, type JailReadiness } from "./jail/index.ts";
 import type { Loop } from "./loops.ts";
-import { makePhaseCell, type ParkReason, type PhaseCell } from "./phase.ts";
-import { NO_HOLDS, type HoldSource } from "./ports/holds.ts";
-import type { PayloadSupervisor } from "./ports/payloads.ts";
-import type { MakeLoop } from "./run.ts";
-import { makeSupervisor } from "./supervisor/supervisor.ts";
-import { healthLoop, type HealthLoop } from "./watchdog/health.ts";
+import { logShipLoop, makeJournalReader } from "./logs/index.ts";
+import { makeLinuxHostStats, netLoop, type NetState } from "./net/index.ts";
+import { canPark, makePhaseCell, type ParkReason } from "./phase.ts";
+import type { HostStats, SpotNotices } from "./ports/host.ts";
+import type { HealthResult, PayloadSupervisor } from "./ports/payloads.ts";
+import {
+  makeProtocolServer,
+  makeProtocolStore,
+  sshPresenceSource,
+  tcpPresenceSource,
+  type ProtocolServer,
+  type ProtocolServerDeps,
+} from "./protocol/index.ts";
+import { makeCoalescingPublisher } from "./records/index.ts";
+import type { Prepare } from "./run.ts";
+import { DEFAULT_STOP_GRACE_SECONDS, makeImdsSpotNotices, makeReclaim, spotLoop } from "./spot/index.ts";
+import { ensureAgentUser, ensureUser, makeSupervisor, parsePasswd } from "./supervisor/index.ts";
+import { healthLoop } from "./watchdog/health.ts";
 
 export const RUN_DIR = "/run/dozebox";
-const PAYLOADS_LOOP = "payloads";
 const PAYLOADS_EVERY_MS = 5 * MINUTE;
+const LIVENESS_OFFER_MS = 30_000;
+const read = (path: string): Promise<string> => fsp.readFile(path, "utf8");
+const capSeconds = (hours: number | null): number | null => (hours === null ? null : hours * 3600);
+const PROBE_HOSTS = ["ssm.amazonaws.com", "github.com"] as const;
 
-export type AgentLoopsOptions = {
-  /** A2's protocol store when present; health-only until then. */
-  readonly holds?: HoldSource;
-  /** Tests pass a fake supervisor. */
+export type AgentOptions = {
+  readonly version?: string;
+  /** Tests inject these; production builds them from deps. */
   readonly supervisor?: (deps: Deps, config: ConfigLoader) => PayloadSupervisor;
+  readonly server?: (d: ProtocolServerDeps) => ProtocolServer;
+  readonly spotNotices?: SpotNotices;
+  readonly hostStats?: HostStats;
+  readonly journal?: Parameters<typeof logShipLoop>[0]["read"];
+  readonly jail?: (deps: Deps) => Promise<JailReadiness>;
 };
 
-type Shared = {
-  readonly phase: PhaseCell;
-  readonly supervisor: PayloadSupervisor;
-  readonly timeline: Promise<BootTimeline>;
-  readonly holds: HoldSource;
-  health: HealthLoop | null;
-  readonly park: (reason: ParkReason, detail: string) => Promise<unknown>;
-};
+export function makeAgent(opts: AgentOptions = {}): Prepare {
+  return async (deps, config) => {
+    const log = deps.log.child({ component: "agent" });
+    const now = deps.clock.now;
+    const box = () => config.current().box;
+    const defOf = (p: string) => config.current().payloads.find((d) => d.name === p);
+    let server: ProtocolServer | null = null;
+    const publish = (name: string, data: unknown): void => server?.publish(name, data);
+    const signal = new AbortController();
 
-function share(deps: Deps, config: ConfigLoader, opts: AgentLoopsOptions): Shared {
-  const log = deps.log.child({ component: "agent" });
-  const phase = makePhaseCell({ phase: "booting", since: deps.clock.now() }, (p) => {
-    void deps.files.writeAtomic(`${RUN_DIR}/phase`, `${p.phase}\n`).catch((e: unknown) => {
-      log.log("warn", "could not write the phase file", { error: e });
+    const phase = makePhaseCell({ phase: "booting", since: now() }, (p) => {
+      publish("phase", { phase: p.phase, since: toInstant(p.since) });
+      void deps.files.writeAtomic(`${RUN_DIR}/phase`, `${p.phase}\n`).catch((e: unknown) => {
+        log.log("warn", "could not write the phase file", { error: e });
+      });
     });
-  });
-  const supervisor =
-    opts.supervisor?.(deps, config) ??
-    makeSupervisor({
-      exec: deps.exec,
+    const supervisor =
+      opts.supervisor?.(deps, config) ??
+      makeSupervisor({
+        exec: deps.exec,
+        files: deps.files,
+        log: deps.log,
+        fetch: deps.fetch,
+        stateDir: deps.env.stateDir,
+        payloads: () => config.current().payloads,
+        secret: deps.secrets.get,
+        execPrefix: [],
+        boxId: deps.identity.boxId,
+      });
+
+    // Payload users first, so the protocol server can hand each socket to its payload (A2 `owner`).
+    const jailOn = () => box().jail.enabled && box().jail.egress !== "off";
+    const agentUids = new Map<string, number>();
+    const passwd = async () => (await deps.files.readText("/etc/passwd")) ?? "";
+    if (!opts.supervisor) {
+      for (const d of config.current().payloads) {
+        await ensureUser(deps.exec, d.user, signal.signal);
+        if (jailOn()) agentUids.set(d.name, await ensureAgentUser({ exec: deps.exec, passwd }, d.name, signal.signal));
+      }
+    }
+    const users = parsePasswd(await passwd());
+    const owner = (p: string) => {
+      const u = users.find((e) => e.name === defOf(p)?.user);
+      return u ? { uid: u.uid, gid: u.gid } : null;
+    };
+
+    const store = await makeProtocolStore({
       files: deps.files,
-      log: deps.log,
-      fetch: deps.fetch,
-      stateDir: deps.env.stateDir,
-      payloads: () => config.current().payloads,
-      secret: deps.secrets.get,
-      execPrefix: [],
-      boxId: deps.identity.boxId,
+      path: `${deps.env.stateDir}/protocol.json`,
+      bootId: deps.identity.bootId,
+      holdMaxSeconds: (p) => defOf(p)?.limits?.holdMaxSeconds ?? 28_800,
+      onClamped: (_p, id, until) => publish("hold-clamped", { id, until: toInstant(until) }),
     });
-  const holds = opts.holds ?? NO_HOLDS;
-  const timeline = bootTimeOf(deps.files, deps.clock.now()).then((bootAt) =>
-    makeBootTimeline({ clock: deps.clock, records: deps.records, files: deps.files, bootAt }),
-  );
-  const s: Shared = {
-    phase,
-    supervisor,
-    timeline,
-    holds,
-    health: null,
-    park: (reason, detail) =>
-      park(
+    const coalesce = makeCoalescingPublisher({ publisher: deps.records, clock: deps.clock, rand: Math.random });
+    const alerts = makeAlertForwarder({ notifier: deps.notifierFor(box().alerts.topicArn), now, ids: randomUUID });
+    const timeline = makeBootTimeline({
+      clock: deps.clock,
+      records: deps.records,
+      files: deps.files,
+      bootAt: await bootTimeOf(deps.files, now()),
+    });
+    const bootedAt = (await timeline.steps())[0]?.startedAt ?? now();
+    const jail = await (opts.jail?.(deps) ??
+      jailReadiness(
+        { exec: deps.exec, files: deps.files },
+        {
+          ...box().jail,
+          egress: box().jail.egress === "allowlist" ? "allowlist" : "imds-only",
+          tripwire: box().tripwire.enabled,
+        },
+        signal.signal,
+      ));
+
+    let verdict: IdleVerdict | null = null;
+    let disk: DiskReading | null = null;
+    let net: NetState | null = null;
+    let netDownSince: number | null = null;
+    let lastHealth: ReadonlyArray<HealthResult> = [];
+
+    const parkNow = async (reason: ParkReason, detail: string): Promise<void> => {
+      if (!canPark(phase.get()) && !(reason === "reclaim" && phase.get().phase === "reclaim-notice")) return;
+      publish("sleeping", { reason, at: toInstant(now()) });
+      await coalesce.flush(deps.clock.timeout(10_000)).catch((e: unknown) => log.log("warn", "flush", { error: e }));
+      await park(
         {
           clock: deps.clock,
           records: deps.records,
           errors: deps.errors,
-          holds,
+          holds: store,
           payloads: supervisor,
           selfStop: deps.selfStop,
           target: deps.machine,
           phase,
           log: deps.log,
-          strikes: () => s.health?.strikes() ?? 0,
+          strikes: () => health.strikes(),
         },
         reason,
         detail,
-      ),
-  };
-  return s;
-}
+      );
+    };
 
-/** The A3/A5 loops, sharing one state made at the first call (startLoops calls them in order with one deps). */
-export function makeAgentLoops(opts: AgentLoopsOptions = {}): ReadonlyArray<MakeLoop> {
-  let shared: Shared | null = null;
-  const get = (deps: Deps, config: ConfigLoader): Shared => (shared ??= share(deps, config, opts));
+    const health = healthLoop({
+      clock: deps.clock,
+      log: deps.log,
+      payloads: {
+        ...supervisor,
+        checkHealth: async (s) => (lastHealth = await supervisor.checkHealth(s)),
+      },
+      everyMs: box().health.checkEverySeconds * 1000,
+      config: () => box().health,
+      phase,
+      netUp: () => (net?.strikes ?? 0) === 0,
+      missedLoops: () => config.current().payloads.flatMap((d) => store.beatsOf(d.name, now()).missedLoops),
+      park: parkNow,
+      onServing: async (payload) => {
+        await deps.records.put("rec/serving", { payload });
+        await deps.records.delete("rec/last-error");
+        await deps.records.delete("rec/last-words");
+        await deps.files.writeAtomic(`${RUN_DIR}/serving`, `${toInstant(now())}\n`).catch(() => {});
+        await timeline.step("serving", async () => {});
+        await timeline.publish();
+      },
+    });
 
-  const payloads: MakeLoop = (deps, config) => {
-    const s = get(deps, config);
+    const makeServer = opts.server ?? makeProtocolServer;
+    const srv = makeServer({
+      store,
+      log: deps.log,
+      now,
+      clock: deps.clock,
+      bootId: deps.identity.bootId,
+      boxId: deps.identity.boxId,
+      agentVersion: opts.version ?? "dev",
+      payloads: () => config.current().payloads.map((p) => p.name),
+      owner,
+      holdMaxSeconds: (p) => defOf(p)?.limits?.holdMaxSeconds ?? 28_800,
+      status: (p) =>
+        buildStatus(
+          {
+            identity: deps.identity,
+            bootedAt,
+            phase: phase.get(),
+            verdict,
+            disk,
+            jail,
+            memoryBytes: totalmem(),
+            cpus: availableParallelism(),
+            awakeSecondsCap: capSeconds(box().caps.awakeHoursPerDay),
+          },
+          store,
+          p,
+          now(),
+        ),
+      presenceSources: [
+        ...(box().presenceSources.ssh ? [sshPresenceSource({ read })] : []),
+        tcpPresenceSource({ read, ports: () => box().presenceSources.tcpPorts }),
+      ],
+      sleep: async (force) => {
+        if (!canPark(phase.get())) return { accepted: false, blockers: ["parking"] };
+        const blockers =
+          verdict?.kind === "awake" && !force ? verdict.because.filter((b) => b !== "recent-activity") : [];
+        if (blockers.length > 0) return { accepted: false, blockers };
+        void parkNow("user", force ? "sleep requested (forced)" : "sleep requested").catch((e: unknown) =>
+          log.log("error", "park failed", { error: e }),
+        );
+        return { accepted: true, blockers: [] };
+      },
+      attention: (p, a) =>
+        alerts.forward({ source: `payload:${p}`, severity: a.severity, title: a.title, body: a.body ?? "" }),
+      accepting: () => canPark(phase.get()),
+      onChange: (what) => {
+        if (what !== "wakes") return;
+        void store.wakeRequests().then((wakes) => coalesce.offer("rec/wakes", { atPark: false, wakes: [...wakes] }));
+      },
+    });
+    server = srv;
+    await srv.start();
+
     let applied: string | null = null;
-    return {
-      name: PAYLOADS_LOOP,
+    const payloadsLoop: Loop = {
+      name: "payloads",
       everyMs: PAYLOADS_EVERY_MS,
       immediate: true,
-      tick: async (signal) => {
+      tick: async (s) => {
         const key = JSON.stringify(config.current().payloads);
-        if (key === applied || s.phase.get().phase === "sleeping") return;
+        if (key === applied || phase.get().phase === "sleeping") return;
         try {
-          if (applied === null) {
-            const timeline = await s.timeline;
-            await timeline.step("payload-start", () => s.supervisor.startAll(signal));
-          } else {
-            await s.supervisor.startAll(signal);
-          }
+          if (applied === null) await timeline.step("payload-start", () => supervisor.startAll(s));
+          else await supervisor.startAll(s);
           applied = key;
         } catch (e) {
           await deps.records.lastError("payloads", messageOf(e)).catch(() => {});
           throw e instanceof RunnerError ? e : new RunnerError("internal", true, messageOf(e), { cause: e });
         }
       },
-    } satisfies Loop;
-  };
+    };
 
-  const health: MakeLoop = (deps, config) => {
-    const s = get(deps, config);
-    const box = config.current().box;
-    s.health = healthLoop({
-      clock: deps.clock,
-      log: deps.log,
-      payloads: s.supervisor,
-      everyMs: box.health.checkEverySeconds * 1000,
-      config: () => config.current().box.health,
-      phase: s.phase,
-      park: s.park,
-      onServing: async (payload) => {
-        await deps.records.put("rec/serving", { payload });
-        await deps.records.delete("rec/last-error");
-        await deps.records.delete("rec/last-words");
-        await deps.files.writeAtomic(`${RUN_DIR}/serving`, `${toInstant(deps.clock.now())}\n`).catch(() => {});
-        const timeline = await s.timeline;
-        await timeline.step("serving", async () => {});
-        await timeline.publish();
-      },
-    });
-    return s.health;
-  };
-
-  const idle: MakeLoop = (deps, config) => {
-    const s = get(deps, config);
     const sampler = makeActivitySampler({
       files: deps.files,
       payloads: () => config.current().payloads,
-      healthy: (name) => s.health?.healthy(name) ?? false,
+      healthy: (name) => health.healthy(name),
     });
-    const idleCfg = () => config.current().box.idle;
-    return idleLoop({
+    const idle = idleLoop({
       clock: deps.clock,
-      holds: s.holds,
-      idleMs: () => idleCfg().idleMinutes * MINUTE,
-      viewingGraceMs: () => idleCfg().viewingGraceMinutes * MINUTE,
-      servingSince: () => s.health?.servingSince() ?? null,
-      lastActivityAt: () => sampler.sample(deps.clock.now()),
-      phase: s.phase.get,
+      holds: store,
+      idleMs: () => box().idle.idleMinutes * MINUTE,
+      viewingGraceMs: () => box().idle.viewingGraceMinutes * MINUTE,
+      servingSince: () => health.servingSince(),
+      lastActivityAt: () => sampler.sample(now()),
+      phase: phase.get,
       onVerdict: (v) => {
-        const p = s.phase.get();
-        const now = deps.clock.now();
+        verdict = v;
+        const p = phase.get();
         if (v.kind === "idle" && p.phase === "serving")
-          s.phase.set({ phase: "idle-pending", since: now, sleepAt: v.sleepAt });
-        if (v.kind === "awake" && p.phase === "idle-pending") s.phase.set({ phase: "serving", since: now });
+          phase.set({ phase: "idle-pending", since: now(), sleepAt: v.sleepAt });
+        if (v.kind === "awake" && p.phase === "idle-pending") phase.set({ phase: "serving", since: now() });
       },
-      park: s.park,
+      park: parkNow,
     });
-  };
 
-  return [payloads, health, idle];
+    const stats = opts.hostStats ?? makeLinuxHostStats({ fs: fsp });
+    const reclaim = makeReclaim({ publish, park: parkNow, stopGraceSeconds: DEFAULT_STOP_GRACE_SECONDS });
+    const loops: Loop[] = [
+      payloadsLoop,
+      health,
+      idle,
+      spotLoop({
+        notices:
+          opts.spotNotices ?? makeImdsSpotNotices({ fetch: deps.fetch, base: deps.env.imdsUrl, clock: deps.clock }),
+        now,
+        onNotice: async (notice) => {
+          if (phase.get().phase !== "reclaim-notice" && canPark(phase.get())) {
+            phase.set({ phase: "reclaim-notice", since: now(), terminationAt: notice.at });
+          }
+          await reclaim(notice);
+        },
+      }),
+      diskLoop({
+        stats,
+        paths: ["/data", "/"],
+        thresholds: box().disk,
+        onChange: (r) => {
+          if (r.path === "/data" || disk === null) disk = r;
+          publish("disk", { level: r.level, freePct: r.freePct });
+        },
+      }),
+      netLoop({
+        stats,
+        hosts: PROBE_HOSTS,
+        now,
+        timeout: deps.clock.timeout,
+        onState: (s) => {
+          if (s.strikes > 0 && netDownSince === null) netDownSince = now();
+          if (s.strikes === 0) netDownSince = null;
+          net = s;
+        },
+      }),
+      logShipLoop({
+        transport: deps.logs,
+        group: box().logs.group,
+        stream: deps.identity.instanceId,
+        read: opts.journal ?? makeJournalReader({ exec: deps.exec }),
+        now,
+        budgetBytes: box().logs.dailyBudgetMiB * 2 ** 20,
+        onBudget: () => {
+          void alerts.forward({ source: "runner:logs", severity: "notify", title: "Box log budget reached", body: "" });
+        },
+      }),
+      { name: "alerts", everyMs: MINUTE, tick: async (s) => void (await alerts.retry(s)) },
+      {
+        name: "liveness",
+        everyMs: LIVENESS_OFFER_MS,
+        immediate: true,
+        tick: async () => {
+          const t = now();
+          const presence = await store.presence(t);
+          const interactive = presence.filter((p) => p.kind === "interactive").map((p) => p.until);
+          coalesce.offer(
+            "rec/liveness",
+            buildLiveness(
+              {
+                version: opts.version ?? "dev",
+                strikes: health.strikes(),
+                payloads: config.current().payloads,
+                health: lastHealth,
+                served: health.servingSince() !== null,
+                interactiveUntil: interactive.length > 0 ? Math.max(...interactive) : null,
+                lastInteractiveAt: await store.lastInteractiveAt(),
+                verdict,
+                net,
+                netDownSince,
+                disk,
+                undelivered: alerts.undelivered(),
+              },
+              store,
+              t,
+            ),
+          );
+        },
+      },
+    ];
+    loops.push(
+      ...(await jailLoops({
+        deps,
+        box,
+        jailOn: jailOn(),
+        agentUids,
+        alerts,
+        log,
+        payloadUsers: config.current().payloads.map((d) => d.user),
+        signal: signal.signal,
+      })),
+    );
+
+    return {
+      loops,
+      stop: async () => {
+        signal.abort();
+        await server?.stop();
+      },
+    };
+  };
 }
