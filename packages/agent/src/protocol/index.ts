@@ -24,3 +24,4 @@ export {
   type ProtocolResponse,
   type SocketKind,
 } from "./wire.ts";
+export { callAdmin, parseShim, shimMain, type ShimAnswer, type ShimCall } from "./shim.ts";
