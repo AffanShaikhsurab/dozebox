@@ -12,6 +12,9 @@ export type MachineView = {
   readonly stoppingAt: number | null;
   /** The persistent Spot request behind a Spot machine; `none` for On-Demand. */
   readonly spotRequest: "active" | "disabled" | "marked-for-stop" | "none";
+  /** Instance type and availability zone, for the status view; absent when the cloud did not say. */
+  readonly type?: string;
+  readonly zone?: string;
 };
 
 export type GroupView = { readonly desired: 0 | 1; readonly machines: ReadonlyArray<MachineView> };

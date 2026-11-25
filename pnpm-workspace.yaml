@@ -5,3 +5,6 @@ minimumReleaseAgeExclude:
 # testkit runs the agent and control ports through its contract suites, and both use testkit in their tests: a
 # deliberate devDependency cycle. Recursive scripts run in any order.
 ignoreWorkspaceCycles: true
+# esbuild (the control bundle) checks its platform binary in a postinstall script.
+allowBuilds:
+  esbuild: true

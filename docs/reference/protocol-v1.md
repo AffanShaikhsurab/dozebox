@@ -547,6 +547,88 @@ JSON Schema: `schema/v1/control-status.json`.
 | `summary.next` | string | yes |  |
 | `summary.actions` | array of string | yes |  |
 
+### ControlAnswer
+
+JSON Schema: `schema/v1/control-answer.json`.
+
+| Field | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `v` | `1` | yes |  |
+| `box` | string | yes |  |
+| `desired` | `"awake"` or `"asleep"` | yes |  |
+| `state` | `"parked"` or `"launching"` or `"running"` or `"waiting-capacity"` or `"replacing"` or `"stopped-error"` | yes |  |
+| `since` | string | yes | pattern `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$` |
+| `frozen` | boolean | yes |  |
+| `instance` | object | no |  |
+| `instance.id` | string | yes |  |
+| `instance.type` | string | yes |  |
+| `instance.az` | string | yes |  |
+| `instance.launchedAt` | string | yes | pattern `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$` |
+| `instance.lifecycle` | `"spot"` or `"on-demand"` | yes |  |
+| `machine` | `"persistent"` or `"fallback"` | no |  |
+| `servingSince` | string or null | no |  |
+| `lastError` | object | no |  |
+| `lastError.message` | string | yes |  |
+| `lastError.at` | string | yes | pattern `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$` |
+| `lastError.source` | string | yes |  |
+| `lastWords` | object | no |  |
+| `lastWords.parkedBecause` | string | yes |  |
+| `lastWords.detail` | string | yes |  |
+| `lastWords.at` | string | yes | pattern `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$` |
+| `bootTimeline` | object | no |  |
+| `bootTimeline.upSeconds` | number | yes |  |
+| `bootTimeline.steps` | array of object | yes |  |
+| `bootTimeline.steps[].step` | string | yes |  |
+| `bootTimeline.steps[].ms` | integer | yes |  |
+| `liveness` | object | no |  |
+| `liveness.at` | string | yes | pattern `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$` |
+| `liveness.payloads` | array of object | yes |  |
+| `liveness.payloads[].name` | string | yes |  |
+| `liveness.payloads[].health` | string | yes |  |
+| `liveness.payloads[].lastProgressAt` | string or null | yes |  |
+| `liveness.idleSleepAt` | string or null | yes |  |
+| `liveness.awakeBecause` | array of string | yes |  |
+| `nextWake` | object | no |  |
+| `nextWake.at` | string | yes | pattern `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$` |
+| `nextWake.reason` | string | yes |  |
+| `nextWake.payload` | string | yes |  |
+| `caps` | object | yes |  |
+| `caps.awakeHoursToday` | number | yes |  |
+| `caps.awakeHoursCap` | number or null | yes |  |
+| `caps.onDemandHoursToday` | number | yes |  |
+| `caps.onDemandHoursCap` | number | yes |  |
+| `caps.monthSpendUsd` | number or null | yes |  |
+| `caps.monthBudgetUsd` | number | yes |  |
+| `wakePath` | object | no |  |
+| `wakePath.path` | string | yes |  |
+| `wakePath.reason` | string | no |  |
+| `wakePath.message` | string | yes |  |
+| `alertPath` | object | yes |  |
+| `alertPath.level` | `"ok"` or `"info"` or `"warn"` or `"bad"` | yes |  |
+| `alertPath.say` | string | no |  |
+| `restoreTest` | object | no |  |
+| `restoreTest.result` | string | yes |  |
+| `restoreTest.at` | string | yes | pattern `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$` |
+| `summary` | object | yes |  |
+| `summary.level` | `"ok"` or `"info"` or `"warn"` or `"bad"` | yes |  |
+| `summary.headline` | string | yes |  |
+| `summary.detail` | string | yes |  |
+| `summary.next` | string | yes |  |
+| `summary.actions` | array of string | yes |  |
+| `decision` | `"accept"` or `"already-awake"` | yes |  |
+
+### ControlErrorBody
+
+JSON Schema: `schema/v1/control-error-body.json`.
+
+| Field | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `error` | object | yes |  |
+| `error.code` | `"bad_request"` or `"unauthorized"` or `"not_found"` or `"method_not_allowed"` or `"too_large"` or `"frozen"` or `"wake_budget"` or `"wake_breaker"` or `"rate_limited"` or `"internal"` | yes |  |
+| `error.message` | string | yes | maxLength `500` |
+| `error.retryable` | boolean | yes |  |
+| `error.retryAfterSeconds` | integer | no | minimum `0` |
+
 ## Payload definition
 
 ### PayloadDefinition

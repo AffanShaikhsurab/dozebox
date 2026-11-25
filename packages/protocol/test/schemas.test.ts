@@ -46,6 +46,8 @@ test("request schemas reject unknown fields; response schemas tolerate them", ()
     "AttentionAccepted",
     "SleepAccepted",
     "ControlStatus",
+    "ControlAnswer",
+    "ControlErrorBody",
   ];
   for (const { title, schema } of SCHEMAS) {
     const valid = SAMPLES[title]?.valid as Record<string, unknown>;
