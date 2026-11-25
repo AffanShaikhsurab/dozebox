@@ -9,6 +9,7 @@ export DZ_WARM_BOX DZ_WARM_TAG
 ok=false
 finish() {
   local left
+  [ "${DZ_NO_DESTROY:-0}" = 1 ] && { echo "{\"phase\":3,\"ok\":$ok,\"box\":\"$WARM_BOX\",\"kept\":true}"; return; }
   left="$(warm_destroy 2> /dev/null | jq -R . | jq -sc 'map(select(. != ""))' || echo '["destroy failed"]')"
   echo "{\"phase\":3,\"ok\":$ok,\"box\":\"$WARM_BOX\",\"reports\":$(ls drills/phase3*.json 2> /dev/null | jq -R . | jq -sc .),\"leftovers\":$left}"
 }
