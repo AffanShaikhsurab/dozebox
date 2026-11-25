@@ -6,6 +6,7 @@ import {
   recordStoreContract,
   spendPortContract,
   stateTableContract,
+  volumeAttachContract,
   volumePortContract,
 } from "../src/contracts/index.ts";
 import { fresh } from "../src/contracts/support.ts";
@@ -50,13 +51,23 @@ volumePortContract("FakeAws", async () => {
   const zone = "us-east-1a";
   return {
     volumes: aws.ebs.volumes,
-    attach: aws.ebs.attach,
     zone,
     seedVolume: async (boxId, active) => aws.ebs.addVolume({ boxId, active, zone }),
     seedSnapshot: async () => aws.ebs.addSnapshot(),
+    inject: (op, name, status) => aws.faults.failNext(op === "create" ? "ebs.create" : "ebs.describe", name, status),
+  };
+});
+
+volumeAttachContract("FakeAws", async () => {
+  const aws = makeFakeAws();
+  const zone = "us-east-1a";
+  return {
+    attach: aws.ebs.attach,
+    zone,
+    seedVolume: async (boxId, active) => aws.ebs.addVolume({ boxId, active, zone }),
     seedMachine: async () =>
       aws.ec2.addMachine({ boxId: fresh("m"), role: "persistent", state: "running", lifecycle: "spot", zone }),
-    settleAttached: (volumeId) =>
+    settleAttached: (volumeId: string) =>
       until(aws, async () => (await aws.ebs.attach.describe(volumeId))?.attachment?.state === "attached"),
     inject: (op, name, status) => aws.faults.failNext(op === "attach" ? "ebs.attach" : "ebs.describe", name, status),
   };

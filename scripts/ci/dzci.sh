@@ -46,7 +46,7 @@ if [ "${#failed[@]}" -eq 0 ]; then
   job check pnpm check
   job schema pnpm --filter @dozebox/protocol gen:schema --check
 fi
-job terraform bash -c 'terraform fmt -check -recursive terraform && terraform -chdir=terraform init -backend=false -input=false && terraform -chdir=terraform test'
+job terraform bash -c 'terraform fmt -check -recursive terraform && terraform -chdir=terraform init -backend=false -input=false && terraform -chdir=terraform test && terraform -chdir=terraform/bootstrap init -backend=false -input=false && terraform -chdir=terraform/bootstrap test'
 job legacy node --test "legacy/runner/test/**/*.node-test.ts"
 job gitleaks gitleaks git --log-opts="--all" --redact --no-banner --exit-code 1 .
 

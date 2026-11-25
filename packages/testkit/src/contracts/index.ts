@@ -5,4 +5,4 @@ export { recordStoreContract, type RecordHarness } from "./recordStore.ts";
 export { spendPortContract, type SpendHarness } from "./spendPort.ts";
 export { stateTableContract, type StateHarness } from "./stateTable.ts";
 export { fresh, rejectsWith, type ContractOptions, type Gaps } from "./support.ts";
-export { volumePortContract, type VolumeHarness } from "./volumePort.ts";
+export { volumeAttachContract, volumePortContract, type AttachHarness, type VolumeHarness } from "./volumePort.ts";
