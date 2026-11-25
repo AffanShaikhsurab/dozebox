@@ -119,7 +119,12 @@ export async function attachedVolume(
   const machineId = await runInstance(ec2, { "dozebox:box": fresh("m"), "dozebox:role": "persistent" });
   // The emulator ignores Placement, so the volume goes where the instance landed.
   const placed = await ec2.send(new DescribeInstancesCommand({ InstanceIds: [machineId] }));
-  const volumeId = await createVolume(ec2, boxId, active, placed.Reservations?.[0]?.Instances?.[0]?.Placement?.AvailabilityZone);
+  const volumeId = await createVolume(
+    ec2,
+    boxId,
+    active,
+    placed.Reservations?.[0]?.Instances?.[0]?.Placement?.AvailabilityZone,
+  );
   await ec2.send(new AttachVolumeCommand({ VolumeId: volumeId, InstanceId: machineId, Device: "/dev/sdf" }));
   return { volumeId, machineId };
 }
