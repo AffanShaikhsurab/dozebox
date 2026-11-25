@@ -222,6 +222,11 @@ export const SAMPLES: Readonly<Record<string, Sample>> = {
     invalid: { v: 1, at, payload: "example" },
     why: "missing writer",
   },
+  ReleaseRecord: {
+    valid: { v: 1, at, writer, version: "1.2.0", previous: "1.1.3", outcome: "switched" },
+    invalid: { v: 1, at, writer, version: "1.2.0", previous: null, outcome: "installed" },
+    why: "unknown outcome",
+  },
   SleepFence: {
     valid: { v: 1, at, writer, reason: "user", phase: "before-stop" },
     invalid: { v: 1, at, writer, reason: "user", phase: "during" },

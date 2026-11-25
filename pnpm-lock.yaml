@@ -342,7 +342,11 @@ importers:
         specifier: 1.4.7
         version: 1.4.7
 
-  packages/sim: {}
+  packages/sim:
+    dependencies:
+      '@dozebox/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/testkit:
     dependencies:
