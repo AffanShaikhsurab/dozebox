@@ -1,4 +1,4 @@
-﻿import { strict as assert } from "node:assert";
+import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { makeFakeHostStats } from "@dozebox/testkit/fakes";
 import { NET_LOOP_MS, netLoop, type NetState } from "../src/net/index.ts";

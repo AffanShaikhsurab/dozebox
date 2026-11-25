@@ -1,4 +1,4 @@
-﻿import { strict as assert } from "node:assert";
+import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import type { DiskLevel } from "@dozebox/protocol/v1";
 import { makeFakeHostStats } from "@dozebox/testkit/fakes";

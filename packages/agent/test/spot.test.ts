@@ -1,4 +1,4 @@
-﻿import { strict as assert } from "node:assert";
+import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { makeFakeClock, makeFakeSpotNotices } from "@dozebox/testkit/fakes";
 import type { SpotAction } from "../src/ports/host.ts";

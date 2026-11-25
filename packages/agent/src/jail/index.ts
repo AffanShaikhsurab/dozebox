@@ -1,4 +1,4 @@
-// A8: the payload jail (part 8 �8.4, �8.5): bubblewrap profile and `dozebox jail exec`, AppArmor profile, per-uid
+// A8: the payload jail (part 8 §8.4, §8.5): bubblewrap profile and `dozebox jail exec`, AppArmor profile, per-uid
 // nftables egress (`imds-only` or `allowlist`), and the tripwire (decoy profile, socket, report).
 export { BWRAP, bwrapFlags, DECOY_CONFIG, jailArgv, type JailRun } from "./bwrap.ts";
 export {

@@ -1,4 +1,4 @@
-﻿// Linux host facts: statfs, `/sys/class/net/<if>/statistics/tx_bytes`, and a TCP connect probe to port 443.
+// Linux host facts: statfs, `/sys/class/net/<if>/statistics/tx_bytes`, and a TCP connect probe to port 443.
 import { connect as netConnect } from "node:net";
 import type { HostStats } from "../ports/host.ts";
 

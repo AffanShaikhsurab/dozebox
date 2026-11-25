@@ -1,4 +1,4 @@
-﻿// IMDSv2 `spot/instance-action`: a session token (6 h) cached and renewed a minute before it ends or after a 401.
+// IMDSv2 `spot/instance-action`: a session token (6 h) cached and renewed a minute before it ends or after a 401.
 import { RunnerError } from "@dozebox/core/errors";
 import { parseInstant, type Clock } from "@dozebox/core/time";
 import type { SpotAction, SpotNotices } from "../ports/host.ts";

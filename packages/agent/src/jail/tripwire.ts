@@ -1,4 +1,4 @@
-// A8: the tripwire (part 8 §8.5). A decoy AWS profile whose `credential_process` is the tripwire helper; the helper
+// A8: the tripwire (part 8 Â§8.5). A decoy AWS profile whose `credential_process` is the tripwire helper; the helper
 // reports to the loopback socket 127.0.0.1:7311 (`dozebox-tripwire.socket`, Accept=yes), whose per-connection
 // service appends one line to the hits file. The agent reads new lines and pages with key `tripwire:<context>`.
 import type { Files } from "../ports/files.ts";
@@ -118,7 +118,7 @@ export function makeTripwire(deps: {
   };
 }
 
-/** The page a hit sends (part 8 �8.5), with the jail exec context so the operator knows which agent did it. */
+/** The page a hit sends (part 8 §8.5), with the jail exec context so the operator knows which agent did it. */
 export function tripwireAlert(hit: TripwireHit): {
   readonly key: string;
   readonly severity: "page";
