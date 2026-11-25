@@ -39,6 +39,10 @@ export type Request = {
   readonly header: (name: string) => string | undefined;
   /** The body as text (base64 decoded), or "" when there is none. */
   readonly body: string;
+  /** The body's bytes as sent, for signature checks. */
+  readonly rawBody: Uint8Array;
+  /** Every header, lower-case names. */
+  readonly headers: Readonly<Record<string, string>>;
   readonly requestId: string | undefined;
 };
 
@@ -47,12 +51,15 @@ export function toRequest(e: FunctionUrlEvent): Request {
   for (const [k, v] of Object.entries(e.headers ?? {})) if (typeof v === "string") headers.set(k.toLowerCase(), v);
   const raw = e.rawPath.length > 1 ? e.rawPath.replace(/\/+$/, "") : e.rawPath;
   const body = typeof e.body === "string" ? e.body : "";
+  const bytes = Buffer.from(body, e.isBase64Encoded === true ? "base64" : "utf8");
   return {
     method: e.requestContext.http.method.toUpperCase(),
     path: raw === "" ? "/" : raw,
     query: new URLSearchParams(typeof e.rawQueryString === "string" ? e.rawQueryString : ""),
     header: (name) => headers.get(name.toLowerCase()),
-    body: e.isBase64Encoded === true ? Buffer.from(body, "base64").toString("utf8") : body,
+    body: e.isBase64Encoded === true ? bytes.toString("utf8") : body,
+    rawBody: new Uint8Array(bytes),
+    headers: Object.fromEntries(headers),
     requestId: e.requestContext.requestId,
   };
 }

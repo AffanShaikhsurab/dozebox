@@ -120,6 +120,23 @@ describe("tick", () => {
     assert.equal(w.aws.ec2.calls.at(-1)?.id, id);
   });
 
+  test("spend at the budget freezes the box once, pages, and the next tick stops it", async () => {
+    const ntfy = makeFakeAlertSink("ntfy");
+    const w = makeWorld({ sinks: [ntfy, makeFakeAlertSink("email")] });
+    const id = w.aws.ec2.addMachine({ boxId: "main", role: "persistent", state: "running", lifecycle: "spot" });
+    await w.call("POST", "/v1/wake");
+    w.aws.budgets.setMonthToDate({ usd: 61, asOf: w.aws.clock.now() });
+    await tick(w.deps, { trigger: "schedule" });
+    w.aws.clock.advance(MIN);
+    await tick(w.deps, { trigger: "schedule" });
+    assert.equal(JSON.parse((await w.deps.records.get("freeze"))?.value ?? "{}").by, "budget");
+    assert.deepEqual(
+      ntfy.delivered.map((a) => a.key),
+      ["budget-freeze"],
+    );
+    assert.deepEqual(w.aws.ec2.calls.at(-1), { op: "stop", id, token: w.aws.ec2.calls.at(-1)?.token });
+  });
+
   test("a wake that never serves is paged through the outbox by the tick, once", async () => {
     const ntfy = makeFakeAlertSink("ntfy");
     const w = makeWorld({ sinks: [ntfy, makeFakeAlertSink("email")] });

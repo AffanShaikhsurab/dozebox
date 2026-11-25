@@ -1,6 +1,7 @@
 // The control API router (part 5 §5.3). Public assets first (the wake page holds no secret), then the token check
 // for everything else, before any route lookup: a caller without the token learns nothing about which paths exist,
-// what state the box is in, or whether a token is stored. Unversioned paths (`/status`, `/wake`, `/park`,
+// what state the box is in, or whether a token is stored. Hooks (/v1/hooks/*) are the exception: their signature is
+// their authentication (C5). Unversioned paths (`/status`, `/wake`, `/park`,
 // `/alerts/test`) are aliases of the `/v1/` ones for clients of the old API (two minors, part 11 §11.5).
 // Errors: an expected outcome is an answer from its route; anything thrown is logged by name and code only and
 // answered 500 `internal` (SDK messages can embed ARNs).
@@ -9,6 +10,7 @@ import { REQUEST_BODY_LIMIT_BYTES } from "@dozebox/protocol/v1";
 import type { Deps } from "../deps.ts";
 import { toRequest, type FunctionUrlEvent, type FunctionUrlResult } from "./event.ts";
 import { corsHeaders, errorResponse, respond } from "./respond.ts";
+import { HOOKS_PREFIX, hooksRoute } from "./routes/hooks.ts";
 import { publicAsset } from "./routes/pwa.ts";
 import { alertsTestRoute, statusRoute } from "./routes/status.ts";
 import { parkRoute, wakeRoute } from "./routes/wake.ts";
@@ -75,6 +77,10 @@ async function dispatch(deps: Deps, req: ReturnType<typeof toRequest>, named: (n
   if (Buffer.byteLength(req.body, "utf8") > REQUEST_BODY_LIMIT_BYTES) {
     named("too-large");
     return errorResponse("too_large", `the body is over ${REQUEST_BODY_LIMIT_BYTES} bytes`);
+  }
+  if (req.method === "POST" && req.path.startsWith(HOOKS_PREFIX)) {
+    named("hook");
+    return hooksRoute(readOnly(deps), req);
   }
   const auth = await deps.auth.check(req);
   if (auth !== "ok") {

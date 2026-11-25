@@ -5,7 +5,9 @@ import { makeAfterTick, type AfterTick } from "./after.ts";
 import { parseControlConfig, type ControlConfig } from "./config.ts";
 import { makeTokenCheck, tokenHeaders, type TokenCheck } from "./http/auth.ts";
 import type { FunctionUrlResult } from "./http/event.ts";
+import { buildSinks, buildWakeSources } from "./plugins/build.ts";
 import type { AlertSink } from "./ports/alertSink.ts";
+import type { WakeSource } from "./ports/wakeSource.ts";
 import { makeLogger, makeMetrics, type Logger, type LogSink, type Metrics } from "./log.ts";
 import { makeDesiredStore, makeWakeLedger, type DesiredStore, type WakeLedgerStore } from "./state/desired.ts";
 import { makeStateIdempotency } from "./state/idempotency.ts";
@@ -30,6 +32,8 @@ export type Deps = AwsPorts & {
   readonly leases: LeaseKeeper;
   /** The judge and the alert drain, run by the tick after its action. */
   readonly afterTick: AfterTick;
+  /** The wake sources this stack turned on (DOZEBOX_CONTROL.hooks). */
+  readonly wakeSources: ReadonlyArray<WakeSource>;
   /** The id this container holds the reconcile lease with. */
   readonly invocationId: string;
   /** The current Lambda request id, set by the handler for log lines. */
@@ -71,13 +75,16 @@ export function assembleDeps(o: AssembleOptions): Deps {
     idempotency: o.idempotency ?? makeStateIdempotency<FunctionUrlResult>(o.ports.state, "wake"),
     leases: makeLeaseKeeper({ state: o.ports.state, clock: { now: o.now }, holder: invocationId }),
     afterTick: makeAfterTick({
+      config: o.config,
+      spend: o.ports.spend,
       state: o.ports.state,
       clock: { now: o.now },
       records: o.ports.records,
       desired,
       log,
-      sinks: o.sinks ?? [],
+      sinks: o.sinks ?? buildSinks(o.config, { notifier: o.ports.notifier, secrets: o.ports.secrets, log }),
     }),
+    wakeSources: buildWakeSources(o.config, o.ports.secrets),
     invocationId,
     setRequestId: (id) => {
       requestId = id;
