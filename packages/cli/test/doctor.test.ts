@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { controlStatusFixture, stackOutputsFixture } from "@dozebox/testkit/fakes";
-import { EXIT } from "../src/command.ts";
+import { DozeboxCliError, EXIT } from "../src/command.ts";
 import { doctorChecks, type DoctorInput } from "../src/doctor/checks.ts";
 import { stackFromOutputs } from "../src/stack.ts";
 import { fakeDeps, run } from "./harness.ts";
@@ -100,6 +100,10 @@ describe("doctor command", () => {
   });
 });
 
+async function failingOutput(): Promise<never> {
+  throw new DozeboxCliError("problem", "terraform output failed (exit 1)");
+}
+
 describe("readStack", () => {
   it("names every missing output and exits 3", async () => {
     const deps = fakeDeps();
@@ -108,6 +112,12 @@ describe("readStack", () => {
 
     assert.equal(s.code, EXIT.notSetUp);
     assert.match(s.err.join(""), /no region, control_url output/);
+  });
+
+  it("a stack dir terraform cannot read (no stack yet) is exit 3", async () => {
+    const deps = fakeDeps();
+    const r = await run({ ...deps, terraform: { ...deps.terraform, output: failingOutput } }, ["snapshots", "list"]);
+    assert.equal(r.code, EXIT.notSetUp);
   });
 
   it("caches non-sensitive outputs only and reads the cache next time", async () => {
