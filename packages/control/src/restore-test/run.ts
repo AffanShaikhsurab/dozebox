@@ -44,17 +44,18 @@ export function makeRestoreTest(deps: RestoreTestDeps): RestoreTest {
     return next;
   };
 
-  const start = async (now: number, token: number): Promise<RestoreTestState> => {
+  const start = async (now: number, token: number, after: number): Promise<RestoreTestState> => {
     const snap = await deps.volumes.newestSnapshot(deps.boxId);
     if (snap === null) return idle(now, token, "", "no snapshot");
     const zone = (await deps.volumes.describeBox(deps.boxId)).find((v) => v.active)?.zone;
     if (zone === undefined) return idle(now, token, snap.id, "no active volume");
-    // Stable token: a retry after a crash before `write` gets the same volume, not a second one.
+    // Stable token: a retry after a crash before `write` gets the same volume, not a second one. The previous
+    // result's time is in it, so next week's test of the same snapshot does not get this week's deleted volume.
     const volumeId = await deps.volumes.createFromSnapshot({
       boxId: deps.boxId,
       snapshotId: snap.id,
       zone,
-      token: `restore-test-${deps.boxId}-${snap.id}`,
+      token: `restore-test-${deps.boxId}-${snap.id}-${after}`,
     });
     const next: RestoreTestState = {
       phase: "running",
@@ -87,7 +88,7 @@ export function makeRestoreTest(deps: RestoreTestDeps): RestoreTest {
       const s = await deps.read();
       if (s.phase === "running") return now >= s.closeAt ? close(s, now, token) : s;
       const last = s.lastResult;
-      return last === null || now - last.at >= RESTORE_INTERVAL_MS ? start(now, token) : s;
+      return last === null || now - last.at >= RESTORE_INTERVAL_MS ? start(now, token, last?.at ?? 0) : s;
     },
   };
 }
