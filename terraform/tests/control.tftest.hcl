@@ -121,10 +121,6 @@ run "control_plane" {
     condition     = length(aws_lambda_function_url.control.cors) == 0
     error_message = "No cors block: the handler answers preflights itself."
   }
-  assert {
-    condition     = output.control_url == "https://abcdefghijklmnopqrstuvwxyz012345.lambda-url.us-east-1.on.aws"
-    error_message = "control_url is the Function URL without the trailing slash, so <control_url>/#t= is one slash."
-  }
 }
 
 run "front_door_off_makes_the_url_public_and_the_token_the_gate" {

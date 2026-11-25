@@ -66,6 +66,20 @@ run "deploy_policies_never_grant_everything" {
   }
 }
 
+run "deploy_policies_cover_the_front_door" {
+  command = plan
+
+  assert {
+    condition = alltrue([for a in ["cloudfront:CreateDistributionWithTags", "cloudfront:UpdateDistribution", "cloudfront:DeleteDistribution", "cloudfront:CreateOriginAccessControl", "cloudfront:CreateOriginRequestPolicy", "cloudfront:CreateCachePolicy"] :
+    contains(flatten([for s in local.deploy_policies.services.Statement : s.Action if s.Effect == "Allow"]), a)])
+    error_message = "The deploy principal can build the front door's distribution, OAC and policies (T7)."
+  }
+  assert {
+    condition     = one([for s in local.deploy_policies.services.Statement : s if s.Sid == "ManageStackWebAcls"]).Resource == ["arn:aws:wafv2:us-east-1:111122223333:global/webacl/abcdefghijklmnop-*/*"]
+    error_message = "Web ACL calls reach only <prefix>-* CLOUDFRONT-scope ACLs, in us-east-1 whatever the stack's region."
+  }
+}
+
 run "state_bucket_is_private_versioned_and_tls_only" {
   command = plan
 

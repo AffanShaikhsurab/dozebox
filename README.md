@@ -5,8 +5,8 @@ an event asks, keeps its data volume across sleeps, and stops everything when th
 Terraform and operate it with the `dozebox` command.
 
 Status: early development. The control function, the CLI, the Terraform module and the protocol packages work
-against fakes and are being proven on real AWS. The box agent (`dozeboxd`), the front door (CloudFront and WAF) and
-the published releases are planned. Each page below says what is built and what is planned.
+against fakes and are being proven on real AWS. The box agent (`dozeboxd`) and the front door (CloudFront and WAF) are built too. The agent's release artifact
+and the published releases are planned. Each page below says what is built and what is planned.
 
 ## Quickstart
 
