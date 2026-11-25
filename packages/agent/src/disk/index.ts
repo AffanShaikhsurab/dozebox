@@ -1,4 +1,4 @@
-﻿// A6: statfs of `/data` and `/` every minute -> disk level (`ok`, `low`, `critical`) and the `disk` event on change.
+// A6: statfs of `/data` and `/` every minute -> disk level (`ok`, `low`, `critical`) and the `disk` event on change.
 import type { DiskLevel } from "@dozebox/protocol/v1";
 import type { Loop } from "../loops.ts";
 import type { FsSpace, HostStats } from "../ports/host.ts";

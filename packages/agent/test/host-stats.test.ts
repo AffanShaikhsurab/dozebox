@@ -1,4 +1,4 @@
-﻿import { strict as assert } from "node:assert";
+import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { makeFakeFs } from "@dozebox/testkit/fakes";
 import { makeLinuxHostStats, type HostFs } from "../src/net/hostStats.ts";

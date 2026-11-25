@@ -1,4 +1,4 @@
-﻿// A6: network probe of two hosts with a strike counter, and the egress byte counter (D-017) from tx_bytes.
+// A6: network probe of two hosts with a strike counter, and the egress byte counter (D-017) from tx_bytes.
 import type { Loop } from "../loops.ts";
 import type { HostStats } from "../ports/host.ts";
 

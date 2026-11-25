@@ -1,4 +1,4 @@
-﻿// A6: poll IMDS `spot/instance-action` every 5 s; each distinct notice goes to `onNotice` once (reclaim.ts publishes
+// A6: poll IMDS `spot/instance-action` every 5 s; each distinct notice goes to `onNotice` once (reclaim.ts publishes
 // `reclaim-notice` and parks; imds.ts reads the notice).
 import type { Loop } from "../loops.ts";
 import type { SpotAction, SpotNotices } from "../ports/host.ts";

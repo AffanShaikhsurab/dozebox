@@ -1,4 +1,4 @@
-// The protocol server conformance cases (part 4 �4.19), run in-process against the routes and a real store.
+// The protocol server conformance cases (part 4 §4.19), run in-process against the routes and a real store.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { ADMIN, API, at, err, hold, MIN, setup, T0 } from "./protocol-support.ts";

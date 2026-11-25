@@ -1,4 +1,4 @@
-﻿import { toInstant } from "@dozebox/core/time";
+import { toInstant } from "@dozebox/core/time";
 import type { AgentEventSink } from "../protocol/server.ts";
 import type { ParkReason } from "../phase.ts";
 import type { SpotAction } from "../ports/host.ts";
