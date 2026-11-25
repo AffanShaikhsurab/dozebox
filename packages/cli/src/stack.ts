@@ -38,7 +38,7 @@ export const REQUIRED_OUTPUTS = [
 
 const CACHE_VERSION = 1;
 
-export const stackFile = (stackDir: string): string => `${stackDir.replace(/[\\/]+$/, "")}/stack.json`;
+const stackFile = (stackDir: string): string => `${stackDir.replace(/[\\/]+$/, "")}/stack.json`;
 
 /** Required outputs that are absent or not a non-empty string. */
 export function missingOutputs(outputs: TerraformOutputs): ReadonlyArray<string> {
