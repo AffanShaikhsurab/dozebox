@@ -10,13 +10,19 @@
   },
   "sideEffects": false,
   "bin": {
-    "dozeboxd": "./dist/main.js"
+    "dozeboxd": "./dist/main.js",
+    "dozebox-boot": "./dist/boot/main.js"
   },
   "exports": {
     "./main": {
       "@dozebox/source": "./src/main.ts",
       "types": "./dist/main.d.ts",
       "default": "./dist/main.js"
+    },
+    "./boot": {
+      "@dozebox/source": "./src/boot/main.ts",
+      "types": "./dist/boot/main.d.ts",
+      "default": "./dist/boot/main.js"
     },
     "./ports/*": {
       "@dozebox/source": "./src/ports/*.ts",
