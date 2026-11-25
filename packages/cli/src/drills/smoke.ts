@@ -2,53 +2,12 @@
 // with `--skip upgrade`. `--with-hold` adds the hold step (phase 4). `--keep` parks the stack at the end instead of
 // destroying it (the warm stack the other drills reuse).
 import { DozeboxCliError } from "../command.ts";
-import { arr, aws, cliOk, obj, record, runningInstance, shell, str, waitUntil } from "./box.ts";
-import { deliverAgent } from "./deliver.ts";
+import { arr, aws, cliOk, obj, runningInstance, shell, str } from "./box.ts";
+import { controlStatus, parkForce, waitParked, wakeToServing, type Status } from "./flow.ts";
 import { smokeExtras } from "./smoke-extras.ts";
 import type { Drill, DrillContext, DrillStep } from "./types.ts";
 
 const MIN = 60_000;
-
-type Status = Readonly<Record<string, unknown>>;
-
-export async function controlStatus(ctx: DrillContext, signal: AbortSignal): Promise<Status> {
-  return cliOk(ctx, ["status"], signal);
-}
-
-/** Wake, push the agent when asked, and wait until the control status says serving. */
-export async function wakeToServing(ctx: DrillContext, signal: AbortSignal): Promise<Status> {
-  await cliOk(ctx, ["wake"], signal);
-  if (ctx.options.deliver !== null) {
-    const i = await waitUntil(ctx, signal, 10_000, () => runningInstance(ctx, signal).catch(() => null));
-    await waitUntil(ctx, signal, 10_000, async () => {
-      const r = await shell(ctx, i.id, "true", signal, { check: false }).catch(() => null);
-      return r?.status === "Success" ? true : null;
-    });
-    await deliverAgent(ctx, i.id, signal);
-  }
-  const s = await waitUntil(ctx, signal, 15_000, async () => {
-    const st = await controlStatus(ctx, signal);
-    return str(st["servingSince"]) === null ? null : st;
-  });
-  const instance = obj(s["instance"]);
-  ctx.facts.set("lifecycles", [...new Set([...arr(ctx.facts.get("lifecycles")), instance["lifecycle"]])]);
-  ctx.facts.set("types", [...new Set([...arr(ctx.facts.get("types")), instance["type"]])]);
-  return s;
-}
-
-/** Waits until no instance of the box runs; returns the newest last-words record. */
-export async function waitParked(ctx: DrillContext, signal: AbortSignal): Promise<Status> {
-  await waitUntil(ctx, signal, 15_000, async () => {
-    const st = await controlStatus(ctx, signal);
-    return st["state"] === "parked" ? true : null;
-  });
-  return (await record(ctx, "last-words", signal)) ?? {};
-}
-
-async function parkForce(ctx: DrillContext, signal: AbortSignal, reason = "drill"): Promise<Status> {
-  await cliOk(ctx, ["park", "--force", "--reason", reason], signal);
-  return waitParked(ctx, signal);
-}
 
 async function nonceOnBox(ctx: DrillContext, signal: AbortSignal): Promise<void> {
   const i = await runningInstance(ctx, signal);
