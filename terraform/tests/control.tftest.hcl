@@ -197,7 +197,7 @@ run "ec2_events_reach_the_alias" {
     error_message = "Both rules invoke alias live."
   }
   assert {
-    condition = alltrue([for k, p in aws_lambda_permission.control_events :
+    condition = alltrue([for k, p in { "ec2-state" = aws_lambda_permission.control_events_state, "spot-warning" = aws_lambda_permission.control_events_spot } :
     p.qualifier == "live" && p.principal == "events.amazonaws.com" && p.source_arn == aws_cloudwatch_event_rule.control[k].arn])
     error_message = "Each rule may invoke the alias, and only that rule (source_arn)."
   }
