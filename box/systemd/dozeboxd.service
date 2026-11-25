@@ -1,0 +1,26 @@
+[Unit]
+Description=Dozebox agent
+Requires=dozebox-boot.service
+After=dozebox-boot.service network-online.target
+Wants=network-online.target
+# systemd's start limit is the box's restart budget: past it the unit fails and OnFailure= parks the box.
+StartLimitBurst=5
+StartLimitIntervalSec=600
+OnFailure=dozebox-park-now.service
+
+[Service]
+Type=notify
+NotifyAccess=all
+WatchdogSec=60
+EnvironmentFile=/etc/dozebox/box.env
+ExecStart=/opt/dozebox/current/bin/dozeboxd
+Restart=on-failure
+RestartSec=5
+RuntimeDirectory=dozebox
+RuntimeDirectoryPreserve=yes
+TimeoutStartSec=180
+TimeoutStopSec=90
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target

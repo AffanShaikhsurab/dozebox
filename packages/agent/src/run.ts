@@ -18,11 +18,21 @@ export type Proc = {
 /** Loops added by later packages (idle, health, spot, disk); each gets the config loader for the current config. */
 export type MakeLoop = (deps: Deps, config: ConfigLoader) => Loop;
 
+/** Built once after the first config load and before the loops: services with a start and a stop (the protocol server). */
+type Prepared = { readonly loops: ReadonlyArray<Loop>; readonly stop: () => Promise<void> };
+export type Prepare = (deps: Deps, config: ConfigLoader) => Promise<Prepared>;
+
+export type RunOptions = { readonly extra?: ReadonlyArray<MakeLoop>; readonly prepare?: Prepare };
+
 /** Every loop the agent runs: the config reload, the extra loops, and the systemd watchdog ping when enabled. */
 function startLoops(
   deps: Deps,
   config: ConfigLoader,
-  opts: { readonly extra?: ReadonlyArray<MakeLoop>; readonly onFatal: (reason: string) => void },
+  opts: {
+    readonly extra?: ReadonlyArray<MakeLoop>;
+    readonly ready: ReadonlyArray<Loop>;
+    readonly onFatal: (reason: string) => void;
+  },
 ): RunningLoops {
   const reload: Loop = {
     name: "config",
@@ -31,7 +41,7 @@ function startLoops(
       await config.load();
     },
   };
-  const loops = [reload, ...(opts.extra ?? []).map((make) => make(deps, config))];
+  const loops = [reload, ...opts.ready, ...(opts.extra ?? []).map((make) => make(deps, config))];
   let running: RunningLoops | null = null;
   const every = deps.env.watchdogEveryMs;
   if (every !== null) {
@@ -54,11 +64,7 @@ export type RunningAgent = {
  * Start the agent. Rejects (and sends nothing to systemd) when there is no usable config or READY=1 fails; the
  * caller logs it and exits non-zero, and systemd restarts the unit.
  */
-export async function runAgent(
-  deps: Deps,
-  proc: Proc,
-  opts: { readonly extra?: ReadonlyArray<MakeLoop> } = {},
-): Promise<RunningAgent> {
+export async function runAgent(deps: Deps, proc: Proc, opts: RunOptions = {}): Promise<RunningAgent> {
   const log = deps.log.child({ component: "main" });
   const config = makeConfigLoader({
     params: deps.params,
@@ -71,6 +77,9 @@ export async function runAgent(
   const first = await config.load();
   log.log("info", "config loaded", { from: first.from, payloads: first.payloads.map((p) => p.name) });
 
+  const prepared = opts.prepare ? await opts.prepare(deps, config) : null;
+  const stopPrepared = (): Promise<void> =>
+    prepared ? prepared.stop().catch((e: unknown) => log.log("warn", "stop failed", { error: e })) : Promise.resolve();
   const { promise: done, resolve: finish } = Promise.withResolvers<number>();
   let stopping = false;
   const shutdown = (code: number, why: string): void => {
@@ -80,6 +89,7 @@ export async function runAgent(
     void deps.systemd
       .notify("STOPPING=1")
       .catch((e: unknown) => log.log("warn", "STOPPING=1 failed", { error: e }))
+      .then(stopPrepared)
       .then(() => loops.stop())
       .then(() => {
         finish(code);
@@ -87,10 +97,15 @@ export async function runAgent(
       });
   };
 
-  const loops = startLoops(deps, config, { ...opts, onFatal: (reason) => shutdown(1, reason) });
+  const loops = startLoops(deps, config, {
+    extra: opts.extra ?? [],
+    ready: prepared?.loops ?? [],
+    onFatal: (reason) => shutdown(1, reason),
+  });
   try {
     await deps.systemd.notify("READY=1");
   } catch (e) {
+    await stopPrepared();
     await loops.stop();
     throw e;
   }
