@@ -52,14 +52,24 @@ const steps: ReadonlyArray<DrillStep> = [
   },
   {
     id: "doctor",
-    deadlineMs: MIN,
+    deadlineMs: 2 * MIN,
     run: async (ctx, signal) => {
-      const r = await ctx.cli(["doctor"], signal);
-      const failed = arr(obj(r.json)["checks"])
-        .map(obj)
-        .filter((c) => c["ok"] !== true && c["status"] !== "ok");
-      ctx.facts.set("doctorFailed", failed);
-      if (r.code !== 0) throw new DozeboxCliError("problem", `doctor: ${JSON.stringify(failed).slice(0, 600)}`);
+      // Right after an apply that replaced the function, its URL can answer "fetch failed" for some seconds: retry
+      // until the deadline, and report the last result.
+      let last: { code: number; failed: ReadonlyArray<unknown> } = { code: 1, failed: [] };
+      for (let attempt = 1; attempt <= 6; attempt++) {
+        const r = await ctx.cli(["doctor"], signal);
+        last = {
+          code: r.code,
+          failed: arr(obj(r.json)["checks"])
+            .map(obj)
+            .filter((c) => c["ok"] !== true && c["status"] !== "ok"),
+        };
+        if (r.code === 0) break;
+        if (attempt < 6) await ctx.deps.clock.sleep(10_000, signal);
+      }
+      ctx.facts.set("doctorFailed", last.failed);
+      if (last.code !== 0) throw new DozeboxCliError("problem", `doctor: ${JSON.stringify(last.failed).slice(0, 600)}`);
     },
   },
   {
