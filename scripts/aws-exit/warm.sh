@@ -3,14 +3,15 @@
 # serves every drill of a session: it is applied once, re-applied only when Terraform changed (the smoke drill's
 # deploy step plans first), and parked between drills (`--keep`). `warm_destroy` tears it down and sweeps the tag.
 # Source it from the repo root with credentials for the test account and `pnpm install` done.
-#   DZ_WARM_DIR        stack dir outside the repo checkout (default ~/.dozebox-warm), so a re-sync keeps the state
+#   DZ_WARM_DIR        stack dir (default examples/.warm, gitignored; two levels below the repo root because the
+#                      drill example finds the module and payloads by relative path)
 #   DZ_AGENT_VERSION   agent release version (default none: no agent)
 #   DZ_AGENT_TARBALL   the release tarball to push through SSM (--deliver) when the box cannot download it
 #   DZ_AGENT_BASE_URL  https base of the release assets; DZ_AGENT_SHA256 the aarch64 tarball's SHA-256
 #   TF_VAR_network     the module's network input (accounts that may not create a VPC)
 set -euo pipefail
 repo="$(pwd)"
-WARM="${DZ_WARM_DIR:-$HOME/.dozebox-warm}"
+WARM="${DZ_WARM_DIR:-$repo/examples/.warm}"
 WARM_TAG="${DZ_WARM_TAG:-dz-test-warm}"
 WARM_BOX="${DZ_WARM_BOX:-drill-warm}"
 DELIVER=()
@@ -22,8 +23,7 @@ warm_prepare() {
   mkdir -p "$WARM" "$repo/drills"
   pnpm --filter @dozebox/control build > /dev/null
   cp -f "$repo/packages/control/dist/control.zip" "$WARM/control.zip"
-  sed -e "s#\.\./\.\./terraform#$repo/terraform#" -e "s#\${path.module}/\.\./payloads#$repo/examples/payloads#" \
-    "$repo/examples/drill/main.tf" > "$WARM/main.tf"
+  cp -f "$repo/examples/drill/main.tf" "$WARM/main.tf"
   [ -f "$WARM/nonce" ] || openssl rand -hex 8 > "$WARM/nonce"
   local sha="null"
   [ -n "${DZ_AGENT_SHA256:-}" ] && sha="{\"arm64\":\"$DZ_AGENT_SHA256\"}"
