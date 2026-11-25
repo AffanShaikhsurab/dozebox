@@ -1,4 +1,5 @@
 // C6: budget freeze from Spend (core judgeSpend). Null Budgets data means no freeze; the awake caps (C3) still apply.
+import { judgeSpend } from "@dozebox/core/caps";
 import type { SpendPolicy, SpendVerdict } from "@dozebox/core/caps";
 import type { Spend } from "../ports/spend.ts";
 
@@ -10,6 +11,9 @@ export type FreezeDeps = {
   readonly now: () => number;
 };
 
-export function checkBudgetFreeze(_deps: FreezeDeps, _token: number): Promise<SpendVerdict> {
-  throw new Error("not implemented: C6 checkBudgetFreeze");
+/** A spend read error propagates: the tick logs it and tries again next time. */
+export async function checkBudgetFreeze(deps: FreezeDeps, token: number): Promise<SpendVerdict> {
+  const verdict = judgeSpend(await deps.spend.monthToDate(), deps.policy);
+  if (verdict.freeze) await deps.freeze(verdict, token);
+  return verdict;
 }
