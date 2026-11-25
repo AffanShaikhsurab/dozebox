@@ -17,7 +17,9 @@ test("serve, then park on idle through the self-stop target", async () => {
   const stops: string[] = [];
   const deps = {
     ...h.deps,
-    selfStop: { stopSelf: async (t: { mode: string; instanceId: string }) => void stops.push(`${t.mode}:${t.instanceId}`) },
+    selfStop: {
+      stopSelf: async (t: { mode: string; instanceId: string }) => void stops.push(`${t.mode}:${t.instanceId}`),
+    },
   };
   const agent = await runAgent(deps, proc, { extra: makeAgentLoops({ supervisor: () => sup }) });
   await flush(200);

@@ -9,7 +9,7 @@ import type { ParkReason, PhaseCell } from "../phase.ts";
 import type { Logger } from "../ports/log.ts";
 import type { HealthResult, PayloadSupervisor } from "../ports/payloads.ts";
 
-export const HEALTH_LOOP = "health";
+const HEALTH_LOOP = "health";
 
 export type HealthLoopDeps = {
   readonly clock: Pick<Clock, "now">;

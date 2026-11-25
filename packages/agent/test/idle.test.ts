@@ -115,5 +115,8 @@ test("cpu activity: above cpuPercent over a 60 s window, only while healthy, onl
   set(60_000_000);
   assert.equal(await s.sample(210_000), 90_000);
   assert.equal(usageUsec("nr_periods 0\n"), null);
-  assert.equal(cpuStatPath("web"), "/sys/fs/cgroup/dozebox.slice/dozebox-payloads.slice/dozebox-payload@web.service/cpu.stat");
+  assert.equal(
+    cpuStatPath("web"),
+    "/sys/fs/cgroup/dozebox.slice/dozebox-payloads.slice/dozebox-payload@web.service/cpu.stat",
+  );
 });

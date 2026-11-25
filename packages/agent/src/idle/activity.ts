@@ -4,9 +4,9 @@
 import type { PayloadDefinition } from "@dozebox/protocol/payload";
 import type { Files } from "../ports/files.ts";
 
-export const ACTIVITY_WINDOW_MS = 60_000;
-export const DEFAULT_CPU_PERCENT = 5;
-export const CGROUP_ROOT = "/sys/fs/cgroup/dozebox.slice/dozebox-payloads.slice";
+const ACTIVITY_WINDOW_MS = 60_000;
+const DEFAULT_CPU_PERCENT = 5;
+const CGROUP_ROOT = "/sys/fs/cgroup/dozebox.slice/dozebox-payloads.slice";
 
 export const cpuStatPath = (name: string): string => `${CGROUP_ROOT}/dozebox-payload@${name}.service/cpu.stat`;
 
