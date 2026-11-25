@@ -4,7 +4,13 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { parseStoppedAt, type Snapshot } from "../src/reconcile/facts.ts";
 import { nextAfterSpotMiss, readLaunch, readLaunchError } from "../src/reconcile/launch.ts";
-import { hasInterruptedIntent, pickPersistent, wakeCancelled } from "../src/reconcile/model.ts";
+import {
+  hasInterruptedIntent,
+  pickPersistent,
+  startInFlight,
+  wakeCancelled,
+  warningFenceFloor,
+} from "../src/reconcile/model.ts";
 import { decideStart } from "../src/reconcile/start.ts";
 import { decideSteps, type Step } from "../src/reconcile/steps.ts";
 
@@ -267,4 +273,17 @@ test("launch readers", () => {
   assert.equal(nextAfterSpotMiss({ outcome: "capacity", origin: "user", onDemandAllowed: true }), "on-demand");
   assert.equal(nextAfterSpotMiss({ outcome: "capacity", origin: "schedule", onDemandAllowed: true }), "wait");
   assert.equal(nextAfterSpotMiss({ outcome: "quota", origin: "user", onDemandAllowed: true }), "failed");
+});
+
+test("R2 for a reclaim warning: a park under 10 min old blocks the successor unless the instance started after it (SIM-F2, F3)", () => {
+  const warning = T0;
+  assert.equal(warningFenceFloor(warning, T0 - 60 * MIN), T0 - 10 * MIN);
+  assert.equal(warningFenceFloor(warning, T0 - 2 * MIN), T0 - 2 * MIN);
+  assert.equal(warningFenceFloor(warning, null), T0 - 10 * MIN);
+});
+
+test("R1: a start issued under a minute ago blocks a raise read from a stale describe (SIM-F5)", () => {
+  assert.equal(startInFlight(T0 - 59_000, T0), true);
+  assert.equal(startInFlight(T0 - 60_000, T0), false);
+  assert.equal(startInFlight(null, T0), false);
 });

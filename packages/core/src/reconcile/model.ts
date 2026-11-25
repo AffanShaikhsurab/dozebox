@@ -20,6 +20,8 @@ export const INTENT_FRESH_MS = 5 * MINUTE;
 export const FALLBACK_REASON_MS = 30 * MINUTE;
 /** How long a `fallback:interrupted` intent keeps its successor protected from the holder rules. */
 const SUCCESSOR_WINDOW_MS = 10 * MINUTE;
+/** R2: a sleep fence blocks starts and group raises for this long (part 9 §9.1). */
+export const SLEEP_FENCE_BLOCKS_MS = 10 * MINUTE;
 /** An instance EC2 stopped is tried with StartInstances again once the interruption is this old. */
 export const INTERRUPTED_RETRY_AFTER_MS = SUCCESSOR_WINDOW_MS;
 
@@ -249,4 +251,23 @@ export function liveLaunchedMs(snapshot: Snapshot): number | null {
       ? snapshot.asgStatus?.instance
       : null;
   return timeMs(instance?.launchedAt);
+}
+
+/**
+ * R2 for a reclaim warning (SIM-F2, SIM-F3): a sleep fence newer than this blocks the successor. A park that began before the
+ * warning still counts while it is under 10 minutes old, unless the instance was started again after it.
+ */
+export function warningFenceFloor(eventMs: number, launchedMs: number | null): number {
+  return Math.max(launchedMs ?? 0, eventMs - SLEEP_FENCE_BLOCKS_MS);
+}
+
+/** An EC2 describe can show a state older than a start issued this long ago. */
+export const STALE_READ_MS = 60_000;
+
+/**
+ * R1 (SIM-F5): a start this control function issued less than a minute ago may not show in an EC2 read yet, so a raise of the
+ * group on that read would bill two machines. `issuedMs` is the time the start was issued, or null (none, or it was refused).
+ */
+export function startInFlight(issuedMs: number | null, nowMs: number): boolean {
+  return issuedMs !== null && nowMs - issuedMs < STALE_READ_MS;
 }

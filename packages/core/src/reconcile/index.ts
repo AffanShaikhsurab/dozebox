@@ -51,6 +51,10 @@ export {
   replacingNow,
   view,
   wakeCancelled,
+  warningFenceFloor,
+  SLEEP_FENCE_BLOCKS_MS,
+  STALE_READ_MS,
+  startInFlight,
   type View,
 } from "./model.ts";
 export { decideStart, type FallbackReason, type StartDecision } from "./start.ts";
