@@ -9,7 +9,15 @@
     "node": ">=24.12"
   },
   "sideEffects": false,
+  "bin": {
+    "dozeboxd": "./dist/main.js"
+  },
   "exports": {
+    "./main": {
+      "@dozebox/source": "./src/main.ts",
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    },
     "./ports/*": {
       "@dozebox/source": "./src/ports/*.ts",
       "types": "./dist/ports/*.d.ts",
@@ -26,7 +34,8 @@
     "@aws-sdk/client-ec2": "3.1176.0",
     "@aws-sdk/client-sns": "3.1176.0",
     "@aws-sdk/client-ssm": "3.1176.0",
-    "@dozebox/core": "workspace:*"
+    "@dozebox/core": "workspace:*",
+    "@dozebox/protocol": "workspace:*"
   },
   "devDependencies": {
     "@dozebox/testkit": "workspace:*"

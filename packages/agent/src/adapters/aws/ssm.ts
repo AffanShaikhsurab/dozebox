@@ -3,10 +3,20 @@
 // record registry gives; name and size are checked before any call (core's assertFits). Advanced is one-way
 // (notes/06b §1.10): a Standard write SSM refuses as a downgrade is repeated once as Advanced. The same rules as the
 // control function's record store (packages/control/src/adapters/aws/ssm.ts); the agent may not import it.
-import { DeleteParameterCommand, PutParameterCommand, type SSMClient } from "@aws-sdk/client-ssm";
+// The parameter reader is the agent's GetParameter on `config` and `payloads/<name>` (plain String parameters).
+import {
+  DeleteParameterCommand,
+  GetParameterCommand,
+  PutParameterCommand,
+  SSMClient,
+  type SSMClientConfig,
+} from "@aws-sdk/client-ssm";
 import { fromAws } from "@dozebox/core/errors";
 import { assertFits, type Tier } from "@dozebox/core/records";
+import type { ParameterReader } from "../../ports/params.ts";
 import type { RecordWriter } from "../../ports/records.ts";
+
+export const ssmClient = (cfg: SSMClientConfig): SSMClient => new SSMClient(cfg);
 
 export type AwsRecordWriterDeps = {
   readonly ssm: SSMClient;
@@ -45,6 +55,26 @@ export function makeAwsRecordWriter(deps: AwsRecordWriterDeps): RecordWriter {
       } catch (e) {
         const err = fromAws(e);
         if (err.code !== "aws_not_found") throw err;
+      }
+    },
+  };
+}
+
+export type AwsParameterReaderDeps = AwsRecordWriterDeps;
+
+export function makeAwsParameterReader(deps: AwsParameterReaderDeps): ParameterReader {
+  const { ssm, root } = deps;
+  if (!ROOT.test(root)) throw new Error(`"${root}" is not a parameter root like /dozebox/box-1/`);
+  return {
+    get: async (name) => {
+      assertFits(name, "", "Standard");
+      try {
+        const out = await ssm.send(new GetParameterCommand({ Name: `${root}${name}` }));
+        return out.Parameter?.Value ?? null;
+      } catch (e) {
+        const err = fromAws(e);
+        if (err.code === "aws_not_found") return null;
+        throw err;
       }
     },
   };
