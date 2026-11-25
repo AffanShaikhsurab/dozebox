@@ -2,6 +2,8 @@
 //   node scripts/release/build-agent.ts --version <semver> [--arch aarch64] [--arch x86_64] [--out dist/release]
 //                                       [--node-dir <extracted node dir>]
 // Each tarball holds the release dir's contents at its root: bin/ launchers, lib/ bundles, node/, systemd/, examples/.
+// `slim/` gets the same tarballs without node/ (a NODE file names the Node build instead), small enough for
+// `dozebox drill --deliver` to push through SSM Run Command.
 import { createHash } from "node:crypto";
 import {
   chmodSync,
@@ -49,7 +51,7 @@ export type ReleaseOptions = {
 export const sha256 = (data: Buffer): string => createHash("sha256").update(data).digest("hex");
 
 export const launcher = (lib: string): string =>
-  `#!/bin/sh\nhere="$(dirname "$(readlink -f "$0")")"\nexec "$here/../node/bin/node" "$here/../lib/${lib}.mjs" "$@"\n`;
+  `#!/bin/sh\nhere="$(dirname "$(readlink -f "$0")")"\nDOZEBOX_AGENT_VERSION="$(cat "$here/../VERSION")"\nexport DOZEBOX_AGENT_VERSION\nexec "$here/../node/bin/node" "$here/../lib/${lib}.mjs" "$@"\n`;
 
 function run(cmd: string, args: ReadonlyArray<string>): void {
   const r = spawnSync(cmd, args, { stdio: ["ignore", "inherit", "inherit"] });
@@ -64,7 +66,7 @@ async function download(url: string, dest: string): Promise<void> {
 }
 
 /** Download (or reuse from the cache) the Node tarball for `arch`, verify it against SHASUMS256.txt, extract it. */
-async function fetchNode(arch: Arch, cacheDir: string): Promise<string> {
+async function fetchNode(arch: Arch, cacheDir: string): Promise<{ readonly dir: string; readonly sha: string }> {
   const base = `https://nodejs.org/dist/v${NODE_VERSION}`;
   const name = `node-v${NODE_VERSION}-linux-${NODE_ARCH[arch]}`;
   mkdirSync(cacheDir, { recursive: true });
@@ -83,28 +85,63 @@ async function fetchNode(arch: Arch, cacheDir: string): Promise<string> {
   }
   const dir = join(cacheDir, name);
   if (!existsSync(join(dir, "bin", "node"))) run("tar", ["-xJf", archive, "-C", cacheDir]);
-  return dir;
+  return { dir, sha: want };
 }
 
-function assemble(stage: string, version: string, nodeDir: string, libDir: string, root: string): void {
+/** `node` null: a slim release, with NODE naming the Node build to fetch instead of node/. */
+function assemble(
+  stage: string,
+  version: string,
+  node: { readonly dir: string } | { readonly nodeLine: string },
+  libDir: string,
+  root: string,
+): void {
   rmSync(stage, { recursive: true, force: true });
-  for (const d of ["bin", "lib", "node/bin", "systemd", "examples/marker"])
-    mkdirSync(join(stage, d), { recursive: true });
+  for (const d of ["bin", "lib", "systemd", "examples/marker"]) mkdirSync(join(stage, d), { recursive: true });
   for (const [bin, lib] of Object.entries(LAUNCHERS)) {
     writeFileSync(join(stage, "bin", bin), launcher(lib), { mode: 0o755 });
     chmodSync(join(stage, "bin", bin), 0o755);
   }
   for (const lib of new Set(Object.values(LAUNCHERS)))
     copyFileSync(join(libDir, `${lib}.mjs`), join(stage, "lib", `${lib}.mjs`));
-  copyFileSync(join(nodeDir, "bin", "node"), join(stage, "node", "bin", "node"));
-  chmodSync(join(stage, "node", "bin", "node"), 0o755);
-  if (existsSync(join(nodeDir, "LICENSE"))) copyFileSync(join(nodeDir, "LICENSE"), join(stage, "node", "LICENSE"));
+  if ("dir" in node) {
+    mkdirSync(join(stage, "node", "bin"), { recursive: true });
+    copyFileSync(join(node.dir, "bin", "node"), join(stage, "node", "bin", "node"));
+    chmodSync(join(stage, "node", "bin", "node"), 0o755);
+    if (existsSync(join(node.dir, "LICENSE"))) copyFileSync(join(node.dir, "LICENSE"), join(stage, "node", "LICENSE"));
+  } else writeFileSync(join(stage, "NODE"), `${node.nodeLine}\n`);
   for (const unit of UNITS) copyFileSync(join(root, "box", "systemd", unit), join(stage, "systemd", unit));
   copyFileSync(
     join(root, "examples", "payloads", "marker", "server.mjs"),
     join(stage, "examples", "marker", "server.mjs"),
   );
   writeFileSync(join(stage, "VERSION"), `${version}\n`);
+}
+
+function pack(stage: string, tarball: string): string {
+  const entries = readdirSync(stage).toSorted();
+  run("tar", [
+    "--sort=name",
+    "--owner=0",
+    "--group=0",
+    "--numeric-owner",
+    "--mtime=@0",
+    "-I",
+    "gzip -n",
+    "-cf",
+    tarball,
+    "-C",
+    stage,
+    ...entries,
+  ]);
+  return tarball;
+}
+
+function writeSums(dir: string): void {
+  const all = readdirSync(dir)
+    .filter((f) => f.endsWith(".tar.gz"))
+    .toSorted();
+  writeFileSync(join(dir, "SHA256SUMS"), all.map((f) => `${sha256(readFileSync(join(dir, f)))}  ${f}\n`).join(""));
 }
 
 /** Builds one tarball per arch plus SHA256SUMS in `outDir`; returns the tarball paths. */
@@ -116,36 +153,21 @@ export async function buildRelease(opts: ReleaseOptions): Promise<ReadonlyArray<
   const libDir = join(work, "lib");
   await buildAgent(libDir);
   const tarballs: string[] = [];
+  const slimDir = join(outDir, "slim");
+  mkdirSync(slimDir, { recursive: true });
   for (const arch of opts.arches) {
-    const nodeDir = opts.nodeDir ? resolve(opts.nodeDir) : await fetchNode(arch, join(outDir, ".cache"));
+    const node = opts.nodeDir
+      ? { dir: resolve(opts.nodeDir), sha: "0".repeat(64) }
+      : await fetchNode(arch, join(outDir, ".cache"));
     const name = `dozebox-agent-${opts.version}-linux-${arch}`;
     const stage = join(work, name);
-    assemble(stage, opts.version, nodeDir, libDir, ROOT);
-    const tarball = join(outDir, `${name}.tar.gz`);
-    const entries = readdirSync(stage).toSorted();
-    run("tar", [
-      "--sort=name",
-      "--owner=0",
-      "--group=0",
-      "--numeric-owner",
-      "--mtime=@0",
-      "-I",
-      "gzip -n",
-      "-cf",
-      tarball,
-      "-C",
-      stage,
-      ...entries,
-    ]);
-    tarballs.push(tarball);
+    assemble(stage, opts.version, node, libDir, ROOT);
+    tarballs.push(pack(stage, join(outDir, `${name}.tar.gz`)));
+    assemble(stage, opts.version, { nodeLine: `v${NODE_VERSION} ${node.sha}` }, libDir, ROOT);
+    pack(stage, join(slimDir, `${name}.tar.gz`));
   }
-  const all = readdirSync(outDir)
-    .filter((f) => f.endsWith(".tar.gz"))
-    .toSorted();
-  writeFileSync(
-    join(outDir, "SHA256SUMS"),
-    all.map((f) => `${sha256(readFileSync(join(outDir, f)))}  ${f}\n`).join(""),
-  );
+  writeSums(outDir);
+  writeSums(slimDir);
   rmSync(work, { recursive: true, force: true });
   return tarballs;
 }
