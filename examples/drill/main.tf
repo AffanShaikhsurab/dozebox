@@ -40,9 +40,9 @@ variable "front_door" {
 }
 
 variable "iam_permissions_boundary" {
-  description = "Permissions boundary on every role; the test account's deploy user may only create bounded roles."
+  description = "Permissions boundary on every role; the test account's deploy user may only create bounded roles. Null: the dozebox-test-boundary policy of the account the provider deploys to."
   type        = string
-  default     = "arn:aws:iam::111122223333:policy/dozebox-test-boundary"
+  default     = null
 }
 
 variable "network" {
@@ -104,7 +104,15 @@ locals {
     "dozebox:test"  = var.test_tag
     "dozebox:owner" = "orchestrator"
   }
+
+  permissions_boundary = coalesce(
+    var.iam_permissions_boundary,
+    "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:policy/dozebox-test-boundary",
+  )
 }
+
+data "aws_caller_identity" "current" {}
+data "aws_partition" "current" {}
 
 provider "aws" {
   region = var.region
@@ -118,7 +126,7 @@ module "dozebox" {
 
   box_id                   = var.box_id
   tags                     = local.test_tags
-  iam_permissions_boundary = var.iam_permissions_boundary
+  iam_permissions_boundary = local.permissions_boundary
   control_bundle_path      = var.control_bundle_path
 
   instance = {
