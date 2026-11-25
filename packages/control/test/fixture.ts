@@ -1,9 +1,10 @@
 // A control function over FakeAws for the shell tests: config, a counting wake token source, a Compute spy that
 // records every call by name, captured log lines, and helpers that build Function URL events.
 import type { Compute } from "@dozebox/control/ports/compute";
-import { makeFakeAws, type FakeAws } from "@dozebox/testkit/fakes";
+import { makeFakeAws, makeFakeSecretReader, type FakeAws } from "@dozebox/testkit/fakes";
 import type { ControlConfig } from "../src/config.ts";
 import type { AlertSink } from "../src/ports/alertSink.ts";
+import type { SecretReader } from "../src/ports/sharedSecrets.ts";
 import { assembleDeps, type Deps, type WakeIdempotency } from "../src/deps.ts";
 import type { FunctionUrlEvent, FunctionUrlResult } from "../src/http/event.ts";
 import { route } from "../src/http/router.ts";
@@ -93,6 +94,7 @@ export function makeWorld(
     readonly config?: Partial<ControlConfig>;
     readonly idempotency?: WakeIdempotency;
     readonly sinks?: ReadonlyArray<AlertSink>;
+    readonly secrets?: SecretReader;
   } = {},
 ): World {
   const aws = makeFakeAws();
@@ -115,6 +117,7 @@ export function makeWorld(
       spend: aws.budgets.spend,
       notifier: aws.sns.notifier,
       volumes: aws.ebs.volumes,
+      secrets: opts.secrets ?? makeFakeSecretReader(),
       wakeToken: {
         read: async () => {
           reads += 1;

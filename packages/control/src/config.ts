@@ -31,6 +31,27 @@ export const ControlConfig = Type.Object({
   kill: Type.Object({ freezeParameter: Type.String({ minLength: 1 }) }),
   /** Token header aliases accepted besides `x-dozebox-token` while clients migrate (part 9 §9.2.6, until 2.0). */
   http: Type.Optional(Type.Object({ tokenHeaders: Type.Array(Type.String({ pattern: "^[a-z0-9-]{1,64}$" })) })),
+  /** Phone sinks besides e-mail (always on); values are secret names under `/<prefix>/shared/`. */
+  alerts: Type.Optional(
+    Type.Object({
+      ntfy: Type.Optional(
+        Type.Object({
+          urlSecret: Type.String({ minLength: 1 }),
+          minSeverity: Type.Optional(Type.Union([Type.Literal("page"), Type.Literal("notify"), Type.Literal("info")])),
+        }),
+      ),
+      webhook: Type.Optional(
+        Type.Object({ urlSecret: Type.String({ minLength: 1 }), signingSecret: Type.String({ minLength: 1 }) }),
+      ),
+    }),
+  ),
+  /** Wake sources that are on, with the secret name of each signing key under `/<prefix>/shared/`. */
+  hooks: Type.Optional(
+    Type.Object({
+      github: Type.Optional(Type.Object({ secret: Type.String({ minLength: 1 }) })),
+      generic: Type.Optional(Type.Object({ secret: Type.String({ minLength: 1 }) })),
+    }),
+  ),
 });
 export type ControlConfig = Static<typeof ControlConfig>;
 
