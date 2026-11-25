@@ -13,7 +13,7 @@ const WEEK = RESTORE_INTERVAL_MS;
 
 const setup = (
   initial: RestoreTestState,
-  opts: { snapshot?: boolean; verifyOk?: boolean; failFirstWrite?: boolean } = {},
+  opts: { snapshot?: boolean; active?: boolean; verifyOk?: boolean; failFirstWrite?: boolean } = {},
 ) => {
   let state = initial;
   let failWrite = opts.failFirstWrite === true;
@@ -30,16 +30,20 @@ const setup = (
       }
       state = s;
     },
-    newestSnapshot: async () => (opts.snapshot === false ? null : { id: "snap-2", zone: "us-east-1a" }),
     verify: async () => ({ ok: opts.verifyOk ?? true, detail: opts.verifyOk === false ? "bad" : "fine" }),
-    deleteVolume: async (id) => void deleted.push(id),
     volumes: {
-      describeBox: async () => [],
+      describeBox: async () =>
+        opts.active === false
+          ? []
+          : [{ id: "vol-live", state: "in-use", zone: "us-east-1a", sizeGiB: 8, active: true, attachments: [] }],
       moveActive: async () => undefined,
       createFromSnapshot: async (o) => {
         created.push(o);
         return "vol-test";
       },
+      newestSnapshot: async () => (opts.snapshot === false ? null : { id: "snap-2", startedAt: 0, sizeGiB: 8 }),
+      detach: async () => undefined,
+      deleteVolume: async (id) => void deleted.push(id),
     },
   };
   return { rt: makeRestoreTest(deps), created, deleted, state: () => state };
@@ -73,6 +77,15 @@ describe("restore test", () => {
   test("last result 7 days old -> due", async () => {
     const t = setup({ phase: "idle", lastResult: last(0) });
     assert.equal((await t.rt.step(WEEK, 1)).phase, "running");
+  });
+
+  test("next week's test of the same snapshot sends a new token", async () => {
+    const t = setup({ phase: "idle", lastResult: null });
+    await t.rt.step(0, 1);
+    await t.rt.step(CLOSE, 2);
+    await t.rt.step(CLOSE + WEEK, 3);
+    assert.equal(t.created.length, 2);
+    assert.notEqual(t.created[0]?.token, t.created[1]?.token);
   });
 
   test("a retried start with the same snapshot sends the same token", async () => {
@@ -123,5 +136,12 @@ describe("restore test", () => {
     assert.deepEqual(s, { phase: "idle", lastResult: { at: 100, ok: false, snapshotId: "", detail: "no snapshot" } });
     assert.equal(t.created.length, 0);
     assert.deepEqual(await t.rt.step(100 + WEEK - 1, 2), s);
+  });
+
+  test("no active volume -> idle with ok false, nothing created", async () => {
+    const t = setup({ phase: "idle", lastResult: null }, { active: false });
+    const s = await t.rt.step(100, 1);
+    assert.deepEqual(s.phase === "idle" ? s.lastResult?.detail : null, "no active volume");
+    assert.equal(t.created.length, 0);
   });
 });

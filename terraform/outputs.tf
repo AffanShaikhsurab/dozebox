@@ -62,3 +62,17 @@ output "iam_policy_sizes" {
   description = "Characters of every managed policy as AWS counts them (limit 6,144; the module's budget 5,500)."
   value       = { for name, p in local.all_policies : name => length(jsonencode(jsondecode(p.policy))) }
 }
+
+output "unfreeze_runbook" {
+  description = "The SSM Automation document `dozebox unfreeze` starts, with its parameters (runbooks/unfreeze.yaml)."
+  value = {
+    document = aws_ssm_document.unfreeze.name
+    parameters = {
+      AutomationAssumeRole = aws_iam_role.unfreeze.arn
+      BoxRoleName          = aws_iam_role.box.name
+      ControlRoleName      = aws_iam_role.control.name
+      DenyPolicyArn        = local.arns.deny_policy
+      FreezeParameter      = local.names.freeze_parameter
+    }
+  }
+}

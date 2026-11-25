@@ -12,6 +12,7 @@
 //   alert-ledger      Ledger            core admission ledger, written by the alert router (C4)
 //   judge-marks       JudgeMarks        what the outside judge already reported (C6)
 //   alerts-test       {at}              idempotency-style entry with a 60 s TTL: one test alert a minute
+//   restore-test      RestoreTestState  written by the tick's weekly restore test (C6)
 import { RunnerError } from "@dozebox/core/errors";
 import type { Desired } from "@dozebox/core/reconcile";
 import type { WakeBreaker } from "@dozebox/core/wake";
@@ -79,6 +80,7 @@ export const KEYS = {
   alertBreakers: "alert-breakers",
   alertLedger: "alert-ledger",
   judgeMarks: "judge-marks",
+  restoreTest: "restore-test",
 } as const;
 
 /** Read `key` and check it against `schema`; a missing or mismatched value is null. */
