@@ -2,6 +2,7 @@
 // the module tags it. Each harness builds new clients, so fault injectors never leak between cases.
 import { AutoScalingClient, CreateAutoScalingGroupCommand } from "@aws-sdk/client-auto-scaling";
 import {
+  AttachVolumeCommand,
   CreateLaunchTemplateCommand,
   CreateSnapshotCommand,
   CreateVolumeCommand,
@@ -75,10 +76,10 @@ export async function createGroup(ec2: EC2Client, asg: AutoScalingClient, name: 
 }
 
 /** A 1 GiB volume of `boxId` in ZONE. */
-export async function createVolume(ec2: EC2Client, boxId: string, active: boolean): Promise<string> {
+export async function createVolume(ec2: EC2Client, boxId: string, active: boolean, zone = ZONE): Promise<string> {
   const out = await ec2.send(
     new CreateVolumeCommand({
-      AvailabilityZone: ZONE,
+      AvailabilityZone: zone,
       Size: 1,
       VolumeType: "gp3",
       TagSpecifications: [
@@ -90,14 +91,40 @@ export async function createVolume(ec2: EC2Client, boxId: string, active: boolea
   return out.VolumeId;
 }
 
-/** A snapshot of a new volume; where the emulator has no snapshots, an id it accepts as one. */
-export async function createSnapshot(ec2: EC2Client): Promise<string> {
+/** A snapshot of a new volume, tagged to `boxId` when given; where the emulator has no snapshots, an id it accepts. */
+export async function createSnapshot(ec2: EC2Client, boxId?: string): Promise<string> {
   const vol = await createVolume(ec2, fresh("snapsrc"), false);
   try {
-    const out = await ec2.send(new CreateSnapshotCommand({ VolumeId: vol }));
+    const out = await ec2.send(
+      new CreateSnapshotCommand({
+        VolumeId: vol,
+        ...(boxId === undefined
+          ? {}
+          : { TagSpecifications: [{ ResourceType: "snapshot", Tags: tags({ "dozebox:box": boxId }) }] }),
+      }),
+    );
     if (out.SnapshotId) return out.SnapshotId;
   } catch {
     // No snapshots on this target: the snapshot cases are gaps there, covered by FakeAws.
   }
   return "snap-0123456789abcdef0";
+}
+
+/** A volume of `boxId` attached to a new running instance. */
+export async function attachedVolume(
+  ec2: EC2Client,
+  boxId: string,
+  active: boolean,
+): Promise<{ readonly volumeId: string; readonly machineId: string }> {
+  const machineId = await runInstance(ec2, { "dozebox:box": fresh("m"), "dozebox:role": "persistent" });
+  // The emulator ignores Placement, so the volume goes where the instance landed.
+  const placed = await ec2.send(new DescribeInstancesCommand({ InstanceIds: [machineId] }));
+  const volumeId = await createVolume(
+    ec2,
+    boxId,
+    active,
+    placed.Reservations?.[0]?.Instances?.[0]?.Placement?.AvailabilityZone,
+  );
+  await ec2.send(new AttachVolumeCommand({ VolumeId: volumeId, InstanceId: machineId, Device: "/dev/sdf" }));
+  return { volumeId, machineId };
 }

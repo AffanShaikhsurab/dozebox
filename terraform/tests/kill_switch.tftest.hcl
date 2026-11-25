@@ -222,6 +222,14 @@ run "the_runbook_parameters_match_the_document" {
     condition     = aws_ssm_document.unfreeze.content == file("runbooks/unfreeze.yaml") && aws_ssm_document.unfreeze.name == "dozebox-main-unfreeze"
     error_message = "The unfreeze document is runbooks/unfreeze.yaml."
   }
+  assert {
+    condition     = output.unfreeze_runbook.document == "dozebox-main-unfreeze" && sort(keys(output.unfreeze_runbook.parameters)) == sort(keys(yamldecode(file("runbooks/unfreeze.yaml")).parameters))
+    error_message = "unfreeze_runbook names the unfreeze document and exactly the parameters runbooks/unfreeze.yaml declares."
+  }
+  assert {
+    condition     = output.unfreeze_runbook.parameters.BoxRoleName == "dozebox-main-box" && output.unfreeze_runbook.parameters.ControlRoleName == "dozebox-main-control" && output.unfreeze_runbook.parameters.FreezeParameter == "/dozebox/main/freeze"
+    error_message = "unfreeze_runbook passes this box's roles and freeze record."
+  }
 }
 
 run "the_deny_policy_freezes_everything_that_costs" {

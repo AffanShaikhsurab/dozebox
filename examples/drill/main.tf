@@ -27,6 +27,12 @@ variable "alert_email" {
   default     = null
 }
 
+variable "control_bundle_path" {
+  description = "The built control bundle (absolute path to packages/control/dist/control.zip); null deploys the placeholder that answers 503."
+  type        = string
+  default     = null
+}
+
 variable "front_door" {
   description = "Put CloudFront and WAF in front of the control API."
   type        = bool
@@ -83,6 +89,7 @@ module "dozebox" {
   box_id                   = var.box_id
   tags                     = local.test_tags
   iam_permissions_boundary = var.iam_permissions_boundary
+  control_bundle_path      = var.control_bundle_path
 
   instance = {
     types        = ["t4g.small", "t4g.medium"]
@@ -164,4 +171,9 @@ output "wake_token_parameter" {
 output "state_table_name" {
   description = "DynamoDB state table."
   value       = module.dozebox.state_table_name
+}
+
+output "unfreeze_runbook" {
+  description = "The unfreeze SSM Automation document and its parameters."
+  value       = module.dozebox.unfreeze_runbook
 }
