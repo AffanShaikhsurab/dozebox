@@ -1,0 +1,220 @@
+#cloud-config
+# Dozebox stage 0, rendered by terraform/compute.tf. The scripts and units below are copies of the files under box/
+# (box-units.test.ts keeps them equal); inside them, templatefile escapes a literal dollar-brace or percent-brace by doubling the first character.
+write_files:
+  - path: /etc/dozebox/box.env
+    permissions: "0644"
+    content: |
+      DOZEBOX_BOX_ID=${box_id}
+      DOZEBOX_PREFIX=${name_prefix}
+      DOZEBOX_REGION=${region}
+      DOZEBOX_CONFIG_PARAMETER=${config_parameter}
+      DOZEBOX_STATE_DIR=/data/dozebox
+      AWS_REGION=${region}
+      AWS_DEFAULT_REGION=${region}
+  - path: /etc/tmpfiles.d/dozebox.conf
+    permissions: "0644"
+    content: |
+      d /run/dozebox 0755 root root -
+  - path: /opt/dozebox/stage0/install-agent.sh
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env bash
+      # Stage 0: fetch the agent release, verify it, switch to it, install its units, start. Idempotent.
+      # Usage: install-agent.sh <version> <base_url> <sha256>
+      set -euo pipefail
+
+      version="$${1:?version}"
+      base="$${2:?base url}"
+      expected_sha="$${3:-}"
+      root="$${DOZEBOX_ROOT:-/opt/dozebox}"
+      unit_dir="$${DOZEBOX_UNIT_DIR:-/etc/systemd/system}"
+      run_dir="$${DOZEBOX_RUN_DIR:-/run/dozebox}"
+      systemctl_bin="$${DOZEBOX_SYSTEMCTL_BIN:-systemctl}"
+      curl_bin="$${DOZEBOX_CURL_BIN:-curl}"
+      arch="$${DOZEBOX_ARCH:-$(uname -m)}"
+
+      dir="$${root}/releases/$${version}"
+      started="$(date +%s%3N)"
+      ok=false
+      tmp=""
+      mkdir -p "$${root}/releases" "$run_dir"
+
+      finish() {
+        local code=$?
+        [[ -n "$tmp" ]] && rm -rf "$tmp"
+        [[ $code -eq 0 && $ok == true ]] || ok=false
+        printf '{"step":"agent-install","startedAt":%s,"ms":%s,"ok":%s}\n' \
+          "$started" "$(($(date +%s%3N) - started))" "$ok" >>"$${run_dir}/boot-timeline.jsonl" || true
+      }
+      trap finish EXIT
+
+      fetch() {
+        tmp="$(mktemp -d "$${root}/releases/.tmp.XXXXXX")"
+        "$curl_bin" --fail --silent --show-error --location --retry 5 --max-time 120 \
+          -o "$${tmp}/agent.tar.gz" "$${base}/dozebox-agent-$${version}-linux-$${arch}.tar.gz" &&
+          echo "$${expected_sha}  $${tmp}/agent.tar.gz" | sha256sum --check --status &&
+          mkdir "$${tmp}/release" && tar -xzf "$${tmp}/agent.tar.gz" -C "$${tmp}/release" &&
+          [[ -x "$${tmp}/release/bin/dozeboxd" ]] &&
+          rm -rf "$dir" && mv "$${tmp}/release" "$dir"
+      }
+
+      if [[ -x "$${dir}/bin/dozeboxd" ]]; then
+        ok=true
+      elif fetch; then
+        ok=true
+      else
+        previous="$(readlink -f "$${root}/current" 2>/dev/null || true)"
+        if [[ -n "$previous" && -x "$${previous}/bin/dozeboxd" ]]; then
+          echo "install-agent: could not install $${version}; keeping $${previous}" >&2
+          dir="$previous"
+        else
+          echo "install-agent: could not install $${version} and there is no previous release" >&2
+          exit 1
+        fi
+      fi
+
+      ln -sfn "$dir" "$${root}/current.new"
+      mv -T -f "$${root}/current.new" "$${root}/current"
+      mkdir -p "$unit_dir"
+      if [[ -d "$${root}/current/systemd" ]]; then
+        cp -f "$${root}/current/systemd/"* "$${unit_dir}/"
+      fi
+      "$systemctl_bin" daemon-reload
+      "$systemctl_bin" enable --now --no-block dozebox-boot.service dozeboxd.service
+  - path: /opt/dozebox/stage0/failsafe.sh
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env bash
+      # Parks a box that never served (timer, 60 min after boot) or whose boot units failed for good (DOZEBOX_PARK_NOW=1).
+      # Plain bash and the AWS CLI, so it works when Node, the download or the agent broke.
+      set -u
+
+      run_dir="$${DOZEBOX_RUN_DIR:-/run/dozebox}"
+      aws_bin="$${DOZEBOX_AWS_BIN:-aws}"
+      sc="$${DOZEBOX_SYSTEMCTL_BIN:-systemctl}"
+      curl_bin="$${DOZEBOX_CURL_BIN:-curl}"
+      imds="$${DOZEBOX_IMDS_URL:-http://169.254.169.254}"
+      uptime_file="$${DOZEBOX_UPTIME_FILE:-/proc/uptime}"
+      instance_file="$${DOZEBOX_INSTANCE_ID_FILE:-/var/lib/cloud/data/instance-id}"
+      boot_file="$${DOZEBOX_BOOT_ID_FILE:-/proc/sys/kernel/random/boot_id}"
+      prefix="$${DOZEBOX_PREFIX:-dozebox}"
+      box="$${DOZEBOX_BOX_ID:-}"
+      park_now="$${DOZEBOX_PARK_NOW:-0}"
+
+      awsb() { timeout 90 "$aws_bin" "$@" --cli-connect-timeout 10 --cli-read-timeout 20; }
+      jstr() {
+        local s="$${1:0:$2}"
+        s="$(printf '%s' "$s" | tr -d '\000-\010\013\014\016-\037')"
+        s="$${s//\\/\\\\}"
+        s="$${s//\"/\\\"}"
+        s="$${s//$'\n'/\\n}"
+        printf '%s' "$${s//$'\t'/\\t}"
+      }
+      poweroff_now() {
+        local -a cmd
+        read -ra cmd <<<"$${DOZEBOX_POWEROFF_COMMAND:-shutdown -h now}"
+        "$${cmd[@]}"
+      }
+
+      failed=""
+      if [ "$park_now" = 1 ]; then
+        # OnFailure= also fires for a crash systemd is about to restart: park only on a unit that failed for good.
+        case "$(cat "$${run_dir}/phase" 2>/dev/null)" in reclaim-notice | sleeping) exit 0 ;; esac
+        for u in dozebox-boot dozeboxd; do
+          if [ "$(timeout 10 "$sc" show -p ActiveState --value "$${u}.service" 2>/dev/null)" = failed ]; then
+            failed="$${failed:+$failed, }$${u} ($(timeout 10 "$sc" show -p Result --value "$${u}.service" 2>/dev/null))"
+          fi
+        done
+        [ -n "$failed" ] || exit 0
+      elif [ -e "$${run_dir}/serving" ]; then
+        exit 0
+      fi
+
+      up_min=$(($(cut -d. -f1 "$uptime_file" 2>/dev/null || echo 0) / 60))
+      if [ "$park_now" = 1 ]; then
+        message="failsafe: $${failed} failed; parked $${up_min} min after boot"
+      else
+        message="failsafe: the agent did not start serving within $${up_min} min of boot"
+      fi
+
+      if [ -n "$box" ] && command -v "$aws_bin" >/dev/null 2>&1; then
+        instance="$(tr -d '[:space:]' <"$instance_file" 2>/dev/null)"
+        boot="$(tr -d '[:space:]-' <"$boot_file" 2>/dev/null)"
+        at="$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
+        writer="{\"instanceId\":\"$(jstr "$instance" 64)\",\"bootId\":\"$(jstr "$boot" 64)\"}"
+        tmp="$(mktemp)"
+        put() {
+          printf '%s\n' "$2" >"$tmp"
+          awsb ssm put-parameter --name "/$${prefix}/$${box}/rec/$1" --type String --overwrite \
+            --value "file://$${tmp}" >/dev/null || echo "failsafe: could not write rec/$1" >&2
+        }
+        put last-error "{\"v\":1,\"at\":\"$${at}\",\"writer\":$${writer},\"source\":\"failsafe\",\"message\":\"$(jstr "$message" 1000)\"}"
+        put last-words "{\"v\":1,\"at\":\"$${at}\",\"writer\":$${writer},\"parkedBecause\":\"failsafe\",\"by\":\"failsafe\",\"detail\":\"$(jstr "$message" 300)\",\"recentErrors\":[],\"strikes\":0,\"awakeBecause\":[]}"
+        rm -f "$tmp"
+
+        # Group instances carry the aws:autoscaling:groupName tag; a persistent instance has none (404).
+        group="" known=0
+        token="$("$curl_bin" -sS --max-time 5 -X PUT -H 'X-aws-ec2-metadata-token-ttl-seconds: 60' "$${imds}/latest/api/token" 2>/dev/null)"
+        if [ -n "$token" ]; then
+          body="$(mktemp)"
+          code="$("$curl_bin" -sS --max-time 5 -o "$body" -w '%%{http_code}' -H "X-aws-ec2-metadata-token: $${token}" \
+            "$${imds}/latest/meta-data/tags/instance/aws:autoscaling:groupName" 2>/dev/null)"
+          [ "$code" = 200 ] && group="$(cat "$body")" known=1
+          [ "$code" = 404 ] && known=1
+          rm -f "$body"
+        fi
+        if [ -n "$group" ]; then
+          awsb autoscaling set-desired-capacity --auto-scaling-group-name "$group" --desired-capacity 0 --no-honor-cooldown && exit 0
+        elif [ "$known" = 1 ] && [ -n "$instance" ]; then
+          awsb ec2 stop-instances --instance-ids "$instance" >/dev/null && exit 0
+        fi
+      else
+        echo "failsafe: no AWS CLI on this box, powering off" >&2
+      fi
+      poweroff_now
+  - path: /etc/systemd/system/dozebox-failsafe.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Dozebox failsafe: park the box if the agent never served
+
+      [Service]
+      Type=oneshot
+      TimeoutStartSec=5min
+      EnvironmentFile=/etc/dozebox/box.env
+      ExecStart=/opt/dozebox/stage0/failsafe.sh
+  - path: /etc/systemd/system/dozebox-failsafe.timer
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Dozebox failsafe: 60 minutes after boot, then every 15
+
+      [Timer]
+      OnBootSec=60min
+      OnUnitActiveSec=15min
+
+      [Install]
+      WantedBy=timers.target
+  - path: /etc/systemd/system/dozebox-park-now.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Dozebox: park now, this boot cannot serve
+      # systemd starts this for every crash it is about to restart; it must never be refused for starting too often.
+      StartLimitIntervalSec=0
+
+      [Service]
+      Type=oneshot
+      TimeoutStartSec=5min
+      EnvironmentFile=/etc/dozebox/box.env
+      Environment=DOZEBOX_PARK_NOW=1
+      ExecStart=/opt/dozebox/stage0/failsafe.sh
+runcmd:
+  - systemd-tmpfiles --create /etc/tmpfiles.d/dozebox.conf
+  - |
+    up=$(cut -d. -f1 /proc/uptime)
+    printf '{"step":"stage0","startedAt":%s,"ms":%s,"ok":true}\n' "$(($(date +%s%3N) - up * 1000))" "$((up * 1000))" >> /run/dozebox/boot-timeline.jsonl
+  - systemctl daemon-reload
+  - systemctl enable --now dozebox-failsafe.timer
+  - /opt/dozebox/stage0/install-agent.sh ${agent_version} ${agent_base_url} ${agent_sha256}

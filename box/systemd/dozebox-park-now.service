@@ -1,0 +1,11 @@
+[Unit]
+Description=Dozebox: park now, this boot cannot serve
+# systemd starts this for every crash it is about to restart; it must never be refused for starting too often.
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+TimeoutStartSec=5min
+EnvironmentFile=/etc/dozebox/box.env
+Environment=DOZEBOX_PARK_NOW=1
+ExecStart=/opt/dozebox/stage0/failsafe.sh
