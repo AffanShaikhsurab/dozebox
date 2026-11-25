@@ -14,6 +14,9 @@ locals {
   # OAC replaces Authorization with its SigV4 signature, so tokens travel in these headers (x-t3box-token until 2.0).
   # Host is never forwarded: the Function URL routes on its own host.
   token_headers = ["x-dozebox-token", "x-t3box-token"]
+
+  # With the front door on, the AWS_IAM Function URL refuses unsigned calls: clients go through CloudFront.
+  control_url = var.front_door_enabled ? "https://${aws_cloudfront_distribution.front_door[0].domain_name}" : trimsuffix(aws_lambda_function_url.control.function_url, "/")
 }
 
 resource "aws_cloudfront_origin_access_control" "front_door" {

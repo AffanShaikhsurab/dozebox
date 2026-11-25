@@ -2,7 +2,7 @@
 
 From nothing to a box that sleeps, wakes on request and goes away again. It uses the test agent (`version = "none"`),
 which boots, logs and powers off, so you see the whole wake and park cycle and the bill without running a payload.
-The box agent that runs a real payload is planned.
+The box agent that runs a real payload is built, but its release artifact is planned.
 
 You need an AWS account you may spend in, Node 24.12 or newer, pnpm 12, Terraform 1.9 or newer, the AWS CLI, and
 credentials for the account (`aws sts get-caller-identity` works). The stack in this guide costs a few cents a day
@@ -131,7 +131,7 @@ dozebox park
 ```
 
 A real box parks itself after `idle_minutes` with no activity. `park` asks for it now, and `park --force` ignores
-holds. Planned: the control function does not serve the admin events `park` uses yet, so today the command fails
+holds. Planned ([issue 16](https://github.com/AffanShaikhsurab/dozebox/issues/16)): the control function does not serve the admin events `park` uses yet, so today the command fails
 against a real stack. `POST /v1/park` does the same over HTTP, see the [control API](./control-api.md).
 
 ## 8. Remove it

@@ -4,8 +4,8 @@ A payload is the program a box exists to run. You describe it in a JSON payload 
 definition and knows nothing else about your program. The schema is `PayloadDefinition` in `@dozebox/protocol`, and
 Terraform passes each definition to the box through the `payloads` input.
 
-The box agent that installs, starts and watches payloads is planned. The definition format, its schema and the
-Terraform input are built.
+The box agent that installs, starts and watches payloads is built; its release artifact is planned, so a stack deployed
+today does not run one yet. The definition format, its schema and the Terraform input are built.
 
 ## A definition
 

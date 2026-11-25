@@ -250,6 +250,10 @@ run "outputs_name_the_front_door" {
     condition     = output.waf_web_acl_arn == aws_wafv2_web_acl.front_door[0].arn
     error_message = "The web ACL arn is exported."
   }
+  assert {
+    condition     = output.control_url == "https://d111111abcdef8.cloudfront.net"
+    error_message = "With the front door on, control_url is the CloudFront URL (the Function URL refuses unsigned calls)."
+  }
 }
 
 run "front_door_off_builds_nothing_and_leaves_the_url_public" {
@@ -272,5 +276,9 @@ run "front_door_off_builds_nothing_and_leaves_the_url_public" {
   assert {
     condition     = aws_lambda_function_url.control.authorization_type == "NONE" && length(aws_lambda_permission.control_url_public) == 1
     error_message = "Today's behaviour: the Function URL is public (NONE) and the token is the gate."
+  }
+  assert {
+    condition     = output.control_url == "https://abcdefghijklmnopqrstuvwxyz012345.lambda-url.us-east-1.on.aws"
+    error_message = "With the front door off, control_url is the Function URL without the trailing slash."
   }
 }
