@@ -68,14 +68,6 @@ jobs:
       - run: terraform -chdir=terraform test
       - run: terraform -chdir=terraform/bootstrap init -backend=false -input=false
       - run: terraform -chdir=terraform/bootstrap test
-  legacy:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 26
-      - run: node --test "legacy/runner/test/**/*.node-test.ts"
   gitleaks:
     runs-on: ubuntu-24.04
     steps:
@@ -87,7 +79,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   ci-ok:
     if: always()
-    needs: [node, sim, docs, licenses, terraform, legacy, gitleaks]
+    needs: [node, sim, docs, licenses, terraform, gitleaks]
     runs-on: ubuntu-24.04
     steps:
       - name: Every required job succeeded (failure, cancelled and skipped all fail)

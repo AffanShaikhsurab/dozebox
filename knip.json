@@ -14,6 +14,5 @@
       "project": ["src/**/*.ts", "scripts/**/*.ts", "test/**/*.ts"]
     }
   },
-  "ignore": ["legacy/**"],
   "ignoreBinaries": ["terraform"]
 }

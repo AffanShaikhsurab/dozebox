@@ -63,7 +63,7 @@ node_jobs() {
   [ "$rc" = "0" ] || return
   job check pnpm check
   job schema pnpm --filter @dozebox/protocol gen:schema --check
-  # CPU-bound on 8 cores: the simulator yields to legacy, terraform and check.
+  # CPU-bound on 8 cores: the simulator yields to terraform and check.
   job sim nice -n 10 pnpm sim --seeds 2000
   job sim-judge nice -n 10 pnpm sim:judge
   job docs pnpm docs:check
@@ -71,7 +71,6 @@ node_jobs() {
 }
 
 job terraform terraform_job
-job legacy node --test "legacy/runner/test/**/*.node-test.ts"
 job gitleaks gitleaks git --log-opts="$leaks_range" --redact --no-banner --exit-code 1 .
 node_jobs
 wait
