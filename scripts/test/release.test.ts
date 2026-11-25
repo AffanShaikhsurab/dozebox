@@ -99,6 +99,15 @@ test("the bundles are self-contained: the launcher runs with no node_modules", (
   assert.match(r.stderr, /dozebox|needs an id|unexpected/i);
 });
 
+test("the slim tarball has no node/ and names the Node build in NODE", () => {
+  const slim = join(outDir, "slim", `${name}.tar.gz`);
+  const entries = tar(["-tzf", slim]).split("\n").filter(Boolean);
+  assert.ok(entries.includes("NODE") && entries.includes("bin/dozeboxd"));
+  assert.ok(!entries.some((e) => e.startsWith("node/")));
+  assert.match(tar(["-xzOf", slim, "NODE"]), /^v\d+\.\d+\.\d+ [0-9a-f]{64}\n$/);
+  assert.match(readFileSync(join(outDir, "slim", "SHA256SUMS"), "utf8"), new RegExp(`  ${name}\\.tar\\.gz\\n$`));
+});
+
 test("arguments: version is required and checked, arch is checked", () => {
   assert.throws(() => parseArgs([]), /--version is required/);
   assert.throws(() => parseArgs(["--version", "1.0.0", "--arch", "arm"]), /--arch/);
