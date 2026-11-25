@@ -1,7 +1,8 @@
 # History of legacy/
 
-`legacy/` holds the old cloud runner with its history, moved here on 2026-11-25 (phase 0, R1) from the application
-repository it grew up in. The import ran `scripts/history/import.sh` in a scratch clone on a build machine:
+`legacy/` held the old cloud runner with its history, moved here on 2026-11-25 (phase 0, R1) from the application
+repository it grew up in. It was removed before the public release; the scrub drops it from every commit. The import
+ran `scripts/history/import.sh` in a scratch clone on a build machine:
 
 - `git filter-repo` kept only `infra/runner/`, `infra/terraform/`, `infra/fis/` and
   `docs/operations/cloud-machine.md`, renamed under `legacy/`.
@@ -20,11 +21,11 @@ legacy/ (scrubbed)".
 
 ## Old commit ids
 
-Commit messages and code in `legacy/` still name commits by their old ids. `history-commit-map.txt` maps each old id
+Commit messages still name commits by their old ids. `history-commit-map.txt` maps each old id
 that survived the filter to its new id (`old new` per line; commits that touched none of the kept paths are gone).
 
-The simulator judge (`legacy/runner/test/sim/judge.mjs`) checks out old revisions by id and runs the simulator on
-`infra/runner`. In this repository those revisions are:
+The simulator judge (`legacy/runner/test/sim/judge.mjs`, removed with `legacy/`) checked out old revisions by id and
+ran the simulator on `infra/runner`. In this repository those revisions were:
 
 | Judge revision            | Old id         | New id         |
 | ------------------------- | -------------- | -------------- |
@@ -34,11 +35,5 @@ The simulator judge (`legacy/runner/test/sim/judge.mjs`) checks out old revision
 | D-E, main before PR #55   | `dd825c32f9^1` | `292c129f84^1` |
 | Known classes measured at | `bf6af265ac`   | `ffede4c432`   |
 
-The judge still uses the old ids and paths; the simulator port (S1) points it at these. The simulator census on the
-imported tree matches the source at the same seeds (1,000 seeds: the same failing seeds and classes).
-
-## Tests
-
-`pnpm test:legacy` runs the old tests. Eight tests in six files read the old application's own sources (server files,
-a shared package, its root `package.json`) and are skipped with a reason pointing at issue #1. One path in
-`node-pin.node-test.ts` was updated for the rename.
+The judge used the old ids and paths; the simulator port (S1) pointed it at these. The simulator census on the
+imported tree matched the source at the same seeds (1,000 seeds: the same failing seeds and classes).

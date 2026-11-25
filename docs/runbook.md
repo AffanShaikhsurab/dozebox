@@ -128,7 +128,7 @@ Alert: the alarm `<name>-version-skew`.
 Means: the control function read a record with a schema version it does not know. The box and the function run
 different releases.
 
-Check: `dozebox status --releases` (needs admin events, which are planned: [issue 16](https://github.com/AffanShaikhsurab/dozebox/issues/16)) or the agent version in the stack
+Check: `dozebox status --releases` (needs admin events, which are planned: [issue 2](https://github.com/AffanShaikhsurab/dozebox/issues/2)) or the agent version in the stack
 (`agent.version`) against the control bundle you deployed.
 
 Fix: bring both to one release: `dozebox upgrade --agent <version>` and `dozebox deploy` the matching control bundle.
