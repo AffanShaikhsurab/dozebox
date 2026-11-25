@@ -71,7 +71,7 @@ export const chunkCommand = (i: number, part: string): string =>
  * Waits until SSM lists the instance as Online (the earliest moment Run Command reaches it). An operator without
  * ssm:DescribeInstanceInformation falls back to probing with a no-op command.
  */
-export async function waitSsmOnline(ctx: DrillContext, instanceId: string, signal: AbortSignal): Promise<void> {
+async function waitSsmOnline(ctx: DrillContext, instanceId: string, signal: AbortSignal): Promise<void> {
   await waitUntil(ctx, signal, POLL_MS, async () => {
     try {
       const out = await aws(
