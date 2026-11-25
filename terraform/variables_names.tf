@@ -1,5 +1,4 @@
-# T6 (legacy names): overrides that let an existing stack keep its SSM paths and tag keys. Contracts step: the
-# variables and outputs exist; main.tf locals start using them in T6.
+# T6 (legacy names): overrides that let an existing stack keep its SSM paths and tag keys. main.tf locals read them.
 
 variable "ssm_prefix" {
   description = "SSM path prefix override, such as /legacy/main/. Null: /<name_prefix>/<box_id>/."
@@ -25,5 +24,5 @@ variable "tag_prefix" {
 
 output "tag_prefix" {
   description = "The tag key prefix in use."
-  value       = var.tag_prefix == null ? var.name_prefix : var.tag_prefix
+  value       = local.tag_prefix
 }
