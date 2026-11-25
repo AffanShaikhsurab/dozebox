@@ -36,6 +36,8 @@
   },
   "devDependencies": {
     "@dozebox/agent": "workspace:*",
-    "@dozebox/control": "workspace:*"
+    "@dozebox/client": "workspace:*",
+    "@dozebox/control": "workspace:*",
+    "dozebox": "workspace:*"
   }
 }
