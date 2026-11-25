@@ -14,14 +14,14 @@ pnpm --filter @dozebox/sim test                      # 1,000 seeds plus the scen
 
 ## What is modelled
 
-| File | What it is |
-| --- | --- |
-| `world/` | The clock (generator processes on one event queue), the fake EC2 persistent Spot instance and its request, the Auto Scaling group, the EBS volume (single attach, the active tag as the fence), EventBridge. Timings from `measured.ts`, each with its source. |
-| `control/` | The control function's shell around core: `/v1/wake` (`decideWake`, one conditional write), `/v1/park` (`decidePark`), the EC2 event handler (R1: records only), the tick (lease, observe, `decideReconcile`, act with a re-read, the R3 judge). Invocations have call latency, crashes and the timeout. |
-| `agent/` | The agent of one instance: attach and mount, the payload unit with restarts, `serving` at the first passing health check, the watchdog (`decideHealth`), the idle loop (`idleVerdict`), the Spot watcher with the early self-stop, the park with the sleep fence (R2), the failsafe. Any agent process can be killed between two calls. |
-| `config.ts`, `scenario.ts` | The seed's knobs and day. `bugs` re-introduces historic bugs for the judge. |
-| `invariants/` | World invariants against the truth (safety after every event, liveness at deadlines), each failure in a class decided from the truth. |
-| `known.ts` | Open classes with id, rate per 100,000 seeds, replay seed and owner; the census judge. |
+| File                       | What it is                                                                                                                                                                                                                                                                                                                              |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `world/`                   | The clock (generator processes on one event queue), the fake EC2 persistent Spot instance and its request, the Auto Scaling group, the EBS volume (single attach, the active tag as the fence), EventBridge. Timings from `measured.ts`, each with its source.                                                                          |
+| `control/`                 | The control function's shell around core: `/v1/wake` (`decideWake`, one conditional write), `/v1/park` (`decidePark`), the EC2 event handler (R1: records only), the tick (lease, observe, `decideReconcile`, act with a re-read, the R3 judge). Invocations have call latency, crashes and the timeout.                                |
+| `agent/`                   | The agent of one instance: attach and mount, the payload unit with restarts, `serving` at the first passing health check, the watchdog (`decideHealth`), the idle loop (`idleVerdict`), the Spot watcher with the early self-stop, the park with the sleep fence (R2), the failsafe. Any agent process can be killed between two calls. |
+| `config.ts`, `scenario.ts` | The seed's knobs and day. `bugs` re-introduces historic bugs for the judge.                                                                                                                                                                                                                                                             |
+| `invariants/`              | World invariants against the truth (safety after every event, liveness at deadlines), each failure in a class decided from the truth.                                                                                                                                                                                                   |
+| `known.ts`                 | Open classes with id, rate per 100,000 seeds, replay seed and owner; the census judge.                                                                                                                                                                                                                                                  |
 
 ## Assumed behaviour of the fake
 
