@@ -39,6 +39,7 @@
     }
   },
   "scripts": {
+    "build": "node scripts/build.ts",
     "test": "node --conditions=@dozebox/source --test \"test/*.test.ts\"",
     "test:systemd": "node --conditions=@dozebox/source --test \"test/systemd/*.test.ts\"",
     "test:wire": "node --conditions=@dozebox/source --test --test-concurrency=1 \"test/wire/*.test.ts\""
@@ -53,6 +54,7 @@
     "@dozebox/protocol": "workspace:*"
   },
   "devDependencies": {
-    "@dozebox/testkit": "workspace:*"
+    "@dozebox/testkit": "workspace:*",
+    "esbuild": "0.28.2"
   }
 }

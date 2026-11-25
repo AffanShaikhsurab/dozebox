@@ -21,13 +21,13 @@ function boxWith(state: "running" | "stopped", config = {}) {
   return { w, id };
 }
 
-async function fence(w: World, id: string, at: number) {
+async function fence(w: World, id: string, at: number, phase: "before-stop" | "after-stop" = "before-stop") {
   const record = {
     v: 1,
     at: new Date(at).toISOString(),
     writer: { instanceId: id, bootId: "boot-0001" },
     reason: "user",
-    phase: "before-stop",
+    phase,
   };
   await w.deps.records.put("fence/sleep-requested", JSON.stringify(record), { tier: "Standard" });
 }
@@ -102,6 +102,21 @@ describe("tick", () => {
     w.aws.clock.advance(MIN);
     const second = await tick(w.deps, { trigger: "schedule" });
     assert.equal(second.kind === "done" && second.outcome.kind === "acted" && second.outcome.action, "raise-fallback");
+  });
+
+  test("the agent's own park (after-stop fence) is recorded as asleep, so the tick does not start it again (R2)", async () => {
+    const { w, id } = boxWith("stopped");
+    await w.call("POST", "/v1/wake");
+    w.aws.clock.advance(5 * MIN);
+    await fence(w, id, w.aws.clock.now(), "after-stop");
+    await tick(w.deps, { trigger: "schedule" });
+    const desired = await w.deps.desired.read();
+    assert.deepEqual([desired.want, desired.reason, desired.origin], ["asleep", "park:agent:user", "auto"]);
+    assert.deepEqual(actions(w), []);
+    w.aws.clock.advance(MIN);
+    await w.call("POST", "/v1/wake");
+    await tick(w.deps, { trigger: "schedule" });
+    assert.deepEqual(w.aws.ec2.calls.at(-1)?.op, "start");
   });
 
   test("the awake cap parks the box (reason park:cap) and the next tick stops it", async () => {

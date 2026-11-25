@@ -27,7 +27,8 @@ function sleepFenceOf(facts: StatusFacts): Observed["sleepFence"] {
   const r = readRecord("fence/sleep-requested", facts.records.get("fence/sleep-requested")?.value ?? null, null);
   if (r.kind !== "ok") return null;
   const at = Date.parse(r.record.at);
-  return Number.isFinite(at) ? { at, phase: r.record.phase } : null;
+  if (!Number.isFinite(at)) return null;
+  return { at, phase: r.record.phase, ...(typeof r.record.reason === "string" ? { reason: r.record.reason } : {}) };
 }
 
 export async function observe(deps: TickDeps, now: number): Promise<Snapshot> {

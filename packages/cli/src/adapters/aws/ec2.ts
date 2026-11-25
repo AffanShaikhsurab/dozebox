@@ -116,9 +116,10 @@ export function makeEc2Ops(ec2: EC2Client, p: string): Ec2Ops {
         if (known) return known;
         const [volume] = await describeVolumes(ec2, { VolumeIds: [volumeId] });
         const box = tagOf(volume?.Tags, boxTag);
-        const name = tagOf(volume?.Tags, "Name");
+        // The volume's own tags (Name, the operator's tags such as cost or test tags) carry over, so a volume restored
+        // from this snapshot gets them too; accounts that require a tag on CreateVolume refuse a restore without it.
         const tags: Tag[] = [
-          ...(name === undefined ? [] : [{ Key: "Name", Value: name }]),
+          ...inheritable(volume?.Tags),
           ...(box === undefined ? [] : [{ Key: boxTag, Value: box }]),
           { Key: labelTag, Value: label },
           { Key: tokenTag, Value: token },

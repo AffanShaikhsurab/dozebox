@@ -307,6 +307,18 @@ Run a real-AWS drill: smoke, spot, fallback, kill, front-door, restore.
 
 Changes state. Honours `--dry-run` and asks before it acts (`--yes` skips the question).
 
+| Option | Takes | Notes |
+| --- | --- | --- |
+| `--skip` | value |  |
+| `--report` | value |  |
+| `--with-hold` | flag |  |
+| `--extra` | value |  |
+| `--keep` | flag |  |
+| `--deliver` | value |  |
+| `--broken` | value |  |
+| `--nonce` | value |  |
+| `--test-budget` | value |  |
+
 ## Box commands
 
 | Command | What it does |

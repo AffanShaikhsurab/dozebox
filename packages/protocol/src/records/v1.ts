@@ -21,6 +21,7 @@ export const RECORD_NAMES = {
   lastError: "rec/last-error",
   bootTimeline: "rec/boot-timeline",
   release: "rec/release",
+  formatted: "rec/formatted",
   sleepFence: "fence/sleep-requested",
   wakeIntent: "ctl/wake-intent",
   config: "config",
@@ -154,6 +155,13 @@ export const SleepFence = Type.Object({
   phase: Type.Union([Type.Literal("before-stop"), Type.Literal("after-stop")]),
 });
 export type SleepFence = Static<typeof SleepFence>;
+
+/** `rec/formatted`: written by `dozebox-boot` after mkfs, so a later boot never formats the same volume again. */
+export const FormattedRecord = Type.Object({
+  ...recordBase,
+  volumeId: Type.String({ pattern: "^vol-[0-9a-f]{8,17}$" }),
+});
+export type FormattedRecord = Static<typeof FormattedRecord>;
 
 /** True when `value` matches `schema`. Lets readers check records without their own TypeBox dependency. */
 export function matchesSchema(schema: TSchema, value: unknown): boolean {

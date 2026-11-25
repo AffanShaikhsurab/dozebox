@@ -10,3 +10,4 @@ coverage/
 drills/*.json
 .env
 .env.*
+examples/.warm*/

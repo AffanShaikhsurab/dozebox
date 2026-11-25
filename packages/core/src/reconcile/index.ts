@@ -3,6 +3,7 @@
 // control and the simulator call them through legacy/runner/control/core.mjs until the TypeScript simulator replaces it.
 export {
   decideReconcile,
+  agentPark,
   REFUSED_FALLBACK_AFTER_MS,
   REPLACING_WINDOW_MS,
   SLEEP_FENCE_MS,

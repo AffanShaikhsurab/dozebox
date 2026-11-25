@@ -10,7 +10,7 @@ Every input and output of the module in `terraform/`. An input with no default i
 | --- | --- | --- | --- | --- |
 | `box_id` | `string` | `"main"` | no | Box id, used in names, SSM paths and tags. |
 | `name_prefix` | `string` | `"dozebox"` | no | Prefix of every resource name, SSM path and tag key. |
-| `instance` | `object (see below)` | n/a | yes | Instance types (first is preferred), CPU architecture, machine mode, AMI parameter (default: Canonical Ubuntu 24.04 for the arch) and root disk size. |
+| `instance` | `object (see below)` | n/a | yes | Instance types (first is preferred), CPU architecture, machine mode, purchase (spot or on-demand persistent instance), AMI parameter (default: Canonical Ubuntu 24.04 for the arch) and root disk size. |
 | `network` | `object (see below)` | `{}` | no | Create a VPC (default) or use an existing one. No inbound rule unless ssh_cidrs is set. |
 | `data_volume` | `object (see below)` | n/a | yes | The encrypted gp3 data volume that holds all payload state. |
 | `snapshots` | `object (see below)` | `{}` | no | DLM snapshot interval and retention, Recycle Bin days, and how long a retired volume is kept. |
@@ -47,6 +47,7 @@ object({
   types             = list(string)
   arch              = optional(string, "arm64")
   machine_mode      = optional(string, "persistent")
+  purchase          = optional(string, "spot")
   ami_ssm_parameter = optional(string)
   root_volume_gb    = optional(number, 30)
 })
@@ -176,7 +177,7 @@ Terraform rejects a value that breaks one of these at plan time.
 - `instance`: instance.types must list 1 to 10 instance types.
 - `instance`: instance.types entries must look like an instance type, such as t4g.small.
 - `instance`: instance.arch must be arm64 or x86_64.
-- `instance`: instance.machine_mode must be persistent or group.
+- `instance`: instance.machine_mode must be persistent or group, and instance.purchase spot or on-demand.
 - `instance`: instance.root_volume_gb must be between 8 and 1024.
 - `network`: network.vpc_id and network.subnet_ids are required when network.create is false.
 - `network`: network.ssh_cidrs entries must be CIDR blocks.
