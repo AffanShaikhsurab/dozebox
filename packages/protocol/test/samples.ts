@@ -258,6 +258,34 @@ export const SAMPLES: Readonly<Record<string, Sample>> = {
     invalid: { v: 1, box: "main", desired: "awake", state: "running", since: at, frozen: false },
     why: "missing caps, alertPath and summary",
   },
+  ControlAnswer: {
+    valid: {
+      v: 1,
+      box: "main",
+      desired: "awake",
+      state: "launching",
+      since: at,
+      frozen: false,
+      caps: {
+        awakeHoursToday: 0,
+        awakeHoursCap: null,
+        onDemandHoursToday: 0,
+        onDemandHoursCap: 3,
+        monthSpendUsd: null,
+        monthBudgetUsd: 60,
+      },
+      alertPath: { level: "ok" },
+      summary: { level: "info", headline: "Waking", detail: "", next: "", actions: ["park"] },
+      decision: "accept",
+    },
+    invalid: { v: 1, box: "main", desired: "awake", state: "launching", since: at, frozen: false, decision: "maybe" },
+    why: "an unknown decision and no caps",
+  },
+  ControlErrorBody: {
+    valid: { error: { code: "wake_budget", message: "6 wakes in the last hour", retryable: true, retryAfterSeconds: 3600 } },
+    invalid: { error: { code: "frozen", retryable: false } },
+    why: "no message",
+  },
   PayloadDefinition: {
     valid: {
       schema: 1,

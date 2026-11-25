@@ -68,6 +68,8 @@ export function toMachineView(i: Instance, spot: SpotInstanceRequest | null): Ma
     launchedAt: i.LaunchTime?.getTime() ?? 0,
     stoppingAt: STOPPED_LIKE.has(state) ? parseTransitionTime(i.StateTransitionReason) : null,
     spotRequest: isSpot ? spotRequestOf(spot) : "none",
+    ...(i.InstanceType === undefined ? {} : { type: i.InstanceType }),
+    ...(i.Placement?.AvailabilityZone === undefined ? {} : { zone: i.Placement.AvailabilityZone }),
   };
 }
 

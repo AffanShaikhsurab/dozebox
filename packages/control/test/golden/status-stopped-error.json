@@ -1,0 +1,39 @@
+{
+  "v": 1,
+  "box": "main",
+  "desired": "asleep",
+  "state": "stopped-error",
+  "since": "2026-11-25T00:01:00.000Z",
+  "frozen": false,
+  "machine": "persistent",
+  "lastError": {
+    "message": "the data volume did not attach",
+    "at": "2026-11-25T00:01:00.000Z",
+    "source": "boot:mount"
+  },
+  "lastWords": {
+    "parkedBecause": "unhealthy",
+    "detail": "boot failed",
+    "at": "2026-11-25T00:01:00.000Z"
+  },
+  "caps": {
+    "awakeHoursToday": 0,
+    "awakeHoursCap": 16,
+    "onDemandHoursToday": 0,
+    "onDemandHoursCap": 3,
+    "monthSpendUsd": null,
+    "monthBudgetUsd": 60
+  },
+  "alertPath": {
+    "level": "info"
+  },
+  "summary": {
+    "level": "bad",
+    "headline": "dozebox stopped with an error",
+    "detail": "the data volume did not attach",
+    "next": "Wake it to try again.",
+    "actions": [
+      "wake"
+    ]
+  }
+}

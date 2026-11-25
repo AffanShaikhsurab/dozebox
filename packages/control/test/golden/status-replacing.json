@@ -1,0 +1,29 @@
+{
+  "v": 1,
+  "box": "main",
+  "desired": "awake",
+  "state": "replacing",
+  "since": "2026-11-25T00:01:00.000Z",
+  "frozen": false,
+  "machine": "fallback",
+  "caps": {
+    "awakeHoursToday": 0,
+    "awakeHoursCap": 16,
+    "onDemandHoursToday": 0,
+    "onDemandHoursCap": 3,
+    "monthSpendUsd": null,
+    "monthBudgetUsd": 60
+  },
+  "alertPath": {
+    "level": "info"
+  },
+  "summary": {
+    "level": "info",
+    "headline": "Moving dozebox to a new machine",
+    "detail": "",
+    "next": "",
+    "actions": [
+      "park"
+    ]
+  }
+}
