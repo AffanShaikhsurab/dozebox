@@ -6,20 +6,20 @@ import { HOUR, MINUTE } from "../time/index.ts";
 /** Work is active but nothing moved for this long. */
 export const DRIVER_STALL_MS = 15 * MINUTE;
 export const IDLE_LOOP_STALL_MS = 5 * MINUTE;
-export const WATCHER_STALL_MS = 15 * MINUTE;
-export const ALERTS_STALL_MS = 30 * MINUTE;
-export const SHELLS_STALL_MS = 10 * MINUTE;
+const WATCHER_STALL_MS = 15 * MINUTE;
+const ALERTS_STALL_MS = 30 * MINUTE;
+const SHELLS_STALL_MS = 10 * MINUTE;
 /** A heartbeat older than this is not being written; its loop stamps say nothing about the running payload. */
-export const HEARTBEAT_FRESH_MS = 2 * MINUTE;
+const HEARTBEAT_FRESH_MS = 2 * MINUTE;
 /** A park that did not take is asked for again after this long. */
 export const PARK_RETRY_MS = 10 * MINUTE;
 export const TUNNEL_DOWN_MS = 10 * MINUTE;
 export const NET_DOWN_STRIKES = 3;
-export const SERVER_RESTARTS_PER_HOUR = 2;
+const SERVER_RESTARTS_PER_HOUR = 2;
 export const TUNNEL_RESTARTS_PER_HOUR = 3;
-export const TUNNEL_RESTART_COOLDOWN_MS = 5 * MINUTE;
+const TUNNEL_RESTART_COOLDOWN_MS = 5 * MINUTE;
 /** A give-up parks the box unless a person used it within this long. No `presenceAt` means unknown: only alert. */
-export const PRESENCE_WINDOW_MS = 30 * MINUTE;
+const PRESENCE_WINDOW_MS = 30 * MINUTE;
 /** The same alert key is not repeated inside this window. */
 export const ALERT_GAP_MS = HOUR;
 
@@ -35,7 +35,7 @@ export type LivenessKey =
   | "server-park"
   | "idle-loop-park";
 
-export type Severity = "page" | "notify" | "info";
+type Severity = "page" | "notify" | "info";
 
 export const LIVENESS_SEVERITY: Readonly<Partial<Record<LivenessKey, Severity>>> = Object.freeze({
   "net-down": "notify",
