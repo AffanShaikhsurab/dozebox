@@ -78,11 +78,16 @@ resource "aws_launch_template" "box" {
     }
   }
 
+  # Everything a launch creates is tagged in the launch request itself, so an account that only allows creating tagged
+  # EC2 resources accepts it. The persistent instance's Spot request is tagged too; groups make no such request.
   dynamic "tag_specifications" {
-    for_each = ["volume", "network-interface"]
+    for_each = merge(
+      { instance = local.name, volume = "${local.name}-root", network-interface = "${local.name}-eni" },
+      each.key == "persistent" ? { spot-instances-request = local.name } : {},
+    )
     content {
-      resource_type = tag_specifications.value
-      tags          = merge(local.tags, { Name = "${local.name}-${tag_specifications.value == "volume" ? "root" : "eni"}" })
+      resource_type = tag_specifications.key
+      tags          = merge(local.tags, { Name = tag_specifications.value })
     }
   }
 
@@ -118,7 +123,7 @@ resource "aws_instance" "persistent" {
     spot_options {
       spot_instance_type             = "persistent"
       instance_interruption_behavior = "stop"
-      max_price = local.spot_max_price
+      max_price                      = local.spot_max_price
     }
   }
 
