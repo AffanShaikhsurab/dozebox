@@ -4,7 +4,7 @@ Routine work on a running box: upgrades, backups and restores, moving to another
 adopting an old stack. For alerts, see the [runbook](./runbook.md).
 
 Several of these commands (`restore`, `move-az`, `rebuild`, `park`, `status --records`) act through admin events that
-the control function does not serve yet ([issue 16](https://github.com/AffanShaikhsurab/dozebox/issues/16)). They work against the CLI's fakes and fail against a real stack until that
+the control function does not serve yet ([issue 2](https://github.com/AffanShaikhsurab/dozebox/issues/2)). They work against the CLI's fakes and fail against a real stack until that
 lands. Each section says so.
 
 ## Upgrades
@@ -57,8 +57,8 @@ dozebox restore snap-0123456789abcdef0 --az us-east-1b
 `restore` parks the box, creates a volume from the snapshot, tags it `active` and keeps the old volume tagged
 `retired` for `snapshots.retired_volume_days` (14). The zone defaults to the current volume's, because the launch
 template and subnet already point there. A different `--az` is a move and says so. Planned: `restore` needs the admin
-`swap-volume` event ([issue 16](https://github.com/AffanShaikhsurab/dozebox/issues/16)). The control function's volume port, the fallback volume hand-off and the weekly restore
-test are also planned ([issue 17](https://github.com/AffanShaikhsurab/dozebox/issues/17)).
+`swap-volume` event ([issue 2](https://github.com/AffanShaikhsurab/dozebox/issues/2)). The control function's volume port, the fallback volume hand-off and the weekly restore
+test are also planned ([issue 1](https://github.com/AffanShaikhsurab/dozebox/issues/1)).
 
 `dozebox volumes list` shows every volume tagged to the box with its zone and state, and flags a box with no active
 volume (exit code 1). `dozebox volumes retire <id>` tags a volume retired (never the active one). Retired volumes cost
@@ -77,13 +77,13 @@ dozebox move-az us-east-1b
 
 It parks the box, snapshots the volume, creates a new volume from that snapshot in the target zone, makes it active
 inside the control function's lease and retires the old one. The subnet and the launch template must cover the target
-zone, so list subnets in both zones in `network.subnet_ids` first. Planned: it uses the admin `swap-volume` event ([issue 16](https://github.com/AffanShaikhsurab/dozebox/issues/16)).
+zone, so list subnets in both zones in `network.subnet_ids` first. Planned: it uses the admin `swap-volume` event ([issue 2](https://github.com/AffanShaikhsurab/dozebox/issues/2)).
 
 ## Replace the instance
 
 `dozebox rebuild` gives the box a new instance (a new launch template version, a fresh root disk and first boot) at the
 next wake and keeps the data volume. Use it when the root disk or the boot is the problem. Planned: it uses the admin
-`rebuild` event ([issue 16](https://github.com/AffanShaikhsurab/dozebox/issues/16)).
+`rebuild` event ([issue 2](https://github.com/AffanShaikhsurab/dozebox/issues/2)).
 
 ## Change the payload
 
