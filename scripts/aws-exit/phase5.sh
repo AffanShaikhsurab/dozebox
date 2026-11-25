@@ -22,7 +22,7 @@ dz drill smoke --stack "$WARM" --with-hold --keep "${DELIVER[@]}" --report drill
 dz snapshots create --stack "$WARM" --label drill-restore --json > /dev/null || true
 dz drill restore --stack "$WARM" "${DELIVER[@]}" --report drills/phase5-restore.json || true
 dz drill kill --stack "$WARM" "${DELIVER[@]}" --report drills/phase5-kill.json || true
-dz drill front-door --stack "$WARM" --report drills/phase5-front-door.json || true
+[ "${DZ_SKIP_FRONT_DOOR:-0}" = 1 ] || dz drill front-door --stack "$WARM" --report drills/phase5-front-door.json || true
 ok=true
 for r in drills/phase5-restore.json drills/phase5-kill.json drills/phase5-smoke.json drills/phase5-front-door.json; do
   jq -e '.ok' "$r" > /dev/null || ok=false
