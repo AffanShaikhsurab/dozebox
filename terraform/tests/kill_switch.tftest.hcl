@@ -223,9 +223,7 @@ run "the_runbook_parameters_match_the_document" {
     error_message = "The unfreeze document is runbooks/unfreeze.yaml."
   }
   assert {
-    condition = output.unfreeze_runbook.document == "dozebox-main-unfreeze" && length(setsymmetricdifference(
-      keys(output.unfreeze_runbook.parameters), keys(yamldecode(file("runbooks/unfreeze.yaml")).parameters),
-    )) == 0
+    condition = output.unfreeze_runbook.document == "dozebox-main-unfreeze" && sort(keys(output.unfreeze_runbook.parameters)) == sort(keys(yamldecode(file("runbooks/unfreeze.yaml")).parameters))
     error_message = "unfreeze_runbook names the unfreeze document and exactly the parameters runbooks/unfreeze.yaml declares."
   }
   assert {
