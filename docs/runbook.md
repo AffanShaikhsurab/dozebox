@@ -8,8 +8,8 @@ In the commands below `<name>` is `<name_prefix>-<box_id>`, for example `dozebox
 dashboard.
 
 Alerts come from three places: the control function (pages and notices through the alert topic), CloudWatch alarms
-named `<name>-<alarm>`, and AWS Budgets. Alerts from the agent on the box (disk full, payload crash loop, a spot
-reclaim) are planned with the agent.
+named `<name>-<alarm>`, and AWS Budgets. The agent on the box also raises alerts (disk full, payload crash loop, a spot reclaim); they start once an agent
+release is deployed.
 
 ## The box did not wake
 
@@ -82,7 +82,7 @@ ends, a loop of wakes.
 
 Fix: `dozebox unfreeze --reason "<why>"`. It runs the unfreeze runbook with your credentials: it detaches the deny
 policy and clears the freeze record. It starts nothing; the next wake does. The command refuses to run as the box's
-own role. Planned: if it says the stack has no `unfreeze_runbook` output, the module version predates that output.
+own role. If it says the stack has no `unfreeze_runbook` output, the module version predates that output.
 
 ## AWS Budgets: 80%, 100%, forecast
 
@@ -128,7 +128,7 @@ Alert: the alarm `<name>-version-skew`.
 Means: the control function read a record with a schema version it does not know. The box and the function run
 different releases.
 
-Check: `dozebox status --releases` (needs admin events, which are planned) or the agent version in the stack
+Check: `dozebox status --releases` (needs admin events, which are planned: [issue 16](https://github.com/AffanShaikhsurab/dozebox/issues/16)) or the agent version in the stack
 (`agent.version`) against the control bundle you deployed.
 
 Fix: bring both to one release: `dozebox upgrade --agent <version>` and `dozebox deploy` the matching control bundle.
