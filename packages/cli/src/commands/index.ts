@@ -20,6 +20,7 @@ import { moveAz } from "./move-az.ts";
 import { rebuild } from "./rebuild.ts";
 import { unfreeze } from "./unfreeze.ts";
 import { drill } from "./drill.ts";
+import { BOX_COMMANDS } from "./box/index.ts";
 
 export const COMMANDS: ReadonlyArray<Command> = [
   bootstrap,
@@ -51,4 +52,5 @@ export const COMMANDS: ReadonlyArray<Command> = [
   unfreeze,
   destroy,
   drill,
+  ...BOX_COMMANDS,
 ];
