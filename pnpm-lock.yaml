@@ -227,6 +227,9 @@ importers:
       '@dozebox/core':
         specifier: workspace:*
         version: link:../core
+      '@dozebox/protocol':
+        specifier: workspace:*
+        version: link:../protocol
     devDependencies:
       '@dozebox/testkit':
         specifier: workspace:*
