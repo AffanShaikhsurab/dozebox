@@ -108,6 +108,7 @@ export function makeWorld(
       state: aws.dynamodb.table,
       spend: aws.budgets.spend,
       notifier: aws.sns.notifier,
+      volumes: aws.ebs.volumes,
       wakeToken: {
         read: async () => {
           reads += 1;

@@ -7,6 +7,7 @@
 //   interruption      Interruption      fenced by its time; written by the EC2 event route (R1), read by the tick
 //   last-start-error  LastStartError    written by the tick's act step (C3)
 //   caps              CapsView          written by the tick (C3): awake and On-Demand minutes, month spend
+//   awake-log         AwakeLog          written by the tick (C3): running intervals of the last 24 h
 //   alerts-test       {at}              idempotency-style entry with a 60 s TTL: one test alert a minute
 import { RunnerError } from "@dozebox/core/errors";
 import type { Desired } from "@dozebox/core/reconcile";
@@ -55,6 +56,11 @@ export const CapsView = Type.Object({
   awakeMinutes: Type.Number({ minimum: 0 }),
   onDemandMinutes: Type.Number({ minimum: 0 }),
   monthSpendUsd: Type.Union([Type.Number(), Type.Null()]),
+  /** The cap verdict of the tick that wrote it (the wake-again hysteresis reads 
+ule and locksWake). */
+  rule: Type.Optional(Type.String()),
+  blocksWake: Type.Optional(Type.Boolean()),
+  noOnDemand: Type.Optional(Type.Boolean()),
 });
 export type CapsView = Static<typeof CapsView>;
 
@@ -65,6 +71,7 @@ export const KEYS = {
   interruption: "interruption",
   lastStartError: "last-start-error",
   caps: "caps",
+  awakeLog: "awake-log",
   alertsTest: "alerts-test",
 } as const;
 
