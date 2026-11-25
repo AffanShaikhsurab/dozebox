@@ -12,11 +12,6 @@ export function say(ctx: CommandContext, values: Values, line: string): void {
   if (!isJson(values)) ctx.stdout(line);
 }
 
-/** A debug line on stderr with `--verbose`. */
-export function debug(ctx: CommandContext, values: Values, line: string): void {
-  if (values["verbose"] === true) ctx.stderr(line);
-}
-
 /**
  * Confirms a destructive step: `--yes` answers yes; `--json` without `--yes` is a usage error (nobody can answer);
  * `--dry-run` needs no answer (nothing changes). A "no" throws `refused` naming the step.

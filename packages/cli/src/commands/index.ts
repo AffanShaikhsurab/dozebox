@@ -8,38 +8,47 @@ import { upgrade } from "./upgrade.ts";
 import { doctor } from "./doctor.ts";
 import { bootstrap } from "./bootstrap.ts";
 import { setup } from "./setup.ts";
-import { secrets } from "./secrets.ts";
-import { token } from "./token.ts";
-import { phone } from "./phone.ts";
-import { alerts } from "./alerts.ts";
-import { snapshots } from "./snapshots.ts";
+import { secretsDelete, secretsList, secretsSet } from "./secrets.ts";
+import { tokenRotate, tokenShow } from "./token.ts";
+import { phoneList, phonePair, phoneRevoke } from "./phone.ts";
+import { alertsPath, alertsTest } from "./alerts.ts";
+import { snapshotsCreate, snapshotsDelete, snapshotsList } from "./snapshots.ts";
 import { restore } from "./restore.ts";
 import { destroy } from "./destroy.ts";
-import { volumes } from "./volumes.ts";
+import { volumesList, volumesRetire } from "./volumes.ts";
 import { moveAz } from "./move-az.ts";
 import { rebuild } from "./rebuild.ts";
 import { unfreeze } from "./unfreeze.ts";
 import { drill } from "./drill.ts";
 
 export const COMMANDS: ReadonlyArray<Command> = [
+  bootstrap,
+  setup,
   deploy,
   status,
   wake,
   park,
   upgrade,
   doctor,
-  bootstrap,
-  setup,
-  secrets,
-  token,
-  phone,
-  alerts,
-  snapshots,
+  secretsSet,
+  secretsList,
+  secretsDelete,
+  tokenShow,
+  tokenRotate,
+  phonePair,
+  phoneList,
+  phoneRevoke,
+  alertsTest,
+  alertsPath,
+  snapshotsList,
+  snapshotsCreate,
+  snapshotsDelete,
   restore,
-  destroy,
-  volumes,
+  volumesList,
+  volumesRetire,
   moveAz,
   rebuild,
   unfreeze,
+  destroy,
   drill,
 ];
