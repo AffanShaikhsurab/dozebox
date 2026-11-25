@@ -7,7 +7,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import type { WakeTokenSource } from "../ports/secrets.ts";
 import type { Request } from "./event.ts";
 
-export const TOKEN_HEADER = "x-dozebox-token";
+const TOKEN_HEADER = "x-dozebox-token";
 export const TOKEN_CACHE_MS = 60_000;
 
 const sha256 = (text: string): Buffer => createHash("sha256").update(text, "utf8").digest();
@@ -18,7 +18,7 @@ export function tokenMatches(presented: string, expected: string): boolean {
   return equal && presented.length > 0 && expected.length > 0;
 }
 
-export type AuthOutcome = "ok" | "missing" | "wrong" | "not-configured";
+type AuthOutcome = "ok" | "missing" | "wrong" | "not-configured";
 
 export type TokenCheck = {
   readonly check: (req: Request) => Promise<AuthOutcome>;

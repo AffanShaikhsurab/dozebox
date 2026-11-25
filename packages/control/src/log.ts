@@ -3,14 +3,14 @@
 // read those series), so the function makes no PutMetricData calls. Never log a token, a header value or an SDK
 // message (it can embed ARNs); log error names and codes.
 
-export type LogLevel = "debug" | "info" | "warn" | "error";
-export type LogFields = Readonly<Record<string, string | number | boolean | null | undefined>>;
+type LogLevel = "debug" | "info" | "warn" | "error";
+type LogFields = Readonly<Record<string, string | number | boolean | null | undefined>>;
 
 export type Logger = {
   readonly log: (level: LogLevel, msg: string, fields?: LogFields) => void;
 };
 
-export type MetricName =
+type MetricName =
   | "ReconcileCompleted"
   | "ReconcileSkipped"
   | "WakeAccepted"

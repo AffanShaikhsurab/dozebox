@@ -32,8 +32,6 @@
     "headline": "dozebox stopped with an error",
     "detail": "the data volume did not attach",
     "next": "Wake it to try again.",
-    "actions": [
-      "wake"
-    ]
+    "actions": ["wake"]
   }
 }

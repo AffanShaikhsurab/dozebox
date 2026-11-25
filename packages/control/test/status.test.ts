@@ -112,7 +112,10 @@ describe("ControlStatus golden per public state", () => {
       const res = await w.call("GET", "/v1/status");
       assert.equal(res.statusCode, 200);
       assert.equal(res.headers["content-type"], "application/json");
-      assert.ok(Value.Check(ControlStatus, res.json), [...Value.Errors(ControlStatus, res.json)].map((e) => e.message).join());
+      assert.ok(
+        Value.Check(ControlStatus, res.json),
+        [...Value.Errors(ControlStatus, res.json)].map((e) => e.message).join(),
+      );
       const file = join(GOLDEN, `status-${state}.json`);
       if (process.env["DOZEBOX_UPDATE_GOLDEN"] === "1") writeFileSync(file, `${JSON.stringify(res.json, null, 2)}\n`);
       assert.deepEqual(res.json, JSON.parse(readFileSync(file, "utf8")));
@@ -171,7 +174,10 @@ describe("projectState", () => {
     assert.equal(projectState(facts({ desired: awake, interruption: i })).state, "replacing");
     assert.equal(projectState(facts({ desired: awake, interruption: i, now: i.at + REPLACING_MS })).state, "launching");
     assert.equal(projectState(facts({ desired: awake, interruption: { ...i, instanceId: "i-9" } })).state, "launching");
-    assert.equal(projectState(facts({ desired: awake, interruption: { ...i, at: awake.since - 1 } })).state, "launching");
+    assert.equal(
+      projectState(facts({ desired: awake, interruption: { ...i, at: awake.since - 1 } })).state,
+      "launching",
+    );
   });
   test("a capacity refusal after the wake, or a group with no machine for 3 minutes, is waiting-capacity", () => {
     const e = { at: T0 - 10_000, kind: "capacity" as const };

@@ -34,7 +34,7 @@ export const DesiredSchema = Type.Object({
 export const WakeLedger = Type.Object({ acceptedAt: Type.Array(Ms) });
 export type WakeLedger = Static<typeof WakeLedger>;
 
-export const WakeBreakerSchema = Type.Object({
+const WakeBreakerSchema = Type.Object({
   failuresInRow: Type.Integer({ minimum: 0 }),
   openedAt: Type.Union([Ms, Type.Null()]),
   threshold: Type.Integer({ minimum: 1 }),
@@ -75,7 +75,12 @@ export async function readKey<S extends TSchema>(state: StateTable, key: string,
 }
 
 /** A fenced write that is refused because a newer value is stored: "older", not an error. */
-export async function putNewest(state: StateTable, key: string, value: unknown, order: number): Promise<"written" | "older"> {
+export async function putNewest(
+  state: StateTable,
+  key: string,
+  value: unknown,
+  order: number,
+): Promise<"written" | "older"> {
   try {
     await state.putFenced(key, value, order);
     return "written";

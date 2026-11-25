@@ -29,7 +29,7 @@ export type AwsPorts = {
 };
 
 /** The account id from an ARN such as the alert topic's (`arn:aws:sns:<region>:<account>:<name>`). */
-export function accountOf(arn: string): string {
+function accountOf(arn: string): string {
   const account = arn.split(":")[4] ?? "";
   if (!/^\d{12}$/.test(account)) throw new Error("alertTopicArn has no account id");
   return account;

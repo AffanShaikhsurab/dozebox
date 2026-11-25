@@ -103,7 +103,7 @@ const ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect 
 
 const hash = (text: string): string => `'sha256-${createHash("sha256").update(text).digest("base64")}'`;
 
-export const PAGE_CSP = [
+const PAGE_CSP = [
   "default-src 'none'",
   `script-src ${hash(SCRIPT)}`,
   `style-src ${hash(STYLE)}`,

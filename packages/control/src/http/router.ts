@@ -16,7 +16,7 @@ import { readOnly, type Route } from "./types.ts";
 
 type Entry = { readonly method: "GET" | "POST"; readonly run: Route; readonly name: string };
 
-export const ROUTES: Readonly<Record<string, Entry>> = {
+const ROUTES: Readonly<Record<string, Entry>> = {
   "/v1/status": { method: "GET", run: statusRoute, name: "status" },
   "/v1/wake": { method: "POST", run: wakeRoute, name: "wake" },
   "/v1/park": { method: "POST", run: parkRoute, name: "park" },
@@ -53,7 +53,12 @@ export async function route(deps: Deps, event: FunctionUrlEvent): Promise<Functi
     });
     result = errorResponse("internal", "The control function failed; try again.");
   }
-  deps.log.log("info", "request", { route: name, method: req.method, status: result.statusCode, ms: deps.clock.now() - started });
+  deps.log.log("info", "request", {
+    route: name,
+    method: req.method,
+    status: result.statusCode,
+    ms: deps.clock.now() - started,
+  });
   return withCors(result, cors);
 }
 
@@ -84,7 +89,9 @@ async function dispatch(deps: Deps, req: ReturnType<typeof toRequest>, named: (n
   }
   named(entry.name);
   if (entry.method !== req.method) {
-    return errorResponse("method_not_allowed", `Use ${entry.method}.`, { headers: { allow: `${entry.method}, OPTIONS` } });
+    return errorResponse("method_not_allowed", `Use ${entry.method}.`, {
+      headers: { allow: `${entry.method}, OPTIONS` },
+    });
   }
   return entry.run(readOnly(deps), req);
 }

@@ -4,7 +4,7 @@
 import { CONTROL_ERROR_STATUS, type ControlErrorBody, type ControlErrorCode } from "@dozebox/protocol/control";
 import type { FunctionUrlResult } from "./event.ts";
 
-export const BASE_HEADERS: Readonly<Record<string, string>> = {
+const BASE_HEADERS: Readonly<Record<string, string>> = {
   "cache-control": "no-store",
   "x-content-type-options": "nosniff",
   "referrer-policy": "no-referrer",
@@ -28,7 +28,11 @@ export function respond(
   return { statusCode, headers: { ...BASE_HEADERS, ...headers }, body };
 }
 
-export function json(statusCode: number, value: unknown, headers: Readonly<Record<string, string>> = {}): FunctionUrlResult {
+export function json(
+  statusCode: number,
+  value: unknown,
+  headers: Readonly<Record<string, string>> = {},
+): FunctionUrlResult {
   return respond(statusCode, JSON.stringify(value), { "content-type": "application/json", ...headers });
 }
 

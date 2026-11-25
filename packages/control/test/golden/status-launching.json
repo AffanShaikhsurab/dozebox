@@ -22,8 +22,6 @@
     "headline": "dozebox is waking",
     "detail": "",
     "next": "",
-    "actions": [
-      "park"
-    ]
+    "actions": ["park"]
   }
 }

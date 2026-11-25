@@ -22,8 +22,6 @@
     "headline": "Waiting for cloud capacity",
     "detail": "",
     "next": "",
-    "actions": [
-      "park"
-    ]
+    "actions": ["park"]
   }
 }

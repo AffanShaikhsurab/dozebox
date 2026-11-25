@@ -65,7 +65,10 @@ describe("auth table", () => {
     const w = makeWorld({ config: { http: { tokenHeaders: [ALIAS] } } });
     const res = await w.call("OPTIONS", "/v1/wake", { token: null });
     assert.equal(res.statusCode, 204);
-    assert.equal(res.headers["access-control-allow-headers"], `content-type, idempotency-key, x-dozebox-token, ${ALIAS}`);
+    assert.equal(
+      res.headers["access-control-allow-headers"],
+      `content-type, idempotency-key, x-dozebox-token, ${ALIAS}`,
+    );
   });
 });
 
