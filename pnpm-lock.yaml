@@ -264,6 +264,10 @@ importers:
       '@aws-sdk/credential-provider-node':
         specifier: 3.972.98
         version: 3.972.98
+      '@smithy/signature-v4':
+        specifier: 5.7.5
+        version: 5.7.5
+    devDependencies:
       '@dozebox/client':
         specifier: workspace:*
         version: link:../client
@@ -273,16 +277,15 @@ importers:
       '@dozebox/protocol':
         specifier: workspace:*
         version: link:../protocol
-      '@smithy/signature-v4':
-        specifier: 5.7.5
-        version: 5.7.5
-      typebox:
-        specifier: 1.4.7
-        version: 1.4.7
-    devDependencies:
       '@dozebox/testkit':
         specifier: workspace:*
         version: link:../testkit
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
+      typebox:
+        specifier: 1.4.7
+        version: 1.4.7
 
   packages/client:
     dependencies:

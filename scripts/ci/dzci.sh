@@ -67,6 +67,7 @@ node_jobs() {
   job sim nice -n 10 pnpm sim --seeds 2000
   job sim-judge nice -n 10 pnpm sim:judge
   job docs pnpm docs:check
+  job licenses pnpm check:licenses
 }
 
 job terraform terraform_job

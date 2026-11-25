@@ -1,26 +1,33 @@
-# Release pipeline (part 7 §7.6). Until changesets and the artifact builds land (WP-Z2), it can cut a
-# pre-release of the agent artifact from a manual run, which phase 3 needs.
+# Release pipeline (part 7 §7.6, WP-Z2). A `v*.*.*` tag (or a manual run) builds the same artifacts as
+# scripts/release/local.sh: agent tarballs, the control zip, the npm packages and SHA256SUMS. Then it attests every
+# artifact, creates the GitHub release and publishes the npm packages with provenance through npm trusted publishing
+# (OIDC, no npm token). A version with a `-` suffix is a prerelease on the `next` dist-tag.
 name: release
 on:
+  push:
+    tags: ["v*.*.*"]
   workflow_dispatch:
     inputs:
-      mode:
-        description: "prerelease or release"
-        required: true
-        default: prerelease
-        type: choice
-        options: [prerelease, release]
       version:
-        description: "Version without the v, for example 0.1.0-rc.1"
+        description: "Version without the v, for example 0.9.0-rc.1"
         required: true
         type: string
+      publish:
+        description: "Publish to npm (off: build, attest and release only)"
+        required: true
+        default: false
+        type: boolean
 permissions:
   contents: write
   id-token: write
   attestations: write
+concurrency:
+  group: release
+  cancel-in-progress: false
 jobs:
   release:
     runs-on: ubuntu-24.04
+    environment: release
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -28,19 +35,41 @@ jobs:
         with:
           node-version: 26
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm check
-      - name: Build artifacts
-        run: pnpm build
+          registry-url: https://registry.npmjs.org
+      - name: Version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then v="${GITHUB_REF_NAME#v}"; else v="$INPUT_VERSION"; fi
+          if ! [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then echo "bad version: $v"; exit 1; fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          case "$v" in *-*) echo "tag=next" >> "$GITHUB_OUTPUT" ;; *) echo "tag=latest" >> "$GITHUB_OUTPUT" ;; esac
+      - name: Build (install, check, licenses, artifacts, SHA256SUMS, npm dry run)
+        run: bash scripts/release/local.sh --version "${{ steps.version.outputs.version }}" --out dist/release
+      - name: Attest the artifacts
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: |
+            dist/release/*.tar.gz
+            dist/release/*.zip
+            dist/release/npm/*.tgz
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ inputs.version }}
-          MODE: ${{ inputs.mode }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          case "$VERSION" in
-            *[!0-9A-Za-z.-]*) echo "bad version"; exit 1 ;;
-          esac
           flag=""
-          if [ "$MODE" = "prerelease" ]; then flag="--prerelease"; fi
-          gh release create "v$VERSION" $flag --title "v$VERSION" --notes "Built from ${GITHUB_SHA}."
+          if [ "$TAG" = "next" ]; then flag="--prerelease"; fi
+          gh release create "v$VERSION" $flag --title "v$VERSION" --notes "Built from ${GITHUB_SHA}." \
+            dist/release/*.tar.gz dist/release/*.zip dist/release/npm/*.tgz dist/release/SHA256SUMS
+      - name: Publish to npm with provenance
+        if: github.event_name == 'push' || inputs.publish
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          for f in dozebox-protocol dozebox-client dozebox; do
+            npm publish --provenance --access public --tag "$TAG" "dist/release/npm/$f-$VERSION.tgz"
+          done
