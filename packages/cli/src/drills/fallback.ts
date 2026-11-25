@@ -169,7 +169,7 @@ export function makeFallbackDrill(deliver: Deliver): Drill {
         id: "wake-on-spot",
         deadlineMs: 15 * MINUTE,
         run: async (ctx, signal) => {
-          const s = expectLifecycle(servingOf(await wakeServing(ctx, signal)), "spot");
+          const s = expectLifecycle(servingOf(await wakeServing(ctx, signal, deliver)), "spot");
           if (s.id !== text(ctx, "fallback.persistent")) {
             throw new DozeboxCliError(
               "problem",

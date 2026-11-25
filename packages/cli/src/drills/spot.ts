@@ -32,6 +32,18 @@ async function requestState(ctx: DrillContext, instanceId: string, signal: Abort
   return str(r["State"]) ?? "none";
 }
 
+/**
+ * Waits until the Spot request of the persistent instance has finished stopping. EC2 keeps it "active" for about four
+ * minutes after a stop, and the control function sends a wake that arrives while it is still active (and was stopped
+ * more than 3 minutes ago) to the On-Demand fallback, so a drill that wakes straight after a stop never reaches Spot.
+ */
+async function waitRequestSettled(ctx: DrillContext, signal: AbortSignal): Promise<void> {
+  await waitUntil(ctx, signal, 10 * SECOND, async () => {
+    const box = (await boxInstances(ctx, signal)).find((i) => i.group === null);
+    return box === undefined || (await requestState(ctx, box.id, signal)) !== "active" ? true : null;
+  });
+}
+
 export const spotDrill: Drill = {
   name: "spot",
   // One short Spot run (t4g.small about $0.006 an hour for about 20 minutes) and a second one at the end.
@@ -39,8 +51,9 @@ export const spotDrill: Drill = {
   steps: [
     {
       id: "wake",
-      deadlineMs: 15 * MINUTE,
+      deadlineMs: 20 * MINUTE,
       run: async (ctx, signal) => {
+        await waitRequestSettled(ctx, signal);
         const s = expectLifecycle(servingOf(await wakeServing(ctx, signal)), "spot");
         ctx.facts.set("spot.instance", s.id);
         ctx.facts.set("spot.type", s.type);
@@ -107,8 +120,9 @@ export const spotDrill: Drill = {
     },
     {
       id: "wake-again",
-      deadlineMs: 15 * MINUTE,
+      deadlineMs: 20 * MINUTE,
       run: async (ctx, signal) => {
+        await waitRequestSettled(ctx, signal);
         const s = expectLifecycle(servingOf(await wakeServing(ctx, signal)), "spot");
         if (s.id !== fact(ctx, "spot.instance")) {
           throw new DozeboxCliError(
