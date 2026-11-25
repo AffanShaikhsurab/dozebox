@@ -75,6 +75,7 @@ describe("cloud-init.yaml.tftpl", () => {
       DOZEBOX_PREFIX: "${name_prefix}",
       DOZEBOX_REGION: "${region}",
       DOZEBOX_CONFIG_PARAMETER: "${config_parameter}",
+      DOZEBOX_AGENT_VERSION: "${agent_version}",
       DOZEBOX_STATE_DIR: "/data/dozebox",
       AWS_REGION: "${region}",
       AWS_DEFAULT_REGION: "${region}",

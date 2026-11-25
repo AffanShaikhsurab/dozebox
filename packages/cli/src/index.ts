@@ -23,7 +23,7 @@ export {
   spotDrill,
 } from "./drills/catalog.ts";
 export { budgetGate, DRILL_BUDGET_SHARE, DrillReport, estimateHourlyUsd, runDrill } from "./drills/run.ts";
-export type { Drill, DrillContext, DrillStep } from "./drills/types.ts";
+export type { CliRun, Drill, DrillContext, DrillOptions, DrillStep } from "./drills/types.ts";
 export { dispatch, GLOBAL_OPTIONS, helpText } from "./main.ts";
 export type { AwsOps, CliVolumeView, DoctorFacts, EmailSubscription, SnapshotView } from "./ports/aws.ts";
 export type { AwsCli } from "./ports/awscli.ts";
