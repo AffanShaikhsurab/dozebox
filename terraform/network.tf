@@ -73,17 +73,21 @@ resource "aws_security_group" "box" {
   description = "Dozebox box ${var.box_id}: no inbound rule unless ssh_cidrs is set; all egress."
   vpc_id      = local.vpc_id
   tags        = merge(local.tags, { Name = local.name })
+
+  # Inline, so the rule is created by AuthorizeSecurityGroupEgress without tags. A separate (taggable)
+  # aws_vpc_security_group_egress_rule gets the provider's default_tags, and a deploy principal that may only tag on
+  # create for the box's own resources (the test account's) is refused tagging the security-group-rule.
+  egress {
+    description = "All outbound: payload providers, package mirrors, AWS APIs"
+    protocol    = "-1"
+    from_port   = 0
+    to_port     = 0
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   lifecycle {
     create_before_destroy = true
   }
-}
-
-resource "aws_vpc_security_group_egress_rule" "all" {
-  security_group_id = aws_security_group.box.id
-  description       = "All outbound: payload providers, package mirrors, AWS APIs"
-  ip_protocol       = "-1"
-  cidr_ipv4         = "0.0.0.0/0"
-  tags              = local.tags
 }
 
 resource "aws_vpc_security_group_ingress_rule" "ssh" {
