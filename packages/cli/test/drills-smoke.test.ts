@@ -197,7 +197,10 @@ describe("park by user", () => {
     const words = await parkByUser(ctx, new AbortController().signal);
     assert.equal(words["parkedBecause"], "user");
     const sent = deps.awsCli.calls.find((c) => c[1] === "send-command");
-    assert.match(sent?.[sent.indexOf("--parameters") + 1] ?? "", /--unix-socket \/run\/dozebox\/admin\.sock -X POST .*"reason":"user","force":true.*\/v1\/sleep/);
+    assert.match(
+      sent?.[sent.indexOf("--parameters") + 1] ?? "",
+      /--unix-socket \/run\/dozebox\/admin\.sock -X POST .*reason\\?":\\?"user\\?",\\?"force\\?":true.*\/v1\/sleep/,
+    );
     assert.equal(deps.control.calls.filter((c) => c.op === "admin").length, 0);
   });
 });
