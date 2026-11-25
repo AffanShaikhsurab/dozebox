@@ -51,8 +51,8 @@ The agent parks the box when nothing has kept it awake for `idle_minutes`. Three
 The idle clock starts at the last of these, or at the moment the payload began serving.
 
 A box with an open hold but no progress for `no_progress_park_minutes` parks anyway, and the control function alerts.
-The agent is planned: today these rules exist as tested decisions in `@dozebox/core` and the simulator, and the box
-runs the test agent that powers off.
+The agent (`dozeboxd`) applies these rules. Its release artifact is planned, so a stack deployed today runs the test
+agent that powers off.
 
 ## Public surfaces
 
