@@ -20,6 +20,13 @@ leftovers="[]"
 # Destroy, then list what still carries this run's tag. The tagging API lists terminated instances, deleted volumes
 # and cancelled Spot requests for a while, so those are checked with describe calls.
 teardown() {
+  if [ "$ok" != true ] && [ -n "${fn:-}" ]; then
+    # Why it failed, before the log group goes: the control function's warnings and errors, and its state items.
+    aws logs filter-log-events --log-group-name "/aws/lambda/$fn" --start-time "$(( started * 1000 ))" \
+      --filter-pattern '?warn ?error ?Error ?Task' --query 'events[-40:].message' --output text 2>&1 | tail -c 6000 >&2 || true
+    aws dynamodb scan --table-name "$(tf output -raw state_table_name 2> /dev/null)" --query 'Items[].[pk.S]' \
+      --output text 2>&1 | tr '\n' ' ' >&2 || true
+  fi
   [ -n "$param" ] && aws ssm delete-parameter --name "$param" > /dev/null 2>&1 || true
   if ! tf destroy -auto-approve "${vars[@]}" > /tmp/"$run"-destroy.log 2>&1; then
     # The test user may not delete schedule groups (STATUS.md): drop it from state and destroy the rest.
@@ -34,6 +41,7 @@ teardown() {
         [ "$(aws ec2 describe-instances --instance-ids "${arn##*/}" --query 'Reservations[0].Instances[0].State.Name' \
           --output text 2> /dev/null || echo terminated)" = terminated ] && continue ;;
       *:volume/*) aws ec2 describe-volumes --volume-ids "${arn##*/}" > /dev/null 2>&1 || continue ;;
+      *:network-interface/*) aws ec2 describe-network-interfaces --network-interface-ids "${arn##*/}" > /dev/null 2>&1 || continue ;;
       *:spot-instances-request/*)
         case "$(aws ec2 describe-spot-instance-requests --spot-instance-request-ids "${arn##*/}" \
           --query 'SpotInstanceRequests[0].State' --output text 2> /dev/null || echo cancelled)" in
@@ -54,6 +62,7 @@ pnpm --filter @dozebox/control build > /dev/null
 tf init -input=false > /dev/null
 tf apply -auto-approve "${vars[@]}" > /tmp/"$run"-apply.log
 id="$(tf output -raw persistent_instance_id)"
+fn="$(tf output -raw control_function_name)"
 url="$(tf output -raw control_url)"; url="${url%/}"
 
 param="$(tf output -raw wake_token_parameter)"
