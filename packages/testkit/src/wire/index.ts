@@ -1,9 +1,18 @@
 // Wire tests run the adapters against the local AWS emulator (Floci, `test/emulator/compose.yml`). This module picks
 // the endpoint, refuses anything that is not loopback, and hands out fake keys, so a wire test cannot reach a real
 // account. It imports no SDK: the tests build their clients from `target.config`.
+import { awsFault, stackOf } from "./stub.ts";
 
+export { awsFault, awsFixture, OFFLINE_CONFIG, stubSdk, type SdkStub, type SentCall, type StubReply } from "./stub.ts";
+export {
+  offlineConfig,
+  sdkError,
+  stubHandlers,
+  type HandlerStub,
+  type SdkCall,
+  type SdkHandler,
+} from "./handlerStub.ts";
 export { ssmMemory, type SsmMemory, type SsmParameter } from "./ssmMemory.ts";
-export { offlineConfig, sdkError, stubSdk, type SdkCall, type SdkHandler, type SdkStub } from "./stub.ts";
 
 export type WireConfig = {
   readonly endpoint: string;
@@ -25,9 +34,12 @@ const LOOPBACK = /^http:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?\/?$/;
 export const wireRequired = (env: NodeJS.ProcessEnv = process.env): boolean =>
   env["DOZEBOX_WIRE"] === "required" || Boolean(env["CI"]);
 
-/** The emulator endpoint from `DOZEBOX_WIRE_ENDPOINT`, default http://127.0.0.1:4566. Throws on a non-loopback URL. */
+/**
+ * The emulator endpoint from `DOZEBOX_WIRE_ENDPOINT` (or `DOZEBOX_EMULATOR_URL`), default http://127.0.0.1:4566.
+ * Throws on a non-loopback URL.
+ */
 export function wireEndpoint(env: NodeJS.ProcessEnv = process.env): string {
-  const endpoint = env["DOZEBOX_WIRE_ENDPOINT"] ?? DEFAULT_ENDPOINT;
+  const endpoint = env["DOZEBOX_WIRE_ENDPOINT"] ?? env["DOZEBOX_EMULATOR_URL"] ?? DEFAULT_ENDPOINT;
   if (!LOOPBACK.test(endpoint)) {
     throw new Error(`DOZEBOX_WIRE_ENDPOINT=${endpoint}: wire tests only talk to an emulator on loopback`);
   }
@@ -46,8 +58,9 @@ export async function resolveWire(env: NodeJS.ProcessEnv = process.env): Promise
     credentials: { accessKeyId: "test", secretAccessKey: "test" },
     maxAttempts: 1,
   };
+  // Any HTTP answer means something listens; the suites themselves prove it is the emulator.
   const up = await fetch(`${endpoint}/_localstack/health`, { signal: AbortSignal.timeout(2_000) }).then(
-    (r) => r.ok,
+    () => true,
     () => false,
   );
   if (up) return { config, skip: false };
@@ -71,15 +84,6 @@ export async function eventually(
   }
 }
 
-type Handler = (args: unknown) => Promise<unknown>;
-type Stack = {
-  readonly add: (
-    middleware: (next: Handler, context: { readonly commandName?: string }) => Handler,
-    options: { readonly step: "initialize"; readonly name: string },
-  ) => void;
-};
-const stackOf = (client: object): Stack => (client as { readonly middlewareStack: Stack }).middlewareStack;
-
 /**
  * One-shot faults for an SDK v3 client: the next send of `command` (such as "StartInstancesCommand") throws an
  * error shaped like the SDK's service exceptions, before anything goes on the wire. Proves the adapter's mapping
@@ -91,11 +95,7 @@ export function faultInjector(client: object): (command: string, name: string, s
     (next, context) => async (args) => {
       const fault = queued.get(context.commandName ?? "")?.shift();
       if (fault) {
-        throw Object.assign(new Error(`injected ${fault.name}`), {
-          name: fault.name,
-          $fault: fault.status >= 500 ? "server" : "client",
-          $metadata: { httpStatusCode: fault.status },
-        });
+        throw awsFault(fault.name, fault.status, `injected ${fault.name}`);
       }
       return next(args);
     },

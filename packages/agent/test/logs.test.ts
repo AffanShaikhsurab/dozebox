@@ -3,7 +3,7 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { CloudWatchLogsClient } from "@aws-sdk/client-cloudwatch-logs";
 import { rejectsWith } from "@dozebox/testkit/contracts";
-import { offlineConfig, sdkError, stubSdk } from "@dozebox/testkit/wire";
+import { offlineConfig, sdkError, stubHandlers } from "@dozebox/testkit/wire";
 import { acceptedCount, makeAwsLogTransport } from "../src/adapters/aws/logs.ts";
 
 type Sent = { readonly timestamp: number; readonly message: string };
@@ -11,7 +11,7 @@ const GROUP = "/dozebox/box-1/box";
 
 function setup(opts: { readonly streams?: string[] } = {}) {
   const logs = new CloudWatchLogsClient(offlineConfig);
-  const stub = stubSdk(logs);
+  const stub = stubHandlers(logs);
   const streams = new Map<string, Sent[]>((opts.streams ?? []).map((s) => [s, []]));
   stub.on("PutLogEventsCommand", (input) => {
     const list = streams.get(String(input["logStreamName"]));

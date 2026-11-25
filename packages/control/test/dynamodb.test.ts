@@ -4,7 +4,7 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { DynamoDBClient, type AttributeValue } from "@aws-sdk/client-dynamodb";
 import { rejectsWith, stateTableContract } from "@dozebox/testkit/contracts";
-import { offlineConfig, sdkError, stubSdk } from "@dozebox/testkit/wire";
+import { offlineConfig, sdkError, stubHandlers } from "@dozebox/testkit/wire";
 import { makeAwsStateTable } from "../src/adapters/aws/dynamodb.ts";
 
 type Item = Record<string, AttributeValue>;
@@ -22,7 +22,7 @@ const failed = () => sdkError("ConditionalCheckFailedException", 400, "The condi
 function setup() {
   let clock = 1_700_000_000_000;
   const db = new DynamoDBClient(offlineConfig);
-  const stub = stubSdk(db);
+  const stub = stubHandlers(db);
   const items = new Map<string, Item>();
   stub.on("UpdateItemCommand", async (input) => {
     await new Promise((r) => setImmediate(r));

@@ -2,6 +2,6 @@ packages:
   - packages/*
 minimumReleaseAgeExclude:
   - "@types/node@26.6.7"
-# testkit's contract suites import the agent and control ports, and those packages test with testkit (a dev-only
-# cycle). Their `test` scripts do not depend on each other, so run them in any order.
+# testkit runs the agent and control ports through its contract suites, and both use testkit in their tests: a
+# deliberate devDependency cycle. Recursive scripts run in any order.
 ignoreWorkspaceCycles: true
