@@ -24,6 +24,16 @@
       "@dozebox/source": "./src/records/index.ts",
       "types": "./dist/records/index.d.ts",
       "default": "./dist/records/index.js"
+    },
+    "./idle": {
+      "@dozebox/source": "./src/idle/index.ts",
+      "types": "./dist/idle/index.d.ts",
+      "default": "./dist/idle/index.js"
+    },
+    "./health": {
+      "@dozebox/source": "./src/health/index.ts",
+      "types": "./dist/health/index.d.ts",
+      "default": "./dist/health/index.js"
     }
   },
   "scripts": {
