@@ -76,17 +76,20 @@ scan "12-digit numbers (account ids) except the documented fakes" -E '\b[0-9]{12
 scan "personal names and e-mail" -iE 'maintainer|[A-Za-z0-9._%+-]*@(gmail|outlook)\.com'
 scan "resource ids i-/vol-/snap- except the documented fakes" -E '\b(i|vol|snap)-[0-9a-f]{17}\b' ":($fakes)\$"
 
-if [ -n "$private" ]; then
-  k=0
+# expressions <label> <file>: every filter-repo expression in the file must be gone (scrub.sh rewrites them all).
+expressions() {
+  local k=0 line pat
   while IFS= read -r line || [ -n "$line" ]; do
     case "$line" in '' | '#'*) continue ;; esac
     k=$((k + 1))
     case "$line" in
-      regex:*) pat="${line#regex:}"; scan "private expression #$k (regex)" -P "${pat%%==>*}" ;;
-      *) scan "private expression #$k (literal)" -F "${line%%==>*}" ;;
+      regex:*) pat="${line#regex:}"; scan "$1 expression #$k (regex)" -P "${pat%%==>*}" ;;
+      *) scan "$1 expression #$k (literal)" -F "${line%%==>*}" ;;
     esac
-  done < "$private"
-fi
+  done < "$2"
+}
+[ -f "$repo/scripts/history/scrub-expressions.txt" ] && expressions public "$repo/scripts/history/scrub-expressions.txt"
+[ -n "$private" ] && expressions private "$private"
 
 if [ -d "$repo/legacy" ]; then echo "HIT   legacy/ still exists"; echo "HIT   legacy/ exists at HEAD" >> "$report"; fail=1
 else echo "ok    legacy/ removed"; fi
