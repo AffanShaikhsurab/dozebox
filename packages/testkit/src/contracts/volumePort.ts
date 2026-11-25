@@ -17,7 +17,9 @@ type Seeds = {
 export type VolumeHarness = Seeds & {
   readonly volumes: Volumes;
   /** A snapshot to create volumes from (on targets without snapshots, any id the target accepts). */
-  readonly seedSnapshot: () => Promise<string>;
+  readonly seedSnapshot: (opts?: { readonly boxId?: string; readonly startedAt?: number }) => Promise<string>;
+  /** A volume of `boxId` (`<prefix>:active` as `active`, default true) attached to a running machine. */
+  readonly seedAttached: (boxId: string, opts?: { readonly active?: boolean }) => Promise<{ readonly volumeId: string; readonly machineId: string }>;
   readonly inject: (op: "describe" | "create", name: string, status: number) => void;
 };
 
@@ -112,6 +114,84 @@ export function volumePortContract(name: string, make: () => Promise<VolumeHarne
         "aws_not_found",
         false,
       );
+    });
+
+    test(
+      "detach of an attached volume releases it; detaching again, or from another machine, is a no-op",
+      gap(opts.gaps, "attached"),
+      async () => {
+        const h = await make();
+        const box = fresh("box");
+        const { volumeId, machineId } = await h.seedAttached(box);
+        await h.volumes.detach(volumeId, machineId, fresh("tok"));
+        const after = (await h.volumes.describeBox(box)).find((v) => v.id === volumeId);
+        assert.ok(after);
+        assert.ok(
+          after.attachments.every((a) => a.state === "detaching" || a.state === "detached"),
+          JSON.stringify(after.attachments),
+        );
+        await h.volumes.detach(volumeId, machineId, fresh("tok"));
+        await h.volumes.detach(volumeId, "i-0000000000000dead", fresh("tok"));
+      },
+    );
+
+    test("detach of an unattached volume is a no-op; of a missing one -> aws_not_found", async () => {
+      const h = await make();
+      const vol = await h.seedVolume(fresh("box"), false);
+      await h.volumes.detach(vol, "i-0000000000000dead", fresh("tok"));
+      await rejectsWith(
+        h.volumes.detach("vol-0000000000000dead", "i-0000000000000dead", fresh("tok")),
+        "aws_not_found",
+        false,
+      );
+    });
+
+    test(
+      "newestSnapshot returns the newest snapshot of the box, null for a box without one",
+      gap(opts.gaps, "snapshots"),
+      async () => {
+        const h = await make();
+        const box = fresh("box");
+        const now = Date.now();
+        await h.seedSnapshot({ boxId: box, startedAt: now - 60_000 });
+        const newest = await h.seedSnapshot({ boxId: box, startedAt: now - 1_000 });
+        await h.seedSnapshot({ boxId: box, startedAt: now - 120_000 });
+        await h.seedSnapshot({ boxId: fresh("other"), startedAt: now });
+        const found = await h.volumes.newestSnapshot(box);
+        assert.equal(found?.id, newest);
+        assert.ok((found?.sizeGiB ?? 0) > 0);
+        assert.equal(await h.volumes.newestSnapshot(fresh("nobox")), null);
+      },
+    );
+
+    test("deleteVolume removes an inactive volume; again, or a missing id, succeeds", async () => {
+      const h = await make();
+      const box = fresh("box");
+      const keep = await h.seedVolume(box, true);
+      const scratch = await h.seedVolume(box, false);
+      await h.volumes.deleteVolume(scratch, fresh("tok"));
+      assert.deepEqual(
+        (await h.volumes.describeBox(box)).map((v) => v.id),
+        [keep],
+      );
+      await h.volumes.deleteVolume(scratch, fresh("tok"));
+      await h.volumes.deleteVolume("vol-0000000000000dead", fresh("tok"));
+    });
+
+    test("deleteVolume refuses the active volume -> invalid_input", async () => {
+      const h = await make();
+      const box = fresh("box");
+      const active = await h.seedVolume(box, true);
+      await rejectsWith(h.volumes.deleteVolume(active, fresh("tok")), "invalid_input", false);
+      assert.equal((await h.volumes.describeBox(box)).length, 1);
+    });
+
+    test("deleteVolume refuses an attached volume -> aws_conflict", gap(opts.gaps, "attached"), async () => {
+      const h = await make();
+      const box = fresh("box");
+      const { volumeId } = await h.seedAttached(box, { active: false });
+      await rejectsWith(h.volumes.deleteVolume(volumeId, fresh("tok")), "aws_conflict", true);
+      assert.equal((await h.volumes.describeBox(box)).length, 1);
     });
 
     test("describe throttled -> aws_throttled; create over the volume quota -> aws_limit", async () => {
