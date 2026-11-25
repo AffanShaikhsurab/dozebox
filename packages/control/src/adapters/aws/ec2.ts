@@ -5,29 +5,40 @@
 // DryRun; SetDesiredCapacity takes AutoScalingGroupName, DesiredCapacity and HonorCooldown. None accepts a client
 // token, so the port's `token` is not sent: idempotency comes from the reconciler re-reading before it acts, and both
 // calls are safe to repeat (start of a running machine and stop of a stopped one succeed). RunInstances and
-// CreateVolume do take a ClientToken; CreateVolume's is used in ebs.ts.
+// CreateVolume do take a ClientToken; CreateVolume's is used in ebs.ts (the module, not this adapter, runs instances).
+//
+// Eventual consistency: describes filter by tag (a filter never fails on an id EC2 does not know yet), a Spot request
+// that is not visible yet reads as `none`, and the reconciler re-reads before every destructive step (part 9 R1).
 import {
   DescribeInstancesCommand,
   DescribeSpotInstanceRequestsCommand,
   StartInstancesCommand,
   StopInstancesCommand,
-  type EC2Client,
+  EC2Client,
+  type EC2ClientConfig,
   type Instance,
   type SpotInstanceRequest,
 } from "@aws-sdk/client-ec2";
 import { fromAws, RunnerError } from "@dozebox/core/errors";
 import type { Compute, MachineState, MachineView } from "../../ports/compute.ts";
 
-const STATES: ReadonlySet<string> = new Set(["pending", "running", "stopping", "stopped", "shutting-down", "terminated"]);
+const STATES: ReadonlySet<string> = new Set([
+  "pending",
+  "running",
+  "stopping",
+  "stopped",
+  "shutting-down",
+  "terminated",
+]);
 const LIVE: ReadonlySet<string> = new Set(["pending", "running", "stopping", "stopped"]);
 const STOPPED_LIKE: ReadonlySet<string> = new Set(["stopping", "stopped", "shutting-down", "terminated"]);
 
 /**
  * The time in StateTransitionReason, such as "User initiated (2026-11-24 21:00:05 GMT)", as epoch ms. AWS gives it
- * to the second. Null when the text has no time.
+ * to the second, in GMT; emulators may write UTC. Null when the text has no time.
  */
 export function parseTransitionTime(reason: string | undefined): number | null {
-  const m = /\((\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) GMT\)/.exec(reason ?? "");
+  const m = /\((\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) (?:GMT|UTC)\)/.exec(reason ?? "");
   if (!m) return null;
   const ms = Date.parse(`${m[1]}T${m[2]}Z`);
   return Number.isFinite(ms) ? ms : null;
@@ -73,9 +84,14 @@ async function spotRequest(ec2: EC2Client, id: string | undefined): Promise<Spot
   }
 }
 
+/** One EC2 client for the adapters that share it (machines, group instances, volumes). */
+export const ec2Client = (cfg: EC2ClientConfig): EC2Client => new EC2Client(cfg);
+
 export type AwsMachinesDeps = { readonly ec2: EC2Client; readonly prefix?: string };
 
-export function makeAwsMachines(deps: AwsMachinesDeps): Pick<Compute, "describePersistent" | "startPersistent" | "stopPersistent"> {
+export function makeAwsMachines(
+  deps: AwsMachinesDeps,
+): Pick<Compute, "describePersistent" | "startPersistent" | "stopPersistent"> {
   const { ec2 } = deps;
   const prefix = deps.prefix ?? "dozebox";
   return {

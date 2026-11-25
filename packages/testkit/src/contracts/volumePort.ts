@@ -41,10 +41,7 @@ export function volumePortContract(name: string, make: () => Promise<VolumeHarne
       const b = await h.seedVolume(box, false);
       await h.seedVolume(fresh("other"), true);
       const vs = await h.volumes.describeBox(box);
-      assert.deepEqual(
-        vs.map((v) => `${v.id}=${v.active}`).toSorted(),
-        [`${a}=true`, `${b}=false`].toSorted(),
-      );
+      assert.deepEqual(vs.map((v) => `${v.id}=${v.active}`).toSorted(), [`${a}=true`, `${b}=false`].toSorted());
       for (const v of vs) {
         assert.equal(v.zone, h.zone);
         assert.ok(v.sizeGiB > 0);
@@ -63,7 +60,7 @@ export function volumePortContract(name: string, make: () => Promise<VolumeHarne
       assert.deepEqual([by.get(a), by.get(b)], [false, true]);
     });
 
-    test("moveActive with no previous holder only tags the new volume", async () => {
+    test("moveActive with no previous holder only tags the new volume", gap(opts.gaps, "moveActive"), async () => {
       const h = await make();
       const box = fresh("box");
       const b = await h.seedVolume(box, false);
@@ -81,7 +78,12 @@ export function volumePortContract(name: string, make: () => Promise<VolumeHarne
       const h = await make();
       const box = fresh("box");
       const snap = await h.seedSnapshot();
-      const id = await h.volumes.createFromSnapshot({ boxId: box, snapshotId: snap, zone: h.zone, token: fresh("tok") });
+      const id = await h.volumes.createFromSnapshot({
+        boxId: box,
+        snapshotId: snap,
+        zone: h.zone,
+        token: fresh("tok"),
+      });
       const v = (await h.volumes.describeBox(box)).find((x) => x.id === id);
       assert.ok(v);
       assert.deepEqual([v.active, v.zone], [false, h.zone]);
@@ -101,7 +103,12 @@ export function volumePortContract(name: string, make: () => Promise<VolumeHarne
     test("createFromSnapshot of a missing snapshot -> aws_not_found", gap(opts.gaps, "snapshots"), async () => {
       const h = await make();
       await rejectsWith(
-        h.volumes.createFromSnapshot({ boxId: fresh("box"), snapshotId: "snap-0000000000000dead", zone: h.zone, token: fresh("t") }),
+        h.volumes.createFromSnapshot({
+          boxId: fresh("box"),
+          snapshotId: "snap-0000000000000dead",
+          zone: h.zone,
+          token: fresh("t"),
+        }),
         "aws_not_found",
         false,
       );
@@ -122,7 +129,11 @@ export function volumePortContract(name: string, make: () => Promise<VolumeHarne
   });
 }
 
-export function volumeAttachContract(name: string, make: () => Promise<AttachHarness>, opts: ContractOptions = {}): void {
+export function volumeAttachContract(
+  name: string,
+  make: () => Promise<AttachHarness>,
+  opts: ContractOptions = {},
+): void {
   describe(`volumeAttach: ${name}`, { skip: opts.skip ?? false }, () => {
     test("findActive returns the box's active volume, or null; describe of a missing volume is null", async () => {
       const h = await make();
@@ -153,7 +164,11 @@ export function volumeAttachContract(name: string, make: () => Promise<AttachHar
       const foreign = await h.seedVolume(fresh("other"), true);
       const machine = await h.seedMachine();
       for (const volumeId of [inactive, foreign]) {
-        await rejectsWith(h.attach.attach({ boxId: box, volumeId, machineId: machine, device: "/dev/sdf" }), "aws_denied", false);
+        await rejectsWith(
+          h.attach.attach({ boxId: box, volumeId, machineId: machine, device: "/dev/sdf" }),
+          "aws_denied",
+          false,
+        );
         assert.equal((await h.attach.describe(volumeId))?.attachment, null);
       }
       await rejectsWith(
@@ -169,7 +184,11 @@ export function volumeAttachContract(name: string, make: () => Promise<AttachHar
       const vol = await h.seedVolume(box, true);
       const machine = await h.seedMachine();
       h.inject("attach", "VolumeInUse", 400);
-      await rejectsWith(h.attach.attach({ boxId: box, volumeId: vol, machineId: machine, device: "/dev/sdf" }), "aws_conflict", true);
+      await rejectsWith(
+        h.attach.attach({ boxId: box, volumeId: vol, machineId: machine, device: "/dev/sdf" }),
+        "aws_conflict",
+        true,
+      );
       h.inject("describe", "RequestLimitExceeded", 503);
       await rejectsWith(h.attach.findActive(box), "aws_throttled", true);
     });
