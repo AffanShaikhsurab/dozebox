@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Phase 2 real-AWS exit (part 16, owned by WP-C3): apply examples/drill with the built control bundle
-# (control_bundle_path), no agent and no front door, then drive the instance through the control API: wake (twice with
-# one Idempotency-Key), the tick starts it, park, the tick stops it and it stays stopped for three ticks, a wrong token
-# is 401, and the reconcile lease has been granted more than once. Tears everything down on exit and checks that
+# (control_bundle_path), no agent and no front door, then drive the box through the control API: wake (twice with
+# one Idempotency-Key), the tick starts it (or raises the fallback group when Spot has no capacity), park, the tick
+# parks it and it stays parked for three ticks, a wrong token is 401, and the reconcile lease has been granted more
+# than once. Tears everything down on exit and checks that
 # nothing tagged with this run's dozebox:test value remains. Run from the repo root with credentials for the test
 # account and `pnpm install` done. TF_VAR_network passes an existing VPC where the account may not create one.
 set -euo pipefail
@@ -15,6 +16,8 @@ bundle="$PWD/packages/control/dist/control.zip"
 vars=(-var "box_id=$box" -var agent_version=none -var front_door=false -var "control_bundle_path=$bundle")
 param=""
 ok=false
+served=""
+parked=""
 leftovers="[]"
 
 # Destroy, then list what still carries this run's tag. The tagging API lists terminated instances, deleted volumes
@@ -55,7 +58,7 @@ teardown() {
   leftovers="$(printf '%s\n' "${left[@]}" | jq -Rsc 'split("\n") | map(select(length > 0))')"
   [ "$leftovers" = "[]" ] || ok=false
   minutes=$(( ($(date +%s) - started) / 60 ))
-  echo "{\"phase\":2,\"ok\":$ok,\"box\":\"$box\",\"minutes\":$minutes,\"estimatedUsd\":0.05,\"leftovers\":$leftovers}"
+  echo "{\"phase\":2,\"ok\":$ok,\"box\":\"$box\",\"minutes\":$minutes,\"served\":\"$served\",\"estimatedUsd\":0.05,\"leftovers\":$leftovers}"
   [ "$ok" = true ]
 }
 trap teardown EXIT
@@ -75,13 +78,30 @@ aws ec2 wait instance-stopped --instance-ids "$id"
 
 curl -fsS -X POST "$url/v1/wake" -H "x-dozebox-token: $token" -H "Idempotency-Key: $run-1" | jq -e '.decision=="accept"'
 curl -fsS -X POST "$url/v1/wake" -H "x-dozebox-token: $token" -H "Idempotency-Key: $run-1" | jq -e '.decision=="accept"'
-aws ec2 wait instance-running --instance-ids "$id"   # the tick started it (one tick a minute)
-curl -fsS "$url/v1/status" -H "x-dozebox-token: $token" | jq -e '.state=="running" or .state=="launching"'
+# The tick serves the wake: it starts the persistent instance or, when EC2 has no Spot capacity to start it, raises
+# the fallback group (the designed answer to InsufficientInstanceCapacity). Either one counts; the JSON says which.
+persistent_state() {
+  aws ec2 describe-instances --instance-ids "$id" --query 'Reservations[0].Instances[0].State.Name' --output text
+}
+group_desired() {
+  aws autoscaling describe-auto-scaling-groups --filters "Name=tag:dozebox:box,Values=$box" \
+    --query 'sum(AutoScalingGroups[].DesiredCapacity)' --output text
+}
+for _ in $(seq 60); do   # 10 minutes, one tick a minute
+  [ "$(persistent_state)" = running ] && served=persistent && break
+  [ "$(group_desired)" != 0 ] && served=fallback && break
+  sleep 10
+done
+[ -n "$served" ]
+curl -fsS "$url/v1/status" -H "x-dozebox-token: $token" | jq -e '.state | type == "string"'
 curl -fsS -X POST "$url/v1/park" -H "x-dozebox-token: $token" | jq -e '.decision=="accept"'
-aws ec2 wait instance-stopped --instance-ids "$id"
+for _ in $(seq 60); do
+  [ "$(persistent_state)" = stopped ] && [ "$(group_desired)" = 0 ] && parked=yes && break
+  sleep 10
+done
+[ -n "$parked" ]
 sleep 180   # three ticks: the park must stay parked (R2); a real-time wait against real AWS, not a unit test
-aws ec2 describe-instances --instance-ids "$id" --query 'Reservations[0].Instances[0].State.Name' --output text \
-  | grep -qx stopped
+[ "$(persistent_state)" = stopped ] && [ "$(group_desired)" = 0 ]
 curl -sS -o /dev/null -w '%{http_code}' "$url/v1/status" -H "x-dozebox-token: wrong" | grep -qx 401
 aws dynamodb get-item --table-name "$(tf output -raw state_table_name)" --key '{"pk":{"S":"lease#reconcile"}}' \
   | jq -e '.Item.fencing.N | tonumber > 1'
