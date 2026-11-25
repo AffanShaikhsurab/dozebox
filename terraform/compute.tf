@@ -129,6 +129,11 @@ resource "aws_instance" "persistent" {
 
   tags = merge(local.tags, { Name = local.name, (local.role_tag) = "persistent" })
 
+  # The provider retries RunInstances on InsufficientInstanceCapacity without a word; fail the apply instead.
+  timeouts {
+    create = "5m"
+  }
+
   # An apply never stops, resizes or replaces the running box: new user data and images reach it through the CLI's
   # rebuild. EC2 refuses to modify the shutdown behaviour of a Spot instance, so drift there is ignored too.
   lifecycle {
