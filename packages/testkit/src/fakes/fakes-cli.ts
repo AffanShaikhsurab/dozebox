@@ -3,6 +3,7 @@
 import type { Clock } from "@dozebox/core/time";
 import type {
   AdminEvent,
+  AwsCli,
   AwsOps,
   CliDeps,
   CliFiles,
@@ -176,6 +177,22 @@ export function makeFakeAwsOps(): FakeAwsOps {
   return f;
 }
 
+export type FakeAwsCli = AwsCli & {
+  /** Answers each call; the default answers null. Throw to fail a call. */
+  answer: (args: ReadonlyArray<string>) => unknown;
+  readonly calls: Array<ReadonlyArray<string>>;
+};
+
+/** Records every `aws` argv; `answer` decides the parsed JSON (tests script it by service and operation). */
+export function makeFakeAwsCli(answer: (args: ReadonlyArray<string>) => unknown = () => null): FakeAwsCli {
+  const f: FakeAwsCli = {
+    answer,
+    calls: [],
+    json: async (args) => (f.calls.push(args), f.answer(args)),
+  };
+  return f;
+}
+
 /** Answers every confirm with `yes` and every secret with the next queued value. */
 export function makeFakePrompt(
   yes = true,
@@ -271,6 +288,7 @@ export type FakeCliDeps = CliDeps & {
   readonly control: FakeControlApi;
   readonly terraform: ReturnType<typeof makeFakeTerraform>;
   readonly aws: FakeAwsOps;
+  readonly awsCli: FakeAwsCli;
   readonly fs: ReturnType<typeof makeFakeCliFiles>;
   readonly prompt: ReturnType<typeof makeFakePrompt>;
   readonly tools: ReturnType<typeof makeFakeTools>;
@@ -289,6 +307,7 @@ export function makeFakeCliDeps(opts: {
     control: makeFakeControlApi(opts.status),
     terraform: makeFakeTerraform(opts.outputs ?? {}),
     aws: makeFakeAwsOps(),
+    awsCli: makeFakeAwsCli(),
     agentSocket: null,
     clock: opts.clock ?? makeAutoClock(),
     fs: makeFakeCliFiles(),

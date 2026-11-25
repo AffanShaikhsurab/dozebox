@@ -11,6 +11,7 @@ import { makeExec, nodeExecSpawn } from "./adapters/exec.ts";
 import { makeCliFiles } from "./adapters/files.ts";
 import { makeLambdaAdmin } from "./adapters/aws/lambda-admin.ts";
 import { makeAwsOps } from "./adapters/aws/ops.ts";
+import { makeAwsCli, nodeAwsSpawn } from "./adapters/aws/cli.ts";
 import { functionUrlRegion, makeSigner } from "./adapters/aws/sign.ts";
 import { makePrompt } from "./adapters/prompt.ts";
 import { makeTerraform, nodeTerraformSpawn } from "./adapters/terraform.ts";
@@ -71,6 +72,7 @@ async function run(args: ReadonlyArray<string>, mode: "operator" | "box"): Promi
     tools: makeTools({ run: runCapture, nodeVersion: process.versions.node }),
     exec: makeExec({ spawn: nodeExecSpawn, stdout: (c) => void process.stdout.write(c), stderr }),
     ids: { random: randomUUID },
+    awsCli: makeAwsCli({ spawn: nodeAwsSpawn }),
   };
 
   const stackDir = parseArgs({ args: [...args], options: GLOBAL_OPTIONS, strict: false, allowPositionals: true })
