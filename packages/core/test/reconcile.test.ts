@@ -302,9 +302,12 @@ test("decideReconcile safety over every combination of observed facts", () => {
   assert.equal(checked, STATES.length * 4 * 3 * 3 * 2 * 2 * 2);
 });
 
+const afterStop = (at: number, reason = "user") => ({ sleepFence: { at, phase: "after-stop" as const, reason } });
+const observed = (over: Partial<Observed>): Observed => ({ ...base, ...over });
+
 test("agentPark: the agent's own park (after-stop fence) becomes desired asleep at the fence time (R2)", () => {
-  const fence = (at: number, reason = "user") => ({ sleepFence: { at, phase: "after-stop" as const, reason } });
-  const o = (over: Partial<Observed>): Observed => ({ ...base, ...over });
+  const fence = afterStop;
+  const o = observed;
   assert.deepEqual(agentPark(awake(T0 - 10 * MIN), o(fence(T0 - MIN))), {
     want: "asleep",
     since: T0 - MIN,
