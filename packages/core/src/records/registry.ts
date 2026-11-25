@@ -8,6 +8,7 @@ import {
   matchesSchema,
   RECORD_LIMIT_BYTES,
   RECORD_NAMES,
+  ReleaseRecord,
   ServingRecord,
   SleepFence,
   WakesRecord,
@@ -26,6 +27,7 @@ export type RecordTypes = {
   readonly "rec/last-error": LastErrorRecord;
   readonly "rec/boot-timeline": BootTimelineRecord;
   readonly "rec/formatted": FormattedRecord;
+  readonly "rec/release": ReleaseRecord;
   readonly "fence/sleep-requested": SleepFence;
 };
 export type RecordName = keyof RecordTypes;
@@ -71,6 +73,7 @@ export const RECORD_SPECS: { readonly [N in RecordName]: Spec<RecordTypes[N]> } 
   [RECORD_NAMES.lastError]: { schema: LastErrorRecord, tier: "Standard", trim: null },
   [RECORD_NAMES.bootTimeline]: { schema: BootTimelineRecord, tier: "Standard", trim: null },
   [RECORD_NAMES.formatted]: { schema: FormattedRecord, tier: "Standard", trim: null },
+  [RECORD_NAMES.release]: { schema: ReleaseRecord, tier: "Standard", trim: null },
   [RECORD_NAMES.sleepFence]: { schema: SleepFence, tier: "Standard", trim: null },
 };
 

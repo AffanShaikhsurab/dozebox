@@ -139,6 +139,16 @@ export type LastErrorRecord = Static<typeof LastErrorRecord>;
 export const ServingRecord = Type.Object({ ...recordBase, payload: Type.String() });
 export type ServingRecord = Static<typeof ServingRecord>;
 
+/** `rec/release`: the agent's last self-update (A9): the version it switched to, or rolled back from. */
+export const ReleaseRecord = Type.Object({
+  ...recordBase,
+  version: Type.String({ pattern: "^[0-9A-Za-z][0-9A-Za-z.+-]{0,39}$" }),
+  previous: Type.Union([Type.String({ pattern: "^[0-9A-Za-z][0-9A-Za-z.+-]{0,39}$" }), Type.Null()]),
+  outcome: Type.Union([Type.Literal("switched"), Type.Literal("rolled-back")]),
+  why: Type.Optional(Type.String({ maxLength: 500 })),
+});
+export type ReleaseRecord = Static<typeof ReleaseRecord>;
+
 export const SleepFence = Type.Object({
   ...recordBase,
   reason: ParkReason,
