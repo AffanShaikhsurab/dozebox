@@ -23,9 +23,11 @@ teardown() {
   if [ "$ok" != true ] && [ -n "${fn:-}" ]; then
     # Why it failed, before the log group goes: the control function's warnings and errors, and its state items.
     aws logs filter-log-events --log-group-name "/aws/lambda/$fn" --start-time "$(( started * 1000 ))" \
-      --filter-pattern '?warn ?error ?Error ?Task' --query 'events[-40:].message' --output text 2>&1 | tail -c 6000 >&2 || true
-    aws dynamodb scan --table-name "$(tf output -raw state_table_name 2> /dev/null)" --query 'Items[].[pk.S]' \
-      --output text 2>&1 | tr '\n' ' ' >&2 || true
+      --filter-pattern '?reconcile ?warn ?error ?Error ?Task' --query 'events[-40:].message' --output text 2>&1 | tail -c 8000 >&2 || true
+    aws dynamodb scan --table-name "$(tf output -raw state_table_name 2> /dev/null)" --output json 2>&1 \
+      | jq -c '.Items[] | select(.pk.S | test("desired|last-start|caps|restore")) | del(.fencing)' 2>&1 | tail -c 3000 >&2 || true
+    aws ec2 describe-spot-instance-requests --filters "Name=instance-id,Values=${id:-none}" \
+      --query 'SpotInstanceRequests[0].[State,Status.Code]' --output text >&2 2>&1 || true
   fi
   [ -n "$param" ] && aws ssm delete-parameter --name "$param" > /dev/null 2>&1 || true
   if ! tf destroy -auto-approve "${vars[@]}" > /tmp/"$run"-destroy.log 2>&1; then

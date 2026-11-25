@@ -116,10 +116,13 @@ module "dozebox" {
   control_bundle_path      = var.control_bundle_path
 
   instance = {
-    types        = ["t4g.small", "t4g.medium"]
+    # Several types: t4g.small alone had no Spot capacity in us-east-1a (2026-11-25). The persistent instance uses the
+    # first; the fallback group may use any.
+    types        = ["t4g.medium", "t4g.large", "m7g.medium", "m7g.large"]
     arch         = "arm64"
     machine_mode = "persistent"
   }
+  fallback    = { types = ["t4g.medium", "t4g.large", "m7g.medium", "m7g.large"] }
   network     = var.network
   data_volume = { size_gb = 20 }
   snapshots   = { every_hours = 24, keep = 2, recycle_bin_days = 1 }
