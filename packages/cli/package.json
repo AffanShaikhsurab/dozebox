@@ -8,6 +8,9 @@
   "engines": {
     "node": ">=24.12"
   },
+  "bin": {
+    "dozebox": "./src/bin.ts"
+  },
   "sideEffects": false,
   "exports": {
     ".": {
@@ -20,6 +23,7 @@
     "test": "node --conditions=@dozebox/source --test \"test/**/*.test.ts\""
   },
   "dependencies": {
+    "@aws-crypto/sha256-js": "5.2.0",
     "@aws-sdk/client-cost-explorer": "3.1176.0",
     "@aws-sdk/client-ec2": "3.1176.0",
     "@aws-sdk/client-lambda": "3.1176.0",
@@ -27,9 +31,11 @@
     "@aws-sdk/client-sns": "3.1176.0",
     "@aws-sdk/client-ssm": "3.1176.0",
     "@aws-sdk/client-sts": "3.1176.0",
+    "@aws-sdk/credential-provider-node": "3.972.98",
     "@dozebox/client": "workspace:*",
     "@dozebox/core": "workspace:*",
     "@dozebox/protocol": "workspace:*",
+    "@smithy/signature-v4": "5.7.5",
     "typebox": "1.4.7"
   },
   "devDependencies": {

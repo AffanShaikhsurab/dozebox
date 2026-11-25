@@ -3,7 +3,7 @@ import { DozeboxCliError, type CommandContext } from "./command.ts";
 import { stringOpt, type Values } from "./output.ts";
 import { readStack, type StackContext } from "./stack.ts";
 
-const DEFAULT_STACK_DIR = "./.dozebox";
+export const DEFAULT_STACK_DIR = "./.dozebox";
 
 export const stackDirOf = (values: Values): string => stringOpt(values, "stack") ?? DEFAULT_STACK_DIR;
 
