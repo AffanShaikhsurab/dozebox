@@ -318,6 +318,10 @@ run "on_demand_persistent_instance_has_no_spot_request" {
     condition     = aws_ec2_instance_state.persistent[0].state == "stopped" && aws_launch_template.box["persistent"].instance_initiated_shutdown_behavior == "stop"
     error_message = "The On-Demand persistent instance still starts parked and stops on a guest shutdown."
   }
+  assert {
+    condition     = !contains([for t in aws_launch_template.box["persistent"].tag_specifications : t.resource_type], "spot-instances-request")
+    error_message = "EC2 refuses a Spot request tag on a launch that makes no Spot request."
+  }
 }
 
 run "purchase_is_spot_or_on_demand" {
