@@ -105,6 +105,9 @@ describe("snapshots", () => {
                 Tags: [
                   { Key: "dozebox:box", Value: "main" },
                   { Key: "Name", Value: "main-data" },
+                  { Key: "dozebox:test", Value: "dz-test-p3" },
+                  { Key: "dozebox:active", Value: "true" },
+                  { Key: "aws:cloudformation:stack-name", Value: "x" },
                 ],
               },
             ],
@@ -119,6 +122,7 @@ describe("snapshots", () => {
         ResourceType: "snapshot",
         Tags: [
           { Key: "Name", Value: "main-data" },
+          { Key: "dozebox:test", Value: "dz-test-p3" },
           { Key: "dozebox:box", Value: "main" },
           { Key: "dozebox:label", Value: "before upgrade" },
           { Key: "dozebox:snapshot-token", Value: "tok" },
