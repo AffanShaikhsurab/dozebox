@@ -44,6 +44,21 @@
       "@dozebox/source": "./src/reconcile/index.ts",
       "types": "./dist/reconcile/index.d.ts",
       "default": "./dist/reconcile/index.js"
+    },
+    "./caps": {
+      "@dozebox/source": "./src/caps/index.ts",
+      "types": "./dist/caps/index.d.ts",
+      "default": "./dist/caps/index.js"
+    },
+    "./alerts": {
+      "@dozebox/source": "./src/alerts/index.ts",
+      "types": "./dist/alerts/index.d.ts",
+      "default": "./dist/alerts/index.js"
+    },
+    "./summary": {
+      "@dozebox/source": "./src/summary/index.ts",
+      "types": "./dist/summary/index.d.ts",
+      "default": "./dist/summary/index.js"
     }
   },
   "scripts": {
