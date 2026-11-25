@@ -44,9 +44,9 @@ warm_prepare() {
 }
 EOF
   terraform -chdir="$WARM" init -input=false > /dev/null
-  if [ -z "$(terraform -chdir="$WARM" state list 2> /dev/null)" ]; then
-    dz deploy --stack "$WARM" --json > /dev/null
-  fi
+  # Always deploy: it plans first and applies only when the plan has changes, so a reused stack picks up config
+  # changes (payload files, module inputs) that a drill without a deploy step would otherwise run stale.
+  dz deploy --stack "$WARM" --json > /dev/null
   local param
   param="$(terraform -chdir="$WARM" output -raw wake_token_parameter)"
   if ! aws ssm get-parameter --name "$param" > /dev/null 2>&1; then
