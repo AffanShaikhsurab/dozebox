@@ -2,7 +2,7 @@
 
 The box agent (dozeboxd). Rules: root `AGENTS.md`. May import: the table in `docs/internals/packages.md`.
 
-Entry points: `./main` (bin `dozeboxd`), `./ports/*`. The shell:
+Entry points: `./main` (bin `dozeboxd`), `./boot` (bin `dozebox-boot`), `./ports/*`. The shell:
 
 | Module                        | What                                                                                         |
 | ----------------------------- | -------------------------------------------------------------------------------------------- |
@@ -14,7 +14,13 @@ Entry points: `./main` (bin `dozeboxd`), `./ports/*`. The shell:
 | `src/loops.ts`                | periodic loops: beats, errors vs bugs (3 bugs in a row exit 1), stop                         |
 | `src/watchdog/loop.ts`        | `WATCHDOG=1` only when no loop is stuck                                                      |
 | `src/records/publish.ts`      | stamp (`v`, `at`, writer tag), encode, put                                                   |
+| `src/agent-loops.ts`          | A3/A5 loops (payloads, health, idle) sharing one phase (`phase.ts`) and supervisor             |
+| `src/supervisor/`             | payload drop-ins, install hooks, credentials, health checks, systemctl                       |
+| `src/watchdog/health.ts`      | health strikes (core `decideHealth`): serve, restart, park                                     |
+| `src/idle/`                   | idle verdict loop, cgroup CPU activity, the park sequence                                    |
+| `src/boot/`                   | `dozebox-boot`: tag-fenced attach, guarded mount, boot timeline (`/run/dozebox`)             |
 | `src/ports/`, `src/adapters/` | ports and their real adapters; AWS SDK only in `src/adapters/aws/`                           |
 
 A new loop is a `MakeLoop` passed to `runAgent({ extra })`. Tests build `Deps` from fakes (`test/support.ts`); never
-real systemd, IMDS or AWS.
+real systemd, IMDS or AWS;
+`test:systemd` (root, real systemd) and `test/stage0.test.ts` (bash) cover `box/`.
