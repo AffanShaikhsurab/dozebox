@@ -7,5 +7,19 @@
   "type": "module",
   "engines": {
     "node": ">=24.12"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "@dozebox/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@dozebox/client": "workspace:*",
+    "@dozebox/core": "workspace:*",
+    "@dozebox/protocol": "workspace:*",
+    "typebox": "1.4.7"
   }
 }
