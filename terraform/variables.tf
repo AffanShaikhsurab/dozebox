@@ -388,3 +388,10 @@ variable "tags" {
     error_message = "tags must not set <prefix>:box; the module sets it from box_id."
   }
 }
+
+
+variable "drill_mode" {
+  description = "Test stacks only. Uses a data volume without prevent_destroy so a drill can tear the stack down."
+  type        = bool
+  default     = false
+}

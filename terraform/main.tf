@@ -36,6 +36,9 @@ locals {
     unfreeze_role     = "${local.name}-unfreeze"
     scheduler_role    = "${local.name}-scheduler"
     snapshots_role    = "${local.name}-snapshots"
+    deny_policy       = "${local.name}-frozen"
+    control_dlq       = "${local.name}-control-dlq"
+    freeze_parameter  = "${local.ssm_prefix}freeze"
   }
 
   arns = {
@@ -49,6 +52,10 @@ locals {
     box_logs       = "arn:${local.partition}:logs:${local.region}:${local.account_id}:log-group:${local.names.box_log_group}"
     control_logs   = "arn:${local.partition}:logs:${local.region}:${local.account_id}:log-group:${local.names.control_log_group}"
     control_fn     = "arn:${local.partition}:lambda:${local.region}:${local.account_id}:function:${local.names.control_function}"
+    control_dlq    = "arn:${local.partition}:sqs:${local.region}:${local.account_id}:${local.names.control_dlq}"
+    deny_policy    = "arn:${local.partition}:iam::${local.account_id}:policy/${local.names.deny_policy}"
+    budget         = "arn:${local.partition}:budgets::${local.account_id}:budget/${local.names.budget}"
+    freeze         = "${local.ssm_box_arn}/freeze"
   }
 
   ami_ssm_parameter = coalesce(

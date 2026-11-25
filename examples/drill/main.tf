@@ -83,6 +83,8 @@ module "dozebox" {
   fis_enabled        = true
   enable_ssm_session = true # the drill reads /data through SSM Run Command
 
+  drill_mode = true # test-only: the data volume has no prevent_destroy, so the drill can tear down
+
   payloads = {
     marker = jsondecode(file("${path.module}/../payloads/marker.json"))
   }
@@ -102,4 +104,19 @@ output "ssm_prefix" {
 output "alert_topic_arn" {
   description = "SNS topic."
   value       = module.dozebox.alert_topic_arn
+}
+
+output "data_volume_id" {
+  description = "The data volume."
+  value       = module.dozebox.data_volume_id
+}
+
+output "persistent_instance_id" {
+  description = "The persistent Spot instance."
+  value       = module.dozebox.persistent_instance_id
+}
+
+output "iam_policy_sizes" {
+  description = "Characters of every managed policy."
+  value       = module.dozebox.iam_policy_sizes
 }
