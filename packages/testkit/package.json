@@ -20,6 +20,11 @@
       "types": "./dist/contracts/index.d.ts",
       "default": "./dist/contracts/index.js"
     },
+    "./wire": {
+      "@dozebox/source": "./src/wire/index.ts",
+      "types": "./dist/wire/index.d.ts",
+      "default": "./dist/wire/index.js"
+    },
     "./fixtures/*": "./fixtures/*"
   },
   "scripts": {
@@ -28,5 +33,9 @@
   "dependencies": {
     "@dozebox/core": "workspace:*",
     "memfs": "4.80.1"
+  },
+  "devDependencies": {
+    "@dozebox/agent": "workspace:*",
+    "@dozebox/control": "workspace:*"
   }
 }

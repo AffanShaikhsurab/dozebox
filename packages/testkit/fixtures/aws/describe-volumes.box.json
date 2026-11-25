@@ -1,0 +1,42 @@
+{
+  "Volumes": [
+    {
+      "VolumeId": "vol-0a1b2c3d4e5f60002",
+      "Size": 20,
+      "SnapshotId": "snap-0a1b2c3d4e5f60001",
+      "AvailabilityZone": "us-east-1a",
+      "State": "available",
+      "CreateTime": "2026-11-24T23:00:00.000Z",
+      "Encrypted": true,
+      "VolumeType": "gp3",
+      "Attachments": [],
+      "Tags": [
+        { "Key": "dozebox:box", "Value": "main" },
+        { "Key": "dozebox:active", "Value": "false" }
+      ]
+    },
+    {
+      "VolumeId": "vol-0a1b2c3d4e5f60001",
+      "Size": 20,
+      "AvailabilityZone": "us-east-1a",
+      "State": "in-use",
+      "CreateTime": "2026-11-20T08:00:00.000Z",
+      "Encrypted": true,
+      "VolumeType": "gp3",
+      "Attachments": [
+        {
+          "VolumeId": "vol-0a1b2c3d4e5f60001",
+          "InstanceId": "i-0a1b2c3d4e5f60001",
+          "Device": "/dev/sdf",
+          "State": "attached",
+          "AttachTime": "2026-11-24T20:10:20.000Z",
+          "DeleteOnTermination": false
+        }
+      ],
+      "Tags": [
+        { "Key": "dozebox:box", "Value": "main" },
+        { "Key": "dozebox:active", "Value": "true" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "AutoScalingGroups": [
+    {
+      "AutoScalingGroupName": "dozebox-main-fallback",
+      "MinSize": 0,
+      "MaxSize": 1,
+      "DesiredCapacity": 1,
+      "AvailabilityZones": ["us-east-1a"],
+      "CreatedTime": "2026-11-20T08:00:00.000Z",
+      "Instances": [
+        {
+          "InstanceId": "i-0a1b2c3d4e5f60003",
+          "InstanceType": "t4g.medium",
+          "AvailabilityZone": "us-east-1a",
+          "LifecycleState": "InService",
+          "HealthStatus": "Healthy",
+          "ProtectedFromScaleIn": false
+        }
+      ]
+    }
+  ]
+}

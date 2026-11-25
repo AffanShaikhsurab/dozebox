@@ -1,6 +1,7 @@
 // Records the box writes to SSM under /<prefix>/<boxId>/ (part 4 Â§4.14). Each holds one JSON document with `v`
 // (record version) and `writer`. A reader that sees a higher `v` than it knows treats the record as missing.
-import { Type, type Static } from "typebox";
+import { Type, type Static, type TSchema } from "typebox";
+import Value from "typebox/value";
 import { Instant } from "../v1/common.ts";
 
 export const WriterTag = Type.Object({
@@ -143,3 +144,8 @@ export const SleepFence = Type.Object({
   phase: Type.Union([Type.Literal("before-stop"), Type.Literal("after-stop")]),
 });
 export type SleepFence = Static<typeof SleepFence>;
+
+/** True when `value` matches `schema`. Lets readers check records without their own TypeBox dependency. */
+export function matchesSchema(schema: TSchema, value: unknown): boolean {
+  return Value.Check(schema, value);
+}
