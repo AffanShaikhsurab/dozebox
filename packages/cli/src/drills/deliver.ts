@@ -26,7 +26,7 @@ export function releaseOf(path: string): { readonly version: string; readonly ar
 /** The box-side install script (pure, tested). */
 export function installScript(version: string, sha: string): string {
   return [
-    "set -euo pipefail",
+    "set -eu", // AWS-RunShellScript runs the script with sh (dash): no pipefail
     `d=/var/tmp/dzd; v='${version}'; f="$d/dozebox-agent-$v-linux-$(uname -m).tar.gz"`,
     'base64 -d "$d/a.b64" > "$f" && rm -f "$d/a.b64"',
     `echo '${sha}  '"$f" | sha256sum --check --status`,
