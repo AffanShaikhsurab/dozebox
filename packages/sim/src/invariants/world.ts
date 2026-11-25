@@ -224,6 +224,7 @@ export function createWorldInvariants(w: World, control: Control) {
       m.lastNotice,
       box.bootedAt,
       box.unwellEnd ?? Number.NEGATIVE_INFINITY,
+      box.progressAt(),
     );
     if (
       box.healthy() &&
@@ -263,7 +264,10 @@ export function createWorldInvariants(w: World, control: Control) {
   const finish = (): void => {
     const running = w.billing().filter((i) => i.state === "pending" || i.state === "running");
     const since = Number.isFinite(m.lastWake) ? w.now - m.lastWake : Number.POSITIVE_INFINITY;
-    if (running.length > 0 && since > HOUR)
+    const working = [...w.boxes.values()].some(
+      (b) => !b.dead && (b.held() || w.now - b.progressAt() < w.cfg.idleMinutes * MINUTE + IDLE_SLACK_MS),
+    );
+    if (running.length > 0 && since > HOUR && !working)
       fail(
         "idle-not-parked/end-of-day",
         `${running.map((i) => `${i.id} ${i.state}`).join(", ")} still running at the end of the day`,

@@ -3,7 +3,9 @@
 // idle loop (`idleVerdict`), the Spot watcher with the early self-stop on a recorded hand-off, the park with the sleep
 // fence (R2), and the 60-minute failsafe. Any agent process can be killed between two of its calls.
 import { decideHealth, NEW_HEALTH_STATE, type HealthState } from "@dozebox/core/health";
-import { idleVerdict } from "@dozebox/core/idle";
+import { idleVerdict, type IdleVerdict } from "@dozebox/core/idle";
+import { decideNoProgress } from "@dozebox/core/wake";
+import { NO_PROGRESS_MS } from "../invariants.ts";
 import { MEASURED as M } from "../measured.ts";
 import type { Rng } from "../prng.ts";
 import { AwsFault, Crash, MINUTE, pause, type Proc } from "../world/clock.ts";
@@ -15,7 +17,7 @@ import { PayloadModel } from "./payload.ts";
 import { Server } from "./server.ts";
 
 type ProcState = { readonly name: string; dead: boolean; calls: number; readonly killAt: number };
-type ParkReason = "idle" | "unhealthy" | "failsafe";
+type ParkReason = "idle" | "no-progress" | "unhealthy" | "failsafe";
 
 const VIEWING_GRACE_MS = 5 * MINUTE;
 const IDLE_CHECK_MS = 30_000;
@@ -53,7 +55,11 @@ export class Box implements BoxHandle {
     this.lastActivity = w.now;
     this.r = w.rng.fork(`box/${inst.id}/${w.now}`);
     this.server = new Server(w, this.log);
-    this.payload = new PayloadModel(w, this.r.fork("payload"));
+    this.payload = new PayloadModel(w, this.r.fork("payload"), (req) => {
+      // The agent publishes a wake request when the payload makes it; it outlives the box (part 4 wakes).
+      if (w.cfg.bugs.includes("agent-drops-wake-requests")) return;
+      w.at(w.draw(M.cliCallMs), () => void control.state.wakeRequests.push(req), "wake-request");
+    });
   }
 
   /** This boot wrote `rec/serving` (the agent's first passing health check), as the judge reads it. */
@@ -72,12 +78,19 @@ export class Box implements BoxHandle {
   }
 
   held(): boolean {
-    return this.payload.holds(this.w.now).some((h) => h.until > this.w.now);
+    return this.payload.holds().some((h) => h.until > this.w.now);
+  }
+
+  /** The newest progress the payload reported: a beat, or the end of a hold. */
+  progressAt(): number {
+    const ends = this.payload.holds().map((h) => Math.min(h.until, this.w.now));
+    return Math.max(this.payload.lastProgressAt ?? Number.NEGATIVE_INFINITY, ...ends);
   }
 
   activity(): void {
     this.lastActivity = this.w.now;
     this.w.lastActivity = this.w.now;
+    this.payload.interact();
   }
 
   crashServer(): void {
@@ -92,6 +105,8 @@ export class Box implements BoxHandle {
     if (this.dead) return;
     this.dead = true;
     this.payload.stop();
+    if (this.servingAt !== null)
+      this.w.protocol.push({ at: this.w.now, kind: "park", key: "down", until: this.bootedAt });
     this.log(`box down (${reason})`);
   }
 
@@ -253,9 +268,10 @@ export class Box implements BoxHandle {
     yield* this.aws(p, "put serving", () => {
       this.servingAt = this.w.now;
       this.control.state.serving = { instanceId: this.inst.id, at: this.w.now };
+      this.w.protocol.push({ at: this.w.now, kind: "serving", key: this.inst.id });
       this.log("serving");
     });
-    this.payload.start(this);
+    this.payload.start(this.w.cfg.bugs.includes("agent-keeps-holds") ? this.w.carriedHolds : []);
     if (!this.idleStarted) {
       this.idleStarted = true;
       this.w.at(IDLE_CHECK_MS, () => this.idle(), "idle");
@@ -270,25 +286,42 @@ export class Box implements BoxHandle {
     yield* this.server.stop();
   }
 
-  private idle(): void {
-    if (this.dead) return;
-    const holds = this.payload.holds(this.w.now);
-    const v = idleVerdict({
+  private verdict(): IdleVerdict {
+    const bugs = this.w.cfg.bugs;
+    return idleVerdict({
       now: this.w.now,
       idleMs: this.w.cfg.idleMinutes * MINUTE,
       viewingGraceMs: VIEWING_GRACE_MS,
       servingSince: this.servingAt,
-      holds,
-      presence: this.payload.presence(),
-      lastInteractiveAt: this.payload.lastInteractiveAt,
+      holds: bugs.includes("agent-ignores-holds") ? [] : this.payload.holds(),
+      presence: bugs.includes("agent-ignores-presence") ? [] : this.payload.presence(),
+      lastInteractiveAt: bugs.includes("agent-ignores-presence") ? null : this.payload.lastInteractiveAt,
       lastProgressAt: this.payload.lastProgressAt,
-      lastActivityAt: this.lastActivity,
+      // A protocol payload reports its person as presence; raw activity is the health-only fallback (part 4).
+      lastActivityAt: this.w.cfg.agent === "protocol" ? null : this.lastActivity,
     });
-    if (v.kind === "awake" || this.parking || this.notice !== null) {
-      this.w.at(IDLE_CHECK_MS, () => this.idle(), "idle");
-      return;
-    }
-    this.park("idle", () => this.w.at(IDLE_CHECK_MS, () => this.idle(), "idle"));
+  }
+
+  /** Every 30 s: the idle verdict, then the no-progress park (core), on what the payload asked for. */
+  private idle(): void {
+    if (this.dead) return;
+    this.w.at(IDLE_CHECK_MS, () => this.idle(), "idle");
+    if (this.parking || this.notice !== null) return;
+    const now = this.w.now;
+    const bugs = this.w.cfg.bugs;
+    const holds = bugs.includes("agent-ignores-holds") ? [] : this.payload.holds();
+    const presence = bugs.includes("agent-ignores-presence") ? [] : this.payload.presence();
+    if (this.verdict().kind === "idle") return this.park("idle");
+    if (this.w.cfg.agent !== "protocol" || bugs.includes("agent-ignores-no-progress")) return;
+    const np = decideNoProgress({
+      now,
+      noProgressMs: NO_PROGRESS_MS,
+      servingSince: this.servingAt,
+      lastProgressAt: this.payload.lastProgressAt,
+      workHold: holds.some((h) => h.kind === "work" && h.until > now),
+      interactive: presence.some((p) => p.kind === "interactive" && p.until > now),
+    });
+    if (np.kind === "park") this.park("no-progress");
   }
 
   private watchdog(): void {
@@ -334,7 +367,7 @@ export class Box implements BoxHandle {
   }
 
   /** The park (A5): fence before the stop, `desired = asleep` (conditional), stop self, fence after (R2). */
-  private park(reason: ParkReason, refused?: () => void): void {
+  private park(reason: ParkReason): void {
     if (this.dead || this.parking) return;
     this.parking = true;
     const began = this.w.now;
@@ -345,9 +378,8 @@ export class Box implements BoxHandle {
       (code) => {
         this.parking = false;
         if (code === 0 || this.dead) return;
-        // A park that did not happen counts as activity: the idle loop asks again after another idle period.
-        this.lastActivity = this.w.now;
-        refused?.();
+        // A killed park is restarted (systemd); a refused one is asked again by the next verdict.
+        if (code === 137) this.w.at(MINUTE, () => this.park(reason), "park-retry");
       },
       reason !== "failsafe",
     );
@@ -357,7 +389,19 @@ export class Box implements BoxHandle {
     const w = this.w;
     const s = this.control.state;
     yield* this.aws(p, "fence before-stop", () => void (s.fence = { at: w.now, phase: "before-stop" }));
-    if (reason === "idle") yield* pause(10_000);
+    if (reason === "idle") {
+      yield* pause(10_000);
+      // Activity during the broadcast wait cancels the idle park (the verdict is taken again).
+      if (this.verdict().kind !== "idle") {
+        yield* this.aws(p, "fence after-stop", () => void (s.fence = { at: w.now, phase: "after-stop" }));
+        return 1;
+      }
+    }
+    if (w.cfg.bugs.includes("agent-double-park")) {
+      // A broken agent that reports a park and stops nothing (S2 one-park-per-boot).
+      w.protocol.push({ at: w.now, kind: "park", key: reason, until: this.bootedAt });
+      return 0;
+    }
     if (!w.cfg.bugs.includes("park-leaves-no-record")) {
       const written = yield* this.aws(p, "park", () => this.control.writePark("auto", reason, "agent", began));
       if (!written) {
@@ -368,6 +412,8 @@ export class Box implements BoxHandle {
     } else {
       w.hooks.event({ type: "park", at: w.now, by: "agent" });
     }
+    w.protocol.push({ at: w.now, kind: "park", key: reason, until: this.bootedAt });
+    w.carriedHolds = this.payload.holds();
     yield* this.stopServe();
     yield* this.aws(p, "stop self", () => {
       if (this.inst.kind === "persistent") stopPersistent(w, this.inst.id, "user", "agent");

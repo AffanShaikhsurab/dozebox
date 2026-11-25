@@ -36,6 +36,16 @@ const JUDGES: ReadonlyArray<Judge> = [
     why: "a boot refused by a stale volume tag is not reported, so the box shows running",
     required: ["wake-unresolved/fallback-boot-failed", "wake-unresolved/persistent-boot-failed"],
   },
+  ...(
+    [
+      ["agent-ignores-holds", "no-park-while-held"],
+      ["agent-ignores-presence", "no-park-while-present"],
+      ["agent-drops-wake-requests", "wake-request-honoured"],
+      ["agent-ignores-no-progress", "progress-or-park"],
+      ["agent-keeps-holds", "holds-cleared-on-boot"],
+      ["agent-double-park", "one-park-per-boot"],
+    ] as const
+  ).map(([bug, id]) => ({ name: `S2 ${id}`, bug, why: `a broken agent (${bug})`, required: [`protocol/${id}`] })),
 ];
 
 let failed = false;

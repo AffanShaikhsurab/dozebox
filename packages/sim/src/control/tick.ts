@@ -1,7 +1,7 @@
 // The tick of the simulated control function: lease, observe, `decideReconcile` from core (one action), act with a
 // re-read before anything that bills or detaches (R1), then the judge (R3). Mirrors part 6 §6.3 and C3's act().
 import { decideReconcile, type Action, type Observed } from "@dozebox/core/reconcile";
-import { decidePark } from "@dozebox/core/wake";
+import { countWakes, decidePark, decideWake, WAKE_BUDGET } from "@dozebox/core/wake";
 import { MINUTE, AwsFault, type Proc } from "../world/clock.ts";
 import { detachVolume, startPersistent, stopPersistent } from "../world/ec2.ts";
 import { setDesired, setOnDemandPercent } from "../world/group.ts";
@@ -141,6 +141,39 @@ function* judge(w: World, inv: Inv, s: ControlState): Proc {
     });
 }
 
+/** Timed wake requests that are due (from a minute early): wake with origin `schedule`, budget and freeze apply. */
+function* scheduledWakes(w: World, inv: Inv, s: ControlState): Proc {
+  const due = s.wakeRequests.filter((r) => r.at - MINUTE <= w.now);
+  if (due.length === 0) return;
+  const d = yield* inv.call("updateDesired", () => {
+    s.wakeRequests = s.wakeRequests.filter((r) => r.at - MINUTE > w.now);
+    const decision = decideWake({
+      now: w.now,
+      origin: "schedule",
+      desired: s.desired,
+      frozen: false,
+      budget: { ...countWakes(s.wakesAccepted, w.now), ...WAKE_BUDGET },
+      breaker: s.breaker,
+    });
+    if (decision.kind === "accept") {
+      s.desired = decision.desired;
+      s.wakesAccepted = [...s.wakesAccepted, w.now];
+      s.lastWakeAt = w.now;
+      w.intentWrites.push({ at: w.now, by: inv.id });
+    }
+    return decision;
+  });
+  w.log(`tick#${inv.id}: scheduled wake ${due.map((r) => r.key).join(", ")} (${d.kind})`);
+  // A refusal (budget, freeze) is a recorded reason: the request counts as handled (part 9, wake-request-lost).
+  for (const r of due)
+    w.protocol.push({ at: w.now, kind: "wake", key: d.kind === "refuse" ? `refused:${r.key}` : r.key });
+  if (d.kind === "refuse") return;
+  if (d.kind === "accept") {
+    w.hooks.event({ type: "wake-request", at: w.now, truth: w.wakeTruth() });
+    w.hooks.event({ type: "wake", at: w.now });
+  }
+}
+
 /** A Spot group that has launched nothing for 2 minutes switches to On-Demand (legacy `nextAfterSpotMiss`). */
 function* onDemandAfterSpotMiss(w: World, inv: Inv, s: ControlState): Proc {
   if (s.desired.want !== "awake" || s.lastLaunchAt === null || w.now - s.lastLaunchAt < SPOT_MISS_MS) return;
@@ -158,6 +191,7 @@ export function* tick(w: World, inv: Inv, s: ControlState): Proc {
     return s.lease.token;
   });
   if (token === null) return;
+  yield* scheduledWakes(w, inv, s);
   yield* onDemandAfterSpotMiss(w, inv, s);
   const action = decideReconcile(s.desired, yield* observe(w, inv, s));
   if (action.kind !== "none") w.log(`tick#${inv.id}: ${JSON.stringify(action)}`);
