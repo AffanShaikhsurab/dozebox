@@ -117,8 +117,16 @@ run "forbidden_actions_are_absent" {
     error_message = "The control role passes only the box role."
   }
   assert {
-    condition     = length(setintersection(local.role_allowed_actions.control, ["ec2:DeleteVolume", "ec2:DeleteSnapshot", "ec2:TerminateInstances", "ec2:ModifyInstanceAttribute"])) == 0
-    error_message = "The control role never deletes a volume or a snapshot, nor terminates an instance."
+    condition     = length(setintersection(local.role_allowed_actions.control, ["ec2:DeleteSnapshot", "ec2:TerminateInstances", "ec2:ModifyInstanceAttribute"])) == 0
+    error_message = "The control role never deletes a snapshot, nor terminates an instance."
+  }
+  assert {
+    condition = alltrue(flatten([for k in local.role_policy_keys.control : [
+      for s in local.policy_documents[k].Statement :
+      flatten([s.Action]) == ["ec2:DeleteVolume"] && try(s.Condition.StringEquals["aws:ResourceTag/dozebox:active"], "") == "false" && try(s.Condition.StringEquals["aws:ResourceTag/dozebox:box"], "") != ""
+      if contains(flatten([s.Action]), "ec2:DeleteVolume")
+    ]]))
+    error_message = "The control role deletes only inactive volumes of its box (the restore test's scratch volume), in a statement of its own."
   }
   assert {
     condition     = !contains(local.role_allowed_actions.kill, "iam:DetachRolePolicy") && contains(local.role_allowed_actions.kill, "iam:AttachRolePolicy")
