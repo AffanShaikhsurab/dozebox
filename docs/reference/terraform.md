@@ -235,6 +235,7 @@ Terraform rejects a value that breaks one of these at plan time.
 | `data_volume_id` | The volume tagged active at apply time. |
 | `persistent_instance_id` | The persistent Spot instance (machine_mode persistent), else null. |
 | `iam_policy_sizes` | Characters of every managed policy as AWS counts them (limit 6,144; the module's budget 5,500). |
+| `unfreeze_runbook` | The SSM Automation document `dozebox unfreeze` starts, with its parameters (runbooks/unfreeze.yaml). |
 | `front_door_domain_name` | CloudFront domain of the front door, or null when it is off. |
 | `front_door_distribution_id` | CloudFront distribution id, or null when the front door is off. |
 | `waf_web_acl_arn` | WAF web ACL in front of the control API, or null when the front door is off. |
