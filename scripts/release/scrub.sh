@@ -38,12 +38,14 @@ git -C "$work/repo.git" for-each-ref --format='%(refname)' refs/heads | grep -vx
 # the regexes in file order, so the placeholder goes in as a literal and comes back by the last regex.
 [ -n "$slug" ] || slug="$(echo "$source" | sed -nE 's#^.*github\.com[:/]([^/]+/[^/]+)$#\1#p' | sed 's/\.git$//')"
 [ -n "$slug" ] || { echo "scrub: cannot read owner/name from $source" >&2; exit 2; }
+# A per-run token, so this file's own text is not a placeholder the last rule would restore.
+keep="dzkeep$(date +%s%N)"
 {
-  printf '%s==>DZKEPTOWNER/%s\n@%s==>@DZKEPTOWNER\n' "$slug" "${slug#*/}" "${slug%/*}"
+  printf '%s==>%s/%s\n@%s==>@%s\n' "$slug" "$keep" "${slug#*/}" "${slug%/*}" "$keep"
   cat "$history/scrub-expressions.txt"
   grep -vE '^#|^$' "$private"
   bash "$history/fake-id-rule.sh" "$history/fake-ids.txt"
-  printf 'regex:DZKEPTOWNER==>%s\n' "${slug%/*}"
+  printf 'regex:%s==>%s\n' "$keep" "${slug%/*}"
 } > "$work/expressions.txt"
 
 git -C "$work/repo.git" log --all --format='%ae%n%ce' | sort -u | while read -r email; do

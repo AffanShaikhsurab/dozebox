@@ -74,7 +74,8 @@ scan() {
 }
 
 scan "12-digit numbers (account ids) except the documented fakes" -E '\b[0-9]{12}\b' ":($fakes)\$"
-scan "personal names and e-mail" -iE 'maintainer|[A-Za-z0-9._%+-]*@(gmail|outlook)\.com'
+# a[f]fan, so the scrub's own name rule leaves this pattern alone.
+scan "personal names and e-mail" -iE 'a[f]fan|[A-Za-z0-9._%+-]*@(gmail|outlook)\.com'
 scan "resource ids i-/vol-/snap- except the documented fakes" -E '\b(i|vol|snap)-[0-9a-f]{17}\b' ":($fakes)\$"
 
 # expressions <label> <file>: every filter-repo expression in the file must be gone (scrub.sh rewrites them all).
