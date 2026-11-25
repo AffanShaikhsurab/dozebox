@@ -138,6 +138,20 @@ locals {
           Action   = ["logs:CreateLogGroup", "logs:DeleteLogGroup", "logs:PutRetentionPolicy", "logs:DeleteRetentionPolicy", "logs:TagResource", "logs:UntagResource", "logs:ListTagsForResource", "logs:PutMetricFilter", "logs:DeleteMetricFilter", "budgets:ViewBudget", "budgets:ModifyBudget", "budgets:DeleteBudget", "budgets:TagResource", "budgets:UntagResource", "budgets:ListTagsForResource"]
           Resource = ["${local.arn}:logs:${var.region}:${local.account_id}:log-group:/${local.p}/*", "${local.arn}:logs:${var.region}:${local.account_id}:log-group:/aws/lambda/${local.p}-*", "${local.arn}:budgets::${local.account_id}:budget/${local.p}-*"]
         },
+        # The front door (T7). CLOUDFRONT-scope web ACLs live in us-east-1 whatever the stack's region.
+        {
+          Sid      = "ManageStackWebAcls"
+          Effect   = "Allow"
+          Action   = ["wafv2:CreateWebACL", "wafv2:GetWebACL", "wafv2:UpdateWebACL", "wafv2:DeleteWebACL", "wafv2:TagResource", "wafv2:UntagResource", "wafv2:ListTagsForResource"]
+          Resource = ["${local.arn}:wafv2:us-east-1:${local.account_id}:global/webacl/${local.p}-*/*"]
+        },
+        # CloudFront ids are random, so these cannot be scoped by name. No ACM: the distribution uses CloudFront's certificate.
+        {
+          Sid      = "ManageFrontDoors"
+          Effect   = "Allow"
+          Action   = ["cloudfront:CreateDistribution", "cloudfront:CreateDistributionWithTags", "cloudfront:GetDistribution", "cloudfront:GetDistributionConfig", "cloudfront:UpdateDistribution", "cloudfront:DeleteDistribution", "cloudfront:TagResource", "cloudfront:UntagResource", "cloudfront:ListTagsForResource", "cloudfront:CreateOriginAccessControl", "cloudfront:GetOriginAccessControl", "cloudfront:UpdateOriginAccessControl", "cloudfront:DeleteOriginAccessControl", "cloudfront:CreateOriginRequestPolicy", "cloudfront:GetOriginRequestPolicy", "cloudfront:UpdateOriginRequestPolicy", "cloudfront:DeleteOriginRequestPolicy", "cloudfront:CreateCachePolicy", "cloudfront:GetCachePolicy", "cloudfront:UpdateCachePolicy", "cloudfront:DeleteCachePolicy"]
+          Resource = "*"
+        },
         # These take no resource, or create one whose name is not in the ARN the call is authorised against.
         {
           Sid      = "WildcardOnlyCalls"
