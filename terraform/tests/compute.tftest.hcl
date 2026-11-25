@@ -218,12 +218,24 @@ run "agent_none_user_data_powers_off_within_budget" {
   }
 }
 
-run "an_agent_version_needs_stage0" {
+run "an_agent_version_renders_stage0" {
   command = plan
   variables {
-    agent = { version = "1.0.0" }
+    agent = {
+      version           = "1.0.0"
+      artifact_base_url = "https://artifacts.example/agent"
+      sha256            = { arm64 = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", x86_64 = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" }
+    }
   }
-  expect_failures = [aws_launch_template.box]
+
+  assert {
+    condition     = strcontains(local.user_data, "/opt/dozebox/stage0/install-agent.sh 1.0.0 https://artifacts.example/agent 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+    error_message = "Stage 0 runs install-agent.sh with the version, base URL and checksum."
+  }
+  assert {
+    condition     = strcontains(local.user_data, "DOZEBOX_BOX_ID=a2345678901234567890") && local.user_data_gzip_bytes <= 12800
+    error_message = "Stage 0 writes box.env and stays within 12,800 gzipped bytes."
+  }
 }
 
 run "existing_network_uses_its_subnet" {
