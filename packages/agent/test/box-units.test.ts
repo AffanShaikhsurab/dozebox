@@ -55,7 +55,9 @@ describe("cloud-init.yaml.tftpl", () => {
   test("the inlined scripts and units equal the files in box/", () => {
     for (const [path, file] of [
       ["/opt/dozebox/stage0/install-agent.sh", "stage0/install-agent.sh"],
+      ["/opt/dozebox/stage0/stage0.sh", "stage0/stage0.sh"],
       ["/opt/dozebox/stage0/failsafe.sh", "stage0/failsafe.sh"],
+      ["/etc/systemd/system/dozebox-stage0.service", "systemd/dozebox-stage0.service"],
       ["/etc/systemd/system/dozebox-failsafe.service", "systemd/dozebox-failsafe.service"],
       ["/etc/systemd/system/dozebox-failsafe.timer", "systemd/dozebox-failsafe.timer"],
       ["/etc/systemd/system/dozebox-park-now.service", "systemd/dozebox-park-now.service"],
@@ -76,20 +78,24 @@ describe("cloud-init.yaml.tftpl", () => {
       DOZEBOX_REGION: "${region}",
       DOZEBOX_CONFIG_PARAMETER: "${config_parameter}",
       DOZEBOX_AGENT_VERSION: "${agent_version}",
+      DOZEBOX_AGENT_BASE_URL: "${agent_base_url}",
+      DOZEBOX_AGENT_SHA256: "${agent_sha256}",
       DOZEBOX_STATE_DIR: "/data/dozebox",
       AWS_REGION: "${region}",
       AWS_DEFAULT_REGION: "${region}",
     });
   });
 
-  test("tmpfiles creates the runtime dir; runcmd installs the agent last", () => {
+  test("stage 0 is a unit enabled on every boot, not a once-per-instance runcmd", () => {
     assert.equal(inlined("/etc/tmpfiles.d/dozebox.conf"), "d /run/dozebox 0755 root root -");
+    const bootcmd = template.slice(template.indexOf("\nbootcmd:"), template.indexOf("\nruncmd:"));
+    assert.match(bootcmd, /systemctl enable --now --no-block dozebox-stage0\.service/);
     const runcmd = template.slice(template.indexOf("\nruncmd:"));
-    assert.match(runcmd, /systemctl enable --now dozebox-failsafe\.timer/);
-    assert.match(runcmd, /"step":"stage0"/);
+    assert.match(runcmd, /systemctl enable --now dozebox-stage0\.service/);
+    assert.doesNotMatch(runcmd, /install-agent\.sh/, "runcmd runs once per instance; stage 0 must not live there");
     assert.match(
-      runcmd.trimEnd(),
-      /\n {2}- \/opt\/dozebox\/stage0\/install-agent\.sh \$\{agent_version\} \$\{agent_base_url\} \$\{agent_sha256\}$/,
+      inlined("/etc/systemd/system/dozebox-stage0.service"),
+      /^ExecStart=\/opt\/dozebox\/stage0\/stage0\.sh /m,
     );
   });
 
@@ -180,6 +186,19 @@ describe("box/systemd units", () => {
     assert.equal(get(u, "Install", "WantedBy"), "timers.target");
   });
 
+  test("dozebox-stage0.service runs stage 0 on every boot", () => {
+    const u = unit("dozebox-stage0.service");
+    assert.equal(get(u, "Service", "Type"), "oneshot");
+    assert.equal(get(u, "Service", "RemainAfterExit"), "yes");
+    assert.equal(get(u, "Service", "EnvironmentFile"), "/etc/dozebox/box.env");
+    assert.equal(
+      get(u, "Service", "ExecStart"),
+      "/opt/dozebox/stage0/stage0.sh ${DOZEBOX_AGENT_VERSION} ${DOZEBOX_AGENT_BASE_URL} ${DOZEBOX_AGENT_SHA256}",
+    );
+    assert.equal(get(u, "Unit", "Before"), "dozebox-boot.service");
+    assert.equal(get(u, "Install", "WantedBy"), "multi-user.target");
+  });
+
   const hasAnalyze = spawnSync(analyze, ["--version"]).status === 0;
   test(
     "systemd-analyze verify accepts the units",
@@ -188,7 +207,7 @@ describe("box/systemd units", () => {
       const dir = mkdtempSync(join(tmpdir(), "units-"));
       try {
         const files = readdirSync(join(box, "systemd")).filter((f) =>
-          /^dozebox(d|-boot|-park-now|-failsafe)\.?.*\.(service|timer)$/.test(f),
+          /^dozebox(d|-boot|-park-now|-failsafe|-stage0)\.?.*\.(service|timer)$/.test(f),
         );
         for (const f of files) copyFileSync(join(box, "systemd", f), join(dir, f));
         const r = spawnSync(analyze, ["verify", ...files.map((f) => join(dir, f))], { encoding: "utf8" });

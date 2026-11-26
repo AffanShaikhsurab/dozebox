@@ -59,6 +59,7 @@ test("identity: IMDS facts, the boot id without dashes, the box root; region fro
       region: "us-east-1",
       availabilityZone: "us-east-1a",
       instanceType: "t4g.small",
+      lifecycle: "spot" as const,
     }),
   };
   const env = readEnv({ DOZEBOX_BOX_ID: "box-1" }, 1);

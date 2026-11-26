@@ -14,6 +14,7 @@ export type Identity = {
   readonly instanceId: string;
   readonly availabilityZone: string;
   readonly instanceType: string;
+  readonly lifecycle: "spot" | "on-demand";
   readonly bootId: string;
   /** The parameter root `/<prefix>/<boxId>/`. */
   readonly root: string;
@@ -35,6 +36,7 @@ export async function resolveIdentity(
     instanceId: facts.instanceId,
     availabilityZone: facts.availabilityZone,
     instanceType: facts.instanceType,
+    lifecycle: facts.lifecycle,
     bootId,
     root: `/${env.prefix}/${env.boxId}/`,
   };

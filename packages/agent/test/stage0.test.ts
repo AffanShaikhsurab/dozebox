@@ -352,6 +352,49 @@ describe("install-agent.sh", { skip }, () => {
   });
 });
 
+describe("stage0.sh", { skip }, () => {
+  test("arms the failsafe, records the boot step, installs, then writes the done marker", async () => {
+    const sb = new Sandbox();
+    try {
+      const sha = sb.tarball();
+      const r = await sb.exec("stage0.sh", ["1.0.0", BASE, sha]);
+      assert.equal(r.code, 0, r.stderr);
+      assert.deepEqual(
+        sb
+          .calls()
+          .filter((c) => c[0] === "systemctl")
+          .slice(0, 2),
+        [
+          ["systemctl", "daemon-reload"],
+          ["systemctl", "enable", "--now", "dozebox-failsafe.timer"],
+        ],
+      );
+      assert.deepEqual(
+        sb.timeline().map((l) => l["step"]),
+        ["stage0", "jail-packages", "agent-install"],
+      );
+      assert.equal(sb.timeline()[0]?.["ok"], true);
+      assert.equal(sb.timeline()[0]?.["ms"], 4_000_000);
+      assert.ok(existsSync(join(sb.run, "stage0.done")));
+    } finally {
+      sb.cleanup();
+    }
+  });
+
+  test("a failed install exits 1 and leaves no done marker", async () => {
+    const sb = new Sandbox();
+    try {
+      const sha = sb.tarball();
+      const r = await sb.exec("stage0.sh", ["1.0.0", BASE, sha], { FAKE_CURL_FAIL: "1" });
+      assert.equal(r.code, 1);
+      assert.ok(!existsSync(join(sb.run, "stage0.done")));
+      assert.equal(sb.timeline().find((l) => l["step"] === "agent-install")?.["ok"], false);
+    } finally {
+      sb.cleanup();
+    }
+  });
+});
+
 describe("failsafe.sh", { skip }, () => {
   let imds: Server;
   let imdsUrl = "";

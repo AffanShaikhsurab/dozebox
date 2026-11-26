@@ -59,6 +59,9 @@ export function makeHttpImds(deps: HttpImdsDeps = {}): Imds {
         region: field("region"),
         availabilityZone: field("availabilityZone"),
         instanceType: field("instanceType"),
+        // The instance document has no lifecycle; the metadata path answers 404 on an On-Demand instance.
+        lifecycle:
+          (await get("/latest/meta-data/instance-life-cycle", signal, "null")) === "spot" ? "spot" : "on-demand",
       };
       return facts;
     },

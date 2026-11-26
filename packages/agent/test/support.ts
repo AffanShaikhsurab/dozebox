@@ -17,6 +17,7 @@ export const IDENTITY: Identity = {
   instanceId: "i-0123456789abcdef0",
   availabilityZone: "us-east-1a",
   instanceType: "t4g.small",
+  lifecycle: "spot",
   bootId: "0f1e2d3c4b5a69788796a5b4c3d2e1f0",
   root: "/dozebox/box-1/",
 };
