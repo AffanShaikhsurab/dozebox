@@ -15,6 +15,7 @@ export {
   type JailExecDeps,
   type JailExecPlan,
 } from "./exec.ts";
+export { takeEnvFile } from "./envFile.ts";
 export {
   applyEgress,
   EGRESS_REFRESH_MS,

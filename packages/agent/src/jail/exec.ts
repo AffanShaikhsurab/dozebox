@@ -10,8 +10,11 @@ import type { JailConfig } from "./types.ts";
 export const PAYLOAD_DATA_ROOT = "/data/payloads";
 const CONTEXT = /^[A-Za-z0-9._:-]{1,64}$/;
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
-/** Names the jail owns: PATH decides what the agent runs, DOZEBOX_CONTEXT attributes a tripwire hit. */
-const ENV_REFUSED = new Set(["PATH", "DOZEBOX_CONTEXT"]);
+/**
+ * Names the jail owns: PATH decides what the agent runs, DOZEBOX_CONTEXT attributes a tripwire hit, and the AWS file
+ * names would point the SDK at the caller's credentials instead of the decoy profile.
+ */
+const ENV_REFUSED = new Set(["PATH", "DOZEBOX_CONTEXT", "AWS_CONFIG_FILE", "AWS_SHARED_CREDENTIALS_FILE"]);
 export const ENV_FILE_MAX_BYTES = 1024 * 1024;
 export const ENV_FILE_MAX_RECORDS = 512;
 

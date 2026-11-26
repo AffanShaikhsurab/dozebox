@@ -252,10 +252,12 @@ describe("jail env file", () => {
     assert.equal(envArgsContent([]), "");
   });
 
-  it("allows HOME but refuses PATH and DOZEBOX_CONTEXT", () => {
+  it("allows HOME but refuses PATH, DOZEBOX_CONTEXT and the AWS file names", () => {
     assert.deepEqual(parse("HOME=/data/payloads/web/home"), [["HOME", "/data/payloads/web/home"]]);
     assert.throws(() => parse("PATH=/evil"), RunnerError);
     assert.throws(() => parse("DOZEBOX_CONTEXT=x"), RunnerError);
+    assert.throws(() => parse("AWS_CONFIG_FILE=/home/ubuntu/.aws/config"), RunnerError);
+    assert.throws(() => parse("AWS_SHARED_CREDENTIALS_FILE=/home/ubuntu/.aws/credentials"), RunnerError);
   });
 
   it("refuses a bad name, an empty record and a record without =", () => {
