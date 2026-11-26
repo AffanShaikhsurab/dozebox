@@ -3,6 +3,7 @@
 # (box-units.test.ts keeps them equal); inside them, templatefile escapes a literal dollar-brace or percent-brace by doubling the first character.
 write_files:
   - path: /etc/dozebox/box.env
+    owner: root:root
     permissions: "0644"
     content: |
       DOZEBOX_BOX_ID=${box_id}
@@ -34,6 +35,10 @@ write_files:
       systemctl_bin="$${DOZEBOX_SYSTEMCTL_BIN:-systemctl}"
       curl_bin="$${DOZEBOX_CURL_BIN:-curl}"
       arch="$${DOZEBOX_ARCH:-$(uname -m)}"
+      apt_bin="$${DOZEBOX_APT_GET_BIN:-apt-get}"
+      apt_retry_sleep="$${DOZEBOX_APT_RETRY_SLEEP:-5}"
+      bwrap_bin="$${DOZEBOX_BWRAP_BIN:-bwrap}"
+      nft_bin="$${DOZEBOX_NFT_BIN:-nft}"
 
       dir="$${root}/releases/$${version}"
       started="$(date +%s%3N)"
@@ -49,6 +54,32 @@ write_files:
           "$started" "$(($(date +%s%3N) - started))" "$ok" >>"$${run_dir}/boot-timeline.jsonl" || true
       }
       trap finish EXIT
+
+      # The jail needs bwrap and nft; the stock Ubuntu image has neither. Best effort: the agent reports what is missing.
+      # First boot races apt-daily and unattended-upgrades for the dpkg lock, so wait for it and retry a few times.
+      ensure_jail_packages() {
+        local started ms ok=false attempt
+        started="$(date +%s%3N)"
+        if command -v "$bwrap_bin" >/dev/null && command -v "$nft_bin" >/dev/null; then
+          ok=true
+        else
+          for attempt in 1 2 3; do
+            if DEBIAN_FRONTEND=noninteractive "$apt_bin" -o DPkg::Lock::Timeout=180 update &&
+              DEBIAN_FRONTEND=noninteractive "$apt_bin" -o DPkg::Lock::Timeout=180 install -y --no-install-recommends bubblewrap nftables; then
+              ok=true
+              break
+            fi
+            echo "install-agent: apt attempt $attempt failed" >&2
+            [ "$attempt" = 3 ] || sleep "$apt_retry_sleep"
+          done
+          [ "$ok" = true ] || echo "install-agent: could not install bubblewrap and nftables" >&2
+        fi
+        ms=$(($(date +%s%3N) - started))
+        printf '{"step":"jail-packages","startedAt":%s,"ms":%s,"ok":%s}\n' \
+          "$started" "$ms" "$ok" >>"$${run_dir}/boot-timeline.jsonl" || true
+      }
+
+      ensure_jail_packages
 
       fetch() {
         tmp="$(mktemp -d "$${root}/releases/.tmp.XXXXXX")"

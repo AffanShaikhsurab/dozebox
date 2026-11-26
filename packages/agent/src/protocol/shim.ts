@@ -5,6 +5,7 @@
 //   dozebox wake-request <id> --payload <name> --cancel
 import { request } from "node:http";
 import { ADMIN_SOCKET } from "./server.ts";
+import { SHIM_COMMANDS } from "./shim-commands.ts";
 import { PAYLOAD_HEADER } from "./wire.ts";
 
 export type ShimCall = {
@@ -87,7 +88,7 @@ export function parseShim(argv: ReadonlyArray<string>, now: number): ShimCall {
       body: { reason: need(o, "reason"), at: need(o, "at"), ...(expires === undefined ? {} : { expiresAt: expires }) },
     };
   }
-  throw new UsageError(`unknown command ${cmd ?? ""} (hold, wake-request)`);
+  throw new UsageError(`unknown command ${cmd ?? ""} (${SHIM_COMMANDS.map((c) => c.name).join(", ")})`);
 }
 
 /** One call on the admin socket. */

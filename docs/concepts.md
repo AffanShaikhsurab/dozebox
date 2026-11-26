@@ -42,10 +42,10 @@ crash between two calls.
 
 The agent parks the box when nothing has kept it awake for `idle_minutes`. Three things count:
 
-1. An open hold (`dozebox hold`, or `dozebox run -- <command>` while the command runs).
-2. Presence: a person on the box (`dozebox presence`, or an SSH session). A browser tab that only views counts for a
+1. An open hold (`dozebox hold` on the box, or `box.keepHold`).
+2. Presence: a person on the box (`box.presence`, or an SSH session). A browser tab that only views counts for a
    short grace after the last real input.
-3. Recent activity: a progress beat (`dozebox beat`), and for a payload in health-only mode, a passing health check,
+3. Recent activity: a progress beat (`box.beat`), and for a payload in health-only mode, a passing health check,
    CPU use or a TCP connection to a declared port.
 
 The idle clock starts at the last of these, or at the moment the payload began serving.

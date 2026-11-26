@@ -79,8 +79,8 @@ Set `"protocol": "none"` for a program that knows nothing about Dozebox, such as
 - a person is logged in over SSH.
 
 Terminal output does not count: keepalive traffic would hold the box open for ever. For a command that should hold
-the box while it runs, start it through `dozebox run`, which keeps a hold open, beats on output and alerts when the
-command fails:
+the box while it runs, the full CLI's `dozebox run` keeps a hold open, beats on output and alerts when the command
+fails. The box ships a shim with `hold` and `wake-request` only, so install the full CLI on the box first:
 
 ```json
 { "start": { "command": ["/usr/bin/dozebox", "run", "--reason", "agent session", "--", "/usr/local/bin/my-agent"] } }
@@ -91,18 +91,19 @@ command fails:
 Set `"protocol": "v1"` and the payload tells the box what it needs. Each payload gets its own Unix socket, named in
 `DOZEBOX_SOCKET`; the socket is the payload's identity ([decision 0006](./decisions/0006-socket-per-payload.md)).
 
-| Need                              | Protocol call           | Box command                      |
-| --------------------------------- | ----------------------- | -------------------------------- |
-| Stay awake until a time           | `PUT /v1/holds/{id}`    | `dozebox hold <id> --for 2h`     |
-| Say work moved forward            | `POST /v1/beats`        | `dozebox beat <name>`            |
-| Be woken at a time or by an event | `PUT /v1/wakes/{id}`    | `dozebox wake <id> --at <time>`  |
-| Say a person is here              | `PUT /v1/presence/{id}` | `dozebox presence <id> --for 5m` |
-| Tell a human                      | `POST /v1/attention`    | `dozebox attention <key> ...`    |
-| Ask the box to sleep now          | `POST /v1/sleep`        | `dozebox sleep`                  |
-| Read phase, disk and idle verdict | `GET /v1/status`        | `dozebox status`                 |
+| Need                              | Protocol call           | Client method                 |
+| --------------------------------- | ----------------------- | ----------------------------- |
+| Stay awake until a time           | `PUT /v1/holds/{id}`    | `box.keepHold(id, ...)`       |
+| Say work moved forward            | `POST /v1/beats`        | `box.beat([...])`             |
+| Be woken at a time or by an event | `PUT /v1/wakes/{id}`    | `box.wake(id, ...)`           |
+| Say a person is here              | `PUT /v1/presence/{id}` | `box.presence(id, kind, for)` |
+| Tell a human                      | `POST /v1/attention`    | `box.attention(...)`          |
+| Ask the box to sleep now          | `POST /v1/sleep`        | `box.sleep()`                 |
+| Read phase, disk and idle verdict | `GET /v1/status`        | `box.status()`                |
 
-The box commands work from a shell on the box and from payloads in any language. Their flags are in the
-[CLI reference](./reference/cli.md#box-commands). The calls, bodies and limits are in the
+The box's `dozebox` is a shim with two commands: `dozebox hold` and `dozebox wake-request`. The other box commands
+in the [CLI reference](./reference/cli.md#operator-only-commands) belong to the full CLI, which the box does not
+install. Payloads use the protocol or `@dozebox/client` for everything else. The calls, bodies and limits are in the
 [protocol reference](./reference/protocol-v1.md).
 
 ## `@dozebox/client`

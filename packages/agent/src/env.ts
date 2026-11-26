@@ -19,7 +19,84 @@ const BOX_ID = /^[a-z0-9][a-z0-9-]{0,19}$/;
 const PREFIX = /^[a-z][a-z0-9-]{0,20}$/;
 const REGION = /^[a-z]{2}(-[a-z]+)+-\d$/;
 
-type Env = Readonly<Record<string, string | undefined>>;
+export type Env = Readonly<Record<string, string | undefined>>;
+
+const unquote = (v: string): string => {
+  const q = v[0];
+  return v.length >= 2 && (q === '"' || q === "'") && v.endsWith(q) ? v.slice(1, -1) : v;
+};
+
+/** Pure: the `DOZEBOX_*` keys of `/etc/dozebox/box.env`, the root-owned file stage 0 writes. */
+export function parseBoxEnv(text: string): Readonly<Record<string, string>> {
+  const out: Record<string, string> = {};
+  for (const raw of text.split("\n")) {
+    const line = raw.trim();
+    if (line === "" || line.startsWith("#")) continue;
+    const eq = line.indexOf("=");
+    if (eq <= 0) continue;
+    const key = line.slice(0, eq).trim();
+    if (key.startsWith("DOZEBOX_")) out[key] = unquote(line.slice(eq + 1).trim());
+  }
+  return out;
+}
+
+/**
+ * The box identity from the root-owned box.env wins over the caller's env: a payload user runs jail-exec through
+ * sudo and must not be able to point it at another box's last-good config.
+ */
+export function withBoxEnv(env: Env, boxEnv: Env): Env {
+  return { ...env, ...boxEnv };
+}
+
+const BOX_ENV_FILE = "/etc/dozebox/box.env";
+
+/** What `lstat` must report for box.env to be trusted: a root-owned regular file no one else can write. */
+export type BoxEnvStat = {
+  readonly uid: number;
+  readonly mode: number;
+  isFile(): boolean;
+  isSymbolicLink(): boolean;
+};
+
+export type BoxEnvDeps = {
+  readonly lstat: (path: string) => Promise<BoxEnvStat>;
+  readonly readFile: (path: string) => Promise<string>;
+};
+
+const errno = (e: unknown): string => {
+  const code = (e as { code?: unknown } | null)?.code;
+  return typeof code === "string" ? ` (${code})` : "";
+};
+
+const refuseBoxEnv = (why: string): Error => new Error(`dozebox-jail-exec: ${BOX_ENV_FILE} ${why}`);
+
+/**
+ * The env jail-exec runs with. Through sudo the caller's environment is untrusted, so box.env must be a root-owned
+ * regular file that no one else can write, and it alone supplies the box identity; a missing or unreadable file is a
+ * refusal, never a fallback. A direct root run with no SUDO_UID may fall back to its own environment.
+ */
+export async function loadBoxEnv(deps: BoxEnvDeps, env: Env): Promise<Env> {
+  const sudo = (env["SUDO_UID"] ?? "") !== "";
+  let st: BoxEnvStat;
+  try {
+    st = await deps.lstat(BOX_ENV_FILE);
+  } catch (e) {
+    if (sudo) throw refuseBoxEnv(`is missing${errno(e)}; refusing to run through sudo without it`);
+    return env;
+  }
+  if (st.isSymbolicLink() || !st.isFile()) throw refuseBoxEnv("is not a regular file");
+  if (st.uid !== 0) throw refuseBoxEnv(`is owned by uid ${st.uid}, not root`);
+  if ((st.mode & 0o022) !== 0)
+    throw refuseBoxEnv(`is group- or world-writable (mode ${(st.mode & 0o7777).toString(8)})`);
+  let text: string;
+  try {
+    text = await deps.readFile(BOX_ENV_FILE);
+  } catch (e) {
+    if (sudo) throw refuseBoxEnv(`cannot be read${errno(e)}; refusing to run through sudo without it`);
+    return env;
+  }
+  return withBoxEnv(sudo ? {} : env, parseBoxEnv(text));
+}
 
 function pick(env: Env, name: string, re: RegExp, fallback?: string): string {
   const v = env[name] || fallback;
