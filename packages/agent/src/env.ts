@@ -48,6 +48,56 @@ export function withBoxEnv(env: Env, boxEnv: Env): Env {
   return { ...env, ...boxEnv };
 }
 
+const BOX_ENV_FILE = "/etc/dozebox/box.env";
+
+/** What `lstat` must report for box.env to be trusted: a root-owned regular file no one else can write. */
+export type BoxEnvStat = {
+  readonly uid: number;
+  readonly mode: number;
+  isFile(): boolean;
+  isSymbolicLink(): boolean;
+};
+
+export type BoxEnvDeps = {
+  readonly lstat: (path: string) => Promise<BoxEnvStat>;
+  readonly readFile: (path: string) => Promise<string>;
+};
+
+const errno = (e: unknown): string => {
+  const code = (e as { code?: unknown } | null)?.code;
+  return typeof code === "string" ? ` (${code})` : "";
+};
+
+const refuseBoxEnv = (why: string): Error => new Error(`dozebox-jail-exec: ${BOX_ENV_FILE} ${why}`);
+
+/**
+ * The env jail-exec runs with. Through sudo the caller's environment is untrusted, so box.env must be a root-owned
+ * regular file that no one else can write, and it alone supplies the box identity; a missing or unreadable file is a
+ * refusal, never a fallback. A direct root run with no SUDO_UID may fall back to its own environment.
+ */
+export async function loadBoxEnv(deps: BoxEnvDeps, env: Env): Promise<Env> {
+  const sudo = (env["SUDO_UID"] ?? "") !== "";
+  let st: BoxEnvStat;
+  try {
+    st = await deps.lstat(BOX_ENV_FILE);
+  } catch (e) {
+    if (sudo) throw refuseBoxEnv(`is missing${errno(e)}; refusing to run through sudo without it`);
+    return env;
+  }
+  if (st.isSymbolicLink() || !st.isFile()) throw refuseBoxEnv("is not a regular file");
+  if (st.uid !== 0) throw refuseBoxEnv(`is owned by uid ${st.uid}, not root`);
+  if ((st.mode & 0o022) !== 0)
+    throw refuseBoxEnv(`is group- or world-writable (mode ${(st.mode & 0o7777).toString(8)})`);
+  let text: string;
+  try {
+    text = await deps.readFile(BOX_ENV_FILE);
+  } catch (e) {
+    if (sudo) throw refuseBoxEnv(`cannot be read${errno(e)}; refusing to run through sudo without it`);
+    return env;
+  }
+  return withBoxEnv(sudo ? {} : env, parseBoxEnv(text));
+}
+
 function pick(env: Env, name: string, re: RegExp, fallback?: string): string {
   const v = env[name] || fallback;
   if (v === undefined) throw new Error(`${name} is not set`);
