@@ -4,7 +4,13 @@ import { RunnerError } from "@dozebox/core/errors";
 import { makeFakeExec, makeFakeFs } from "@dozebox/testkit/fakes";
 import { makeNodeFiles, type FsPromises } from "../src/adapters/files.ts";
 import { jailArgv } from "../src/jail/bwrap.ts";
-import { parseJailExecArgs, resolveJailExec } from "../src/jail/exec.ts";
+import {
+  ENV_FILE_MAX_BYTES,
+  envArgsContent,
+  parseEnvFile,
+  parseJailExecArgs,
+  resolveJailExec,
+} from "../src/jail/exec.ts";
 import { APPARMOR_PROFILE, jailReadiness, renderAppArmorProfile } from "../src/jail/ready.ts";
 import type { JailConfig } from "../src/jail/types.ts";
 
@@ -16,6 +22,16 @@ const files = (seed: Record<string, string>) => makeNodeFiles(makeFakeFs(seed).f
 
 const pairs = (argv: ReadonlyArray<string>, flag: string): string[] =>
   argv.flatMap((a, i) => (a === flag ? [argv[i + 1] ?? ""] : []));
+
+const deps = (realpath: (p: string) => Promise<string> = async (p) => p) => ({
+  realpath,
+  config: ON,
+  payload: "web",
+  agentUid: 60_001,
+  decoy: true,
+});
+
+const parse = (text: string) => parseEnvFile(Buffer.from(text));
 
 describe("jailArgv", () => {
   it("is empty when the jail is off", () => {
@@ -85,9 +101,36 @@ describe("jail exec arguments", () => {
         context: "t-1",
         bindRw: [WORK],
         readOnly: [],
+        envFile: null,
+        chdir: null,
         command: ["claude", "-p", "x"],
       },
     );
+  });
+
+  it("parses --env-file and --chdir", () => {
+    assert.deepEqual(
+      parseJailExecArgs(
+        ["--context", "t-1", "--bind-rw", WORK, "--env-file", `${WORK}/e.env`, "--chdir", `${WORK}/sub`, "--", "sh"],
+        "web",
+      ),
+      {
+        context: "t-1",
+        bindRw: [WORK],
+        readOnly: [],
+        envFile: `${WORK}/e.env`,
+        chdir: `${WORK}/sub`,
+        command: ["sh"],
+      },
+    );
+  });
+
+  it("refuses an env file or a chdir outside the payload's data dir", () => {
+    bad(["--context", "c", "--env-file", "/data/dozebox/e", "--", "sh"]);
+    bad(["--context", "c", "--env-file", "/data/payloads/api/e", "--", "sh"]);
+    bad(["--context", "c", "--env-file", `${WORK}/../e`, "--", "sh"]);
+    bad(["--context", "c", "--chdir", "/data/dozebox", "--", "sh"]);
+    bad(["--context", "c", "--chdir", "/data/payloads/web", "--", "sh"]);
   });
 
   it("refuses paths outside the payload's data dir, .., relative paths and other payloads", () => {
@@ -109,23 +152,135 @@ describe("jail exec arguments", () => {
   });
 
   it("a symlink under the data dir that leads out is refused", async () => {
-    const deps = {
+    const d = {
       realpath: async (p: string) => (p.endsWith("/link") ? "/data/dozebox" : p),
       config: ON,
       payload: "web",
       agentUid: 60_001,
       decoy: true,
     };
-    const ok = await resolveJailExec(deps, ["--context", "c", "--bind-rw", WORK, "--", "make"]);
-    assert.equal(ok.at(-1), "make");
+    const ok = await resolveJailExec(d, ["--context", "c", "--bind-rw", WORK, "--", "make"]);
+    assert.equal(ok.argv.at(-1), "make");
+    assert.equal(ok.envFile, null);
     await assert.rejects(
-      resolveJailExec(deps, ["--context", "c", "--bind-rw", `${WORK}/link`, "--", "make"]),
+      resolveJailExec(d, ["--context", "c", "--bind-rw", `${WORK}/link`, "--", "make"]),
       RunnerError,
     );
     await assert.rejects(
-      resolveJailExec({ ...deps, config: { ...ON, enabled: false } }, ["--context", "c", "--", "x"]),
+      resolveJailExec(d, ["--context", "c", "--bind-rw", WORK, "--env-file", `${WORK}/link`, "--", "make"]),
       RunnerError,
     );
+    await assert.rejects(
+      resolveJailExec(d, ["--context", "c", "--bind-rw", WORK, "--chdir", `${WORK}/link`, "--", "make"]),
+      RunnerError,
+    );
+    await assert.rejects(
+      resolveJailExec({ ...d, config: { ...ON, enabled: false } }, ["--context", "c", "--", "x"]),
+      RunnerError,
+    );
+  });
+});
+
+describe("jail exec env file and chdir", () => {
+  it("--chdir must be equal to or under a bind, and replaces the first bind-rw default", async () => {
+    const d = deps();
+    await assert.rejects(
+      resolveJailExec(d, ["--context", "c", "--bind-rw", WORK, "--chdir", "/data/payloads/web/other", "--", "sh"]),
+      RunnerError,
+    );
+    const sub = await resolveJailExec(d, ["--context", "c", "--bind-rw", WORK, "--chdir", `${WORK}/sub`, "--", "sh"]);
+    assert.equal(sub.argv[sub.argv.indexOf("--chdir") + 1], `${WORK}/sub`);
+    const ro = await resolveJailExec(d, [
+      "--context",
+      "c",
+      "--bind-rw",
+      WORK,
+      "--ro",
+      "/data/payloads/web/tools",
+      "--chdir",
+      "/data/payloads/web/tools",
+      "--",
+      "sh",
+    ]);
+    assert.equal(ro.argv[ro.argv.indexOf("--chdir") + 1], "/data/payloads/web/tools");
+  });
+
+  it("the env file goes on the --args fd, after the defaults and before the context and the decoy", async () => {
+    const ok = await resolveJailExec(deps(), [
+      "--context",
+      "c",
+      "--bind-rw",
+      WORK,
+      "--env-file",
+      `${WORK}/e.env`,
+      "--",
+      "sh",
+    ]);
+    assert.equal(ok.envFile, `${WORK}/e.env`);
+    assert.equal(ok.argv[ok.argv.indexOf("--args") + 1], "3");
+    assert.ok(ok.argv.indexOf("--args") > ok.argv.indexOf("LANG"));
+    assert.ok(ok.argv.indexOf("--args") < ok.argv.indexOf("DOZEBOX_CONTEXT"));
+    assert.ok(ok.argv.indexOf("--args") < ok.argv.indexOf("AWS_CONFIG_FILE"));
+  });
+
+  it("the values never reach the argv", async () => {
+    const ok = await resolveJailExec(deps(), [
+      "--context",
+      "c",
+      "--bind-rw",
+      WORK,
+      "--env-file",
+      `${WORK}/e.env`,
+      "--",
+      "sh",
+    ]);
+    const content = envArgsContent(parseEnvFile(Buffer.from("HOME=/data/x\0TOKEN=s3cret\0")));
+    assert.equal(content, "--setenv\0HOME\0/data/x\0--setenv\0TOKEN\0s3cret\0");
+    assert.ok(!ok.argv.join(" ").includes("s3cret"));
+    assert.ok(!ok.argv.join(" ").includes("TOKEN"));
+  });
+});
+
+describe("jail env file", () => {
+  it("reads NUL-separated NAME=value records; a value may hold newlines, = and be empty", () => {
+    assert.deepEqual(parse("A=1\0B=x=y\nz\0C=\0"), [
+      ["A", "1"],
+      ["B", "x=y\nz"],
+      ["C", ""],
+    ]);
+    assert.deepEqual(parse(""), []);
+    assert.equal(envArgsContent([]), "");
+  });
+
+  it("allows HOME but refuses PATH, DOZEBOX_CONTEXT and the AWS file names", () => {
+    assert.deepEqual(parse("HOME=/data/payloads/web/home"), [["HOME", "/data/payloads/web/home"]]);
+    assert.throws(() => parse("PATH=/evil"), RunnerError);
+    assert.throws(() => parse("DOZEBOX_CONTEXT=x"), RunnerError);
+    assert.throws(() => parse("AWS_CONFIG_FILE=/home/ubuntu/.aws/config"), RunnerError);
+    assert.throws(() => parse("AWS_SHARED_CREDENTIALS_FILE=/home/ubuntu/.aws/credentials"), RunnerError);
+  });
+
+  it("refuses a bad name, an empty record and a record without =", () => {
+    for (const text of ["1A=x", "A-B=x", "A B=x", "=x", "novalue", "A=1\0\0B=2", "\0", "A=1\0\0"]) {
+      assert.throws(() => parse(text), RunnerError, JSON.stringify(text));
+    }
+  });
+
+  it("refuses more than 512 records and more than 1 MiB", () => {
+    const many = Array.from({ length: 513 }, (_, i) => `A${i}=x`).join("\0");
+    assert.throws(() => parse(many), RunnerError);
+    assert.throws(() => parseEnvFile(Buffer.alloc(ENV_FILE_MAX_BYTES + 1, 0x41)), RunnerError);
+  });
+
+  it("never echoes a value in an error", () => {
+    let caught: unknown = null;
+    try {
+      parse("PATH=s3cret");
+    } catch (e) {
+      caught = e;
+    }
+    assert.ok(caught instanceof Error);
+    assert.ok(!caught.message.includes("s3cret"));
   });
 });
 

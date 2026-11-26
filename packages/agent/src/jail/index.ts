@@ -1,14 +1,21 @@
 // A8: the payload jail (part 8 §8.4, §8.5): bubblewrap profile and `dozebox jail exec`, AppArmor profile, per-uid
 // nftables egress (`imds-only` or `allowlist`), and the tripwire (decoy profile, socket, report).
-export { BWRAP, bwrapFlags, DECOY_CONFIG, jailArgv, type JailRun } from "./bwrap.ts";
+export { BWRAP, bwrapFlags, DECOY_CONFIG, ENV_ARGS_FD, jailArgv, type JailRun } from "./bwrap.ts";
 export {
+  ENV_FILE_MAX_BYTES,
+  ENV_FILE_MAX_RECORDS,
+  envArgsContent,
+  parseEnvFile,
   parseJailExecArgs,
   payloadPath,
   PAYLOAD_DATA_ROOT,
   resolveJailExec,
+  type JailEnvEntry,
   type JailExecArgs,
   type JailExecDeps,
+  type JailExecPlan,
 } from "./exec.ts";
+export { takeEnvFile } from "./envFile.ts";
 export {
   applyEgress,
   EGRESS_REFRESH_MS,
