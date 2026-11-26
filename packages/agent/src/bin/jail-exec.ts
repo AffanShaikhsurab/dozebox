@@ -1,18 +1,30 @@
 // `dozebox-jail-exec` (bin, run by a payload user through sudo): start an agent command in the payload's jail as
 // `<payload>-agent`. The payload is the one whose user is SUDO_UID; the jail settings come from the last good config.
+// sudo drops the caller's environment, so the box identity comes from the root-owned /etc/dozebox/box.env.
 import { spawn } from "node:child_process";
 import { mkdtemp, readFile, realpath, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { lastGoodPath } from "../config/load.ts";
 import { parseLastGood } from "../config/parse.ts";
-import { readEnv } from "../env.ts";
+import { parseBoxEnv, readEnv, withBoxEnv } from "../env.ts";
 import { messageOf } from "../errors.ts";
 import { ENV_ARGS_FD } from "../jail/bwrap.ts";
 import { resolveJailExec, takeEnvFile } from "../jail/index.ts";
 import { parsePasswd } from "../supervisor/users.ts";
 
 const SHELL = "/bin/sh";
+const BOX_ENV_FILE = "/etc/dozebox/box.env";
+
+/** sudo drops the caller's environment; box.env is root-owned and is the box's identity. */
+async function boxEnv(): Promise<Readonly<Record<string, string>>> {
+  try {
+    return parseBoxEnv(await readFile(BOX_ENV_FILE, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
 /**
  * Node marks every fd it opens close-on-exec, so an env-args fd cannot survive `process.execve`. `sh` can open one
  * that does, and it execs the jail argv, so no process stays between sudo and bwrap.
@@ -38,7 +50,7 @@ function runChild(cmd: string, args: ReadonlyArray<string>, envArgs: string | nu
 }
 
 async function main(): Promise<number> {
-  const env = readEnv(process.env, process.pid);
+  const env = readEnv(withBoxEnv(process.env, await boxEnv()), process.pid);
   const cfg = parseLastGood(await readFile(lastGoodPath(env.stateDir), "utf8"), env);
   if (!cfg.ok) throw new Error(cfg.problem);
   const users = parsePasswd(await readFile("/etc/passwd", "utf8"));

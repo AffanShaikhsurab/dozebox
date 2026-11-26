@@ -19,7 +19,34 @@ const BOX_ID = /^[a-z0-9][a-z0-9-]{0,19}$/;
 const PREFIX = /^[a-z][a-z0-9-]{0,20}$/;
 const REGION = /^[a-z]{2}(-[a-z]+)+-\d$/;
 
-type Env = Readonly<Record<string, string | undefined>>;
+export type Env = Readonly<Record<string, string | undefined>>;
+
+const unquote = (v: string): string => {
+  const q = v[0];
+  return v.length >= 2 && (q === '"' || q === "'") && v.endsWith(q) ? v.slice(1, -1) : v;
+};
+
+/** Pure: the `DOZEBOX_*` keys of `/etc/dozebox/box.env`, the root-owned file stage 0 writes. */
+export function parseBoxEnv(text: string): Readonly<Record<string, string>> {
+  const out: Record<string, string> = {};
+  for (const raw of text.split("\n")) {
+    const line = raw.trim();
+    if (line === "" || line.startsWith("#")) continue;
+    const eq = line.indexOf("=");
+    if (eq <= 0) continue;
+    const key = line.slice(0, eq).trim();
+    if (key.startsWith("DOZEBOX_")) out[key] = unquote(line.slice(eq + 1).trim());
+  }
+  return out;
+}
+
+/**
+ * The box identity from the root-owned box.env wins over the caller's env: a payload user runs jail-exec through
+ * sudo and must not be able to point it at another box's last-good config.
+ */
+export function withBoxEnv(env: Env, boxEnv: Env): Env {
+  return { ...env, ...boxEnv };
+}
 
 function pick(env: Env, name: string, re: RegExp, fallback?: string): string {
   const v = env[name] || fallback;
