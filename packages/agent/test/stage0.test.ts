@@ -46,13 +46,14 @@ class Sandbox {
   readonly units = join(this.dir, "units");
   readonly run = join(this.dir, "run");
   readonly env: Record<string, string> = {};
+  /** Each fake logs `name<TAB>arg<TAB>arg...` so arguments with spaces stay whole. */
+  readonly record = `printf '%s' "$(basename "$0")" >> "${this.log}"; for a in "$@"; do printf '\\t%s' "$a" >> "${this.log}"; done; echo >> "${this.log}"`;
 
   constructor() {
     for (const d of [this.run, this.units]) mkdirSync(d, { recursive: true });
     writeFileSync(this.log, "");
     writeFileSync(this.values, "");
-    // Each fake logs `name<TAB>arg<TAB>arg...` so arguments with spaces stay whole.
-    const record = `printf '%s' "$(basename "$0")" >> "${this.log}"; for a in "$@"; do printf '\\t%s' "$a" >> "${this.log}"; done; echo >> "${this.log}"`;
+    const record = this.record;
     sh(
       join(this.dir, "curl"),
       `${record}\nout=""; while [ $# -gt 0 ]; do [ "$1" = -o ] && out="$2"; shift; done\n[ -z "$FAKE_CURL_FAIL" ] || exit 22\ncp "$FAKE_TARBALL" "$out"`,
@@ -80,6 +81,7 @@ class Sandbox {
       DOZEBOX_AWS_BIN: join(this.dir, "aws"),
       DOZEBOX_POWEROFF_COMMAND: join(this.dir, "poweroff"),
       DOZEBOX_APT_GET_BIN: join(this.dir, "apt-get"),
+      DOZEBOX_APT_RETRY_SLEEP: "0",
       DOZEBOX_BWRAP_BIN: join(this.dir, "missing-bwrap"),
       DOZEBOX_NFT_BIN: join(this.dir, "missing-nft"),
       DOZEBOX_INSTANCE_ID_FILE: join(this.dir, "instance-id"),
@@ -221,13 +223,52 @@ describe("install-agent.sh", { skip }, () => {
       assert.equal(r.code, 0, r.stderr);
       assert.deepEqual(
         sb.calls().filter((c) => c[0] === "apt-get"),
-        [["apt-get", "install", "-y", "--no-install-recommends", "bubblewrap", "nftables"]],
+        [
+          ["apt-get", "-o", "DPkg::Lock::Timeout=180", "update"],
+          [
+            "apt-get",
+            "-o",
+            "DPkg::Lock::Timeout=180",
+            "install",
+            "-y",
+            "--no-install-recommends",
+            "bubblewrap",
+            "nftables",
+          ],
+        ],
       );
       assert.deepEqual(
         sb.timeline().map((l) => l["step"]),
         ["jail-packages", "agent-install"],
       );
       assert.equal(sb.timeline()[0]?.["ok"], true);
+    } finally {
+      sb.cleanup();
+    }
+  });
+
+  test("retries apt when the first attempt loses the dpkg lock", async () => {
+    const sb = new Sandbox();
+    try {
+      const count = join(sb.dir, "apt-count");
+      writeFileSync(count, "0");
+      sh(
+        join(sb.dir, "apt-get"),
+        `${sb.record}\nn=$(cat "${count}"); n=$((n+1)); echo "$n" > "${count}"\n[ "$n" -gt 1 ] || exit 100`,
+      );
+      const sha = sb.tarball();
+      const r = await sb.exec("install-agent.sh", ["1.0.0", BASE, sha]);
+      assert.equal(r.code, 0, r.stderr);
+      assert.match(r.stderr, /apt attempt 1 failed/);
+      assert.deepEqual(
+        sb
+          .calls()
+          .filter((c) => c[0] === "apt-get")
+          .map((c) => c[3]),
+        ["update", "update", "install"],
+      );
+      assert.equal(sb.timeline()[0]?.["ok"], true);
+      assert.ok(existsSync(join(sb.root, "releases/1.0.0/bin/dozeboxd")));
     } finally {
       sb.cleanup();
     }
@@ -252,11 +293,12 @@ describe("install-agent.sh", { skip }, () => {
   test("a failed package install is recorded and does not stop the agent", async () => {
     const sb = new Sandbox();
     try {
-      sh(join(sb.dir, "apt-get"), "exit 1");
+      sh(join(sb.dir, "apt-get"), `${sb.record}\n[ "$3" = update ] || exit 1`);
       const sha = sb.tarball();
       const r = await sb.exec("install-agent.sh", ["1.0.0", BASE, sha]);
       assert.equal(r.code, 0, r.stderr);
       assert.match(r.stderr, /could not install bubblewrap and nftables/);
+      assert.equal(sb.calls().filter((c) => c[0] === "apt-get").length, 6, "update and install, three times");
       assert.equal(sb.timeline()[0]?.["step"], "jail-packages");
       assert.equal(sb.timeline()[0]?.["ok"], false);
       assert.ok(existsSync(join(sb.root, "releases/1.0.0/bin/dozeboxd")));
