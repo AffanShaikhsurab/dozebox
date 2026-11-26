@@ -33,21 +33,21 @@ Pass it to the module with `payloads = { marker = jsondecode(file("${path.module
 definition's `name` as the map key. A box takes 1 to 4 payloads. Commands are argument lists, not shell strings: run a
 shell by naming it (`["/bin/sh", "-c", "..."]`).
 
-| Field      | Required | What it does                                                                                             |
-| ---------- | -------- | -------------------------------------------------------------------------------------------------------- |
-| `schema`   | yes      | Always `1`.                                                                                              |
-| `name`     | yes      | Lower case letters, digits and `-`, starting with a letter, at most 31 characters.                       |
-| `user`     | yes      | The Linux user the payload runs as. Created if missing. Never `root`.                                    |
-| `protocol` | yes      | `v1` if the payload speaks the [protocol](./protocol/v1.md); `none` for health-only mode.                |
-| `install`  | no       | A command to prepare the machine, and `when` to run it: `every-boot`, `once` per volume, or `on-change`. |
-| `start`    | yes      | The command, working directory, environment and `stopGraceSeconds` (5 to 600).                           |
-| `health`   | no       | An HTTP check on `127.0.0.1`, or a command, with a timeout and a start period.                           |
-| `activity` | no       | What counts as use in health-only mode: a CPU percentage and TCP ports.                                  |
-| `limits`   | no       | The longest hold (`holdMaxSeconds`), `memoryMax` and `cpuWeight`.                                        |
-| `data`     | no       | Paths that matter for restores, and hooks that run before and after a snapshot and after a restore.      |
-| `secrets`  | no       | Names of shared secrets, delivered as a `0600` file or an environment variable.                          |
-| `jail`     | no       | Read-only, writable and hidden paths for agents the payload launches.                                    |
-| `ports`    | no       | Ports the payload listens on that the network must open.                                                 |
+| Field      | Required | What it does                                                                                                       |
+| ---------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
+| `schema`   | yes      | Always `1`.                                                                                                        |
+| `name`     | yes      | Lower case letters, digits and `-`, starting with a letter, at most 31 characters.                                 |
+| `user`     | yes      | The Linux user the payload runs as. Created if missing. Never `root`.                                              |
+| `protocol` | yes      | `v1` if the payload speaks the [protocol](./protocol/v1.md); `none` for health-only mode.                          |
+| `install`  | no       | A command to prepare the machine, and `when` to run it: `every-boot`, `once` per volume, or `on-change`.           |
+| `start`    | yes      | The command, working directory, environment, `stopGraceSeconds` (5 to 600) and `noNewPrivileges` (default `true`). |
+| `health`   | no       | An HTTP check on `127.0.0.1`, or a command, with a timeout and a start period.                                     |
+| `activity` | no       | What counts as use in health-only mode: a CPU percentage and TCP ports.                                            |
+| `limits`   | no       | The longest hold (`holdMaxSeconds`), `memoryMax` and `cpuWeight`.                                                  |
+| `data`     | no       | Paths that matter for restores, and hooks that run before and after a snapshot and after a restore.                |
+| `secrets`  | no       | Names of shared secrets, delivered as a `0600` file or an environment variable.                                    |
+| `jail`     | no       | Read-only, writable and hidden paths for agents the payload launches.                                              |
+| `ports`    | no       | Ports the payload listens on that the network must open.                                                           |
 
 Field-level limits are in the [payload definition schema](../packages/protocol/schema/v1/). Unknown fields are
 rejected.
@@ -105,6 +105,13 @@ The box's `dozebox` is a shim with two commands: `dozebox hold` and `dozebox wak
 in the [CLI reference](./reference/cli.md#operator-only-commands) belong to the full CLI, which the box does not
 install. Payloads use the protocol or `@dozebox/client` for everything else. The calls, bodies and limits are in the
 [protocol reference](./reference/protocol-v1.md).
+
+## Launching agents in the jail
+
+A payload that starts coding agents runs them through `dozebox jail exec`, which needs `sudo`. The payload unit keeps
+`NoNewPrivileges=yes` by default, and sudo refuses to run under it, so such a payload sets
+`"start": { "noNewPrivileges": false }`. The opt-out applies to that payload's unit only; its sudo is still limited to
+`dozebox-jail-exec` by the rule the agent writes. Every other payload keeps the hardened default.
 
 ## `@dozebox/client`
 

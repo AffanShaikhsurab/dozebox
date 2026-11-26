@@ -11,6 +11,7 @@ Slice=dozebox-payloads.slice
 KillMode=mixed
 Restart=on-failure
 RestartSec=10
+# A payload that launches jailed agents opts out in its drop-in (NoNewPrivileges=no).
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=full

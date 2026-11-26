@@ -37,6 +37,8 @@ export const PayloadDefinition = Type.Object(
         workingDirectory: Type.Optional(Type.String()),
         env: Type.Optional(Type.Record(EnvName, Type.String({ maxLength: 4096 }))),
         stopGraceSeconds: Type.Optional(Type.Integer({ minimum: 5, maximum: 600 })),
+        /** Default true. A payload that launches jailed agents needs sudo, which NoNewPrivileges blocks. */
+        noNewPrivileges: Type.Optional(Type.Boolean()),
       },
       { additionalProperties: false },
     ),

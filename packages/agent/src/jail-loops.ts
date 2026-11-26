@@ -26,6 +26,8 @@ export async function jailLoops(c: {
   readonly log: Logger;
   readonly payloadUsers: ReadonlyArray<string>;
   readonly signal: AbortSignal;
+  /** Called after the egress table is loaded, so readiness can be recomputed. */
+  readonly onEgressApplied?: () => void;
 }): Promise<ReadonlyArray<Loop>> {
   const { deps, box } = c;
   const loops: Loop[] = [];
@@ -42,6 +44,7 @@ export async function jailLoops(c: {
         }),
         uids: () => [...c.agentUids.values()],
         lookup: async (host) => [...(await resolve4(host).catch(() => [])), ...(await resolve6(host).catch(() => []))],
+        onApplied: () => c.onEgressApplied?.(),
       }),
     );
   }

@@ -668,6 +668,7 @@ JSON Schema: `schema/v1/payload-definition.json`. Unknown fields are rejected.
 | `start.workingDirectory` | string | no |  |
 | `start.env` | map | no |  |
 | `start.stopGraceSeconds` | integer | no | minimum `5`, maximum `600` |
+| `start.noNewPrivileges` | boolean | no |  |
 | `health` | object | no |  |
 | `health.http` | object | no |  |
 | `health.http.url` | string | yes | pattern `^http://(127\.0\.0\.1\|localhost\|\[::1\])` |

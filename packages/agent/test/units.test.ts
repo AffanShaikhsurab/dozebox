@@ -28,6 +28,7 @@ const full: PayloadDefinition = {
     workingDirectory: "/data/payloads/full/work",
     env: { ZED: "last", ALPHA: "has space", PCT: "50%", MONEY: "$5;now" },
     stopGraceSeconds: 120,
+    noNewPrivileges: false,
   },
   limits: { memoryMax: "512M", cpuWeight: 200 },
   secrets: [
@@ -121,6 +122,11 @@ test("EnvironmentFile only with an env secret; limits only when set", () => {
   assert.doesNotMatch(mini, /EnvironmentFile=|MemoryMax=|CPUWeight=|LoadCredential=/);
   assert.match(mini, /^TimeoutStopSec=30$/m);
   assert.match(renderUnit(full, fullOpts).text, /^EnvironmentFile=-\/run\/dozebox\/credentials\/full\/env$/m);
+});
+
+test("NoNewPrivileges is off only when the definition opts out", () => {
+  assert.match(renderUnit(full, fullOpts).text, /^NoNewPrivileges=no$/m);
+  assert.doesNotMatch(renderUnit(minimal, OPTS).text, /NoNewPrivileges/);
 });
 
 test("systemd-analyze verify accepts the template and a drop-in", (t) => {

@@ -47,6 +47,7 @@ import { healthLoop } from "./watchdog/health.ts";
 export const RUN_DIR = "/run/dozebox";
 const PAYLOADS_EVERY_MS = 5 * MINUTE;
 const LIVENESS_OFFER_MS = 30_000;
+const JAIL_READY_EVERY_MS = 30_000;
 const read = (path: string): Promise<string> => fsp.readFile(path, "utf8");
 const capSeconds = (hours: number | null): number | null => (hours === null ? null : hours * 3600);
 const PROBE_HOSTS = ["ssm.amazonaws.com", "github.com"] as const;
@@ -124,7 +125,8 @@ export function makeAgent(opts: AgentOptions = {}): Prepare {
       bootAt: await bootTimeOf(deps.files, now()),
     });
     const bootedAt = (await timeline.steps())[0]?.startedAt ?? now();
-    const jail = await (opts.jail?.(deps) ??
+    const readiness = (s: AbortSignal): Promise<JailReadiness> =>
+      opts.jail?.(deps) ??
       jailReadiness(
         { exec: deps.exec, files: deps.files },
         {
@@ -132,8 +134,20 @@ export function makeAgent(opts: AgentOptions = {}): Prepare {
           egress: box().jail.egress === "allowlist" ? "allowlist" : "imds-only",
           tripwire: box().tripwire.enabled,
         },
-        signal.signal,
-      ));
+        s,
+      );
+    let jail = await readiness(signal.signal);
+    // This snapshot is taken before setupHost writes the profile, the nft table and the tripwire units. Refresh in
+    // order, so a slow check cannot overwrite a newer one.
+    let refreshing: Promise<void> = Promise.resolve();
+    const refreshJail = (s: AbortSignal): Promise<void> => {
+      refreshing = refreshing
+        .catch(() => {})
+        .then(async () => {
+          jail = await readiness(s);
+        });
+      return refreshing;
+    };
 
     let verdict: IdleVerdict | null = null;
     let disk: DiskReading | null = null;
@@ -373,8 +387,17 @@ export function makeAgent(opts: AgentOptions = {}): Prepare {
         log,
         payloadUsers: config.current().payloads.map((d) => d.user),
         signal: signal.signal,
+        onEgressApplied: () =>
+          void refreshJail(signal.signal).catch((e: unknown) => log.log("warn", "jail readiness", { error: e })),
       })),
     );
+    await refreshJail(signal.signal).catch((e: unknown) => log.log("warn", "jail readiness", { error: e }));
+    loops.push({
+      name: "jail-ready",
+      everyMs: JAIL_READY_EVERY_MS,
+      immediate: true,
+      tick: (s) => refreshJail(s),
+    });
 
     return {
       loops,

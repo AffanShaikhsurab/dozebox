@@ -97,6 +97,7 @@ export function renderUnit(def: PayloadDefinition, opts: RenderOptions): Rendere
   if (def.limits?.memoryMax !== undefined) lines.push(`MemoryMax=${def.limits.memoryMax}`);
   if (def.limits?.cpuWeight !== undefined) lines.push(`CPUWeight=${def.limits.cpuWeight}`);
   lines.push(`TimeoutStopSec=${def.start.stopGraceSeconds ?? DEFAULT_STOP_GRACE_SECONDS}`);
+  if (def.start.noNewPrivileges === false) lines.push("NoNewPrivileges=no");
 
   const text = `${lines.join("\n")}\n`;
   const unit = `dozebox-payload@${name}.service`;
