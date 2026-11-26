@@ -8,6 +8,8 @@ const SYSTEMD_RUN = "/usr/bin/systemd-run";
 const ENV = "/usr/bin/env";
 export const DECOY_CONFIG = "/etc/dozebox/aws-decoy.config";
 const JAIL_PATH = "/usr/local/bin:/usr/bin:/bin";
+/** The fd `--args` reads the `--env-file` pairs from; the bin opens it, so the values never reach argv. */
+export const ENV_ARGS_FD = 3;
 
 export type JailRun = {
   /** Read-write binds, each under `/data/payloads/<payload>/` (checked by `parseJailExecArgs`). */
@@ -17,6 +19,10 @@ export type JailRun = {
   readonly context?: string;
   /** Bind the decoy AWS profile and point AWS_CONFIG_FILE at it (default on). */
   readonly decoy?: boolean;
+  /** Where the command starts; defaults to the first read-write bind. */
+  readonly chdir?: string;
+  /** Read extra bwrap arguments (`--setenv` pairs) from this inherited fd. */
+  readonly envArgsFd?: number;
 };
 
 const ETC_FILES = ["/etc/resolv.conf", "/etc/hosts", "/etc/nsswitch.conf", "/etc/passwd", "/etc/group"];
@@ -55,10 +61,13 @@ export function bwrapFlags(run: JailRun = {}): string[] {
   for (const p of run.readOnly ?? []) flags.push("--ro-bind", p, p);
   for (const p of rw) flags.push("--bind", p, p);
   flags.push("--clearenv", "--setenv", "PATH", JAIL_PATH, "--setenv", "HOME", "/tmp", "--setenv", "LANG", "C.UTF-8");
+  // After the defaults so the env file's HOME wins over /tmp, before the context and the decoy so it cannot spoof them.
+  if (run.envArgsFd !== undefined) flags.push("--args", String(run.envArgsFd));
   if (run.context !== undefined) flags.push("--setenv", "DOZEBOX_CONTEXT", run.context);
   if (run.decoy ?? true)
     flags.push("--ro-bind-try", DECOY_CONFIG, DECOY_CONFIG, "--setenv", "AWS_CONFIG_FILE", DECOY_CONFIG);
-  if (rw[0] !== undefined) flags.push("--chdir", rw[0]);
+  const chdir = run.chdir ?? rw[0];
+  if (chdir !== undefined) flags.push("--chdir", chdir);
   return flags;
 }
 
