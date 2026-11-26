@@ -8,6 +8,8 @@ import { ENV_ARGS_FD, jailArgv, type JailRun } from "./bwrap.ts";
 import type { JailConfig } from "./types.ts";
 
 export const PAYLOAD_DATA_ROOT = "/data/payloads";
+/** The one binary a payload user may run as root: the sudoers rule the agent writes names it. */
+export const JAIL_EXEC_BIN = "/opt/dozebox/current/bin/dozebox-jail-exec";
 const CONTEXT = /^[A-Za-z0-9._:-]{1,64}$/;
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 /**

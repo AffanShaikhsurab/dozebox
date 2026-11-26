@@ -123,6 +123,65 @@ test("startAll starts a changed unit that is not active", async () => {
   assert.deepEqual(exec.calls.at(-1)?.argv, ["systemctl", "start", UNIT]);
 });
 
+const SUDO_HEAD = [
+  "Matching Defaults entries for web on box:",
+  "    env_reset, mail_badpass",
+  "",
+  "User web may run the following commands on box:",
+  "",
+];
+const SUDO_JAIL_ONLY = [
+  ...SUDO_HEAD,
+  "Sudoers entry: /etc/sudoers.d/dozebox",
+  "    RunAsUsers: root",
+  "    Options: !authenticate",
+  "    Commands:",
+  "\t/opt/dozebox/current/bin/dozebox-jail-exec *",
+  "",
+].join("\n");
+const SUDO_WITH_ROOT = [
+  ...SUDO_HEAD,
+  "Sudoers entry: /etc/sudoers",
+  "    RunAsUsers: ALL",
+  "    RunAsGroups: ALL",
+  "    Commands:",
+  "\tALL",
+  "",
+  "Sudoers entry: /etc/sudoers.d/90-cloud-init-users",
+  "    RunAsUsers: ALL",
+  "    Options: !authenticate",
+  "    Commands:",
+  "\tALL",
+  "",
+].join("\n");
+
+test("a payload that opts out of NoNewPrivileges starts when its only sudo right is jail-exec", async () => {
+  const opted = def({ start: { command: ["/usr/bin/web"], noNewPrivileges: false } });
+  const { sup, exec } = supervisor(
+    [opted],
+    [{ match: ["sudo", "-ll", "-U", "web"], outcome: { stdout: SUDO_JAIL_ONLY } }],
+  );
+  await sup.startAll(sig());
+  assert.ok(exec.calls.some((c) => c.argv[1] === "start"));
+});
+
+test("a payload that opts out is refused when its user has any other sudo right", async () => {
+  const opted = def({ start: { command: ["/usr/bin/web"], noNewPrivileges: false } });
+  const { sup, exec } = supervisor(
+    [opted],
+    [{ match: ["sudo", "-ll", "-U", "web"], outcome: { stdout: SUDO_WITH_ROOT } }],
+  );
+  await assert.rejects(
+    sup.startAll(sig()),
+    (e) =>
+      e instanceof RunnerError &&
+      e.code === "invalid_input" &&
+      e.message.includes("refusing to start") &&
+      e.message.includes("NOPASSWD: ALL"),
+  );
+  assert.ok(!exec.calls.some((c) => c.argv[1] === "start"));
+});
+
 test("startAll stops on a failed install hook and starts nothing", async () => {
   const { sup, exec } = supervisor([def({ install: install() })], [{ match: ["runuser"], outcome: { code: 9 } }]);
   await assert.rejects(sup.startAll(sig()), (e) => e instanceof RunnerError && e.message.includes("web"));

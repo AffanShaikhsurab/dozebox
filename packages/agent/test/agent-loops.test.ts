@@ -4,11 +4,12 @@
 // tests cover them.
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { makeFakeHostStats, makeFakeSpotNotices, makeFakeSupervisor } from "@dozebox/testkit/fakes";
+import { makeFakeExec, makeFakeHostStats, makeFakeSpotNotices, makeFakeSupervisor } from "@dozebox/testkit/fakes";
 import { makeAgent, RUN_DIR, type AgentOptions } from "../src/agent-loops.ts";
+import { APPARMOR_PROFILE, type JailReadiness } from "../src/jail/index.ts";
 import type { ProtocolServerDeps } from "../src/protocol/index.ts";
 import { runAgent, type Proc } from "../src/run.ts";
-import { flush, harness } from "./support.ts";
+import { boxConfig, flush, harness } from "./support.ts";
 
 const proc: Proc = { once: () => {}, exit: () => {} };
 
@@ -103,4 +104,121 @@ test("a Spot notice moves to reclaim-notice and parks with reason reclaim", asyn
   assert.equal(JSON.parse(h.records.get("rec/last-words") ?? "null").parkedBecause, "reclaim");
   assert.equal(stops.length, 1);
   await agent.loops.stop();
+});
+
+// Bug 3: readiness was a snapshot taken before setupHost wrote the profile, the nft table and the tripwire units, so
+// a fresh box (and every wake) reported ready:false for its whole life. The host state here is the real one: the
+// profile is a file, the table and the socket are kernel state that a stop/start loses.
+async function setupJail(over: { readonly throwOnProfile?: () => boolean } = {}) {
+  const h = harness({ files: { "/etc/passwd": "web:x:1000:1000::/data/home/web:/bin/bash\n" } });
+  h.params.set(
+    "config",
+    JSON.stringify(
+      boxConfig({ jail: { enabled: true, egress: "imds-only", allowHosts: [] }, tripwire: { enabled: true } }),
+    ),
+  );
+  const sup = makeFakeSupervisor();
+  sup.units = [{ name: "web", active: "inactive", activeSince: null, restarts: 0 }];
+  sup.health = [{ name: "web", ok: true, detail: "HTTP 200" }];
+  const host = { nft: false, tripwire: false };
+  const exec = makeFakeExec([
+    { match: ["/usr/bin/bwrap", "--version"], outcome: { code: 0 } },
+    { match: ["nft", "list", "table", "inet", "dozebox_egress"], outcome: () => ({ code: host.nft ? 0 : 1 }) },
+    {
+      match: ["nft", "-f", "/etc/dozebox/egress.nft"],
+      outcome: () => {
+        host.nft = true;
+        return { code: 0 };
+      },
+    },
+    {
+      match: ["systemctl", "is-active", "--quiet", "dozebox-tripwire.socket"],
+      outcome: () => ({ code: host.tripwire ? 0 : 3 }),
+    },
+    {
+      match: ["systemctl", "enable", "--now", "dozebox-tripwire.socket"],
+      outcome: () => {
+        host.tripwire = true;
+        return { code: 0 };
+      },
+    },
+    { match: ["systemctl", "daemon-reload"], outcome: { code: 0 } },
+    { match: ["apparmor_parser", "-r", APPARMOR_PROFILE], outcome: { code: 0 } },
+    { match: ["visudo", "-cf", "/etc/sudoers.d/dozebox"], outcome: { code: 0 } },
+  ]);
+  const stats = makeFakeHostStats();
+  stats.reachable = new Set(["ssm.amazonaws.com"]);
+  let server: ProtocolServerDeps | null = null;
+  const opts: AgentOptions = {
+    supervisor: () => sup,
+    server: (d) => {
+      server = d;
+      return { start: async () => {}, stop: async () => {}, publish: () => {} };
+    },
+    spotNotices: makeFakeSpotNotices(),
+    hostStats: stats,
+    journal: async (cursor) => ({ events: [], cursor }),
+  };
+  const files = {
+    ...h.deps.files,
+    readText: async (path: string) => {
+      if (path === APPARMOR_PROFILE && over.throwOnProfile?.() === true)
+        throw new Error("EIO: cannot read the profile");
+      return h.deps.files.readText(path);
+    },
+  };
+  const deps = { ...h.deps, exec, files, selfStop: { stopSelf: async () => {} } };
+  const start = async () => {
+    // Snapshot after makeAgent (setupHost has run) and before any loop tick (the egress table is not loaded yet).
+    let beforeEgress: JailReadiness | null = null;
+    const prepare = makeAgent(opts);
+    const agent = await runAgent(deps, proc, {
+      prepare: async (d, c) => {
+        const prepared = await prepare(d, c);
+        beforeEgress = server?.status("web").jail ?? null;
+        return prepared;
+      },
+    });
+    await flush(300);
+    if (!server) throw new Error("no server");
+    return { agent, srv: server as ProtocolServerDeps, beforeEgress };
+  };
+  return { h, host, exec, start };
+}
+
+test("jail readiness is not ready before the egress table lands, then flips to true", async () => {
+  const { start } = await setupJail();
+  const { agent, srv, beforeEgress } = await start();
+  assert.deepEqual(beforeEgress, { ready: false, egress: "imds-only", missing: ["nftables"] });
+  assert.deepEqual(srv.status("web").jail, { ready: true, egress: "imds-only", missing: [] });
+  await agent.loops.stop();
+});
+
+test("a readiness check that throws reports not ready instead of keeping the last good fact", async () => {
+  let fail = false;
+  const { h, start } = await setupJail({ throwOnProfile: () => fail });
+  const { agent, srv } = await start();
+  assert.equal(srv.status("web").jail.ready, true);
+  fail = true;
+  h.clock.advance(30_000);
+  await flush(300);
+  const jail = srv.status("web").jail;
+  assert.equal(jail.ready, false);
+  assert.match(jail.missing.join(" "), /EIO: cannot read the profile/);
+  await agent.loops.stop();
+});
+
+test("a wake re-runs setupHost and readiness", async () => {
+  const { host, exec, start } = await setupJail();
+  const first = await start();
+  assert.equal(first.srv.status("web").jail.ready, true);
+  await first.agent.loops.stop();
+  // A stop/start keeps the disk (the profile) and loses the kernel state (the table and the socket).
+  host.nft = false;
+  host.tripwire = false;
+  const second = await start();
+  assert.deepEqual(second.srv.status("web").jail, { ready: true, egress: "imds-only", missing: [] });
+  assert.equal(exec.of("apparmor_parser").length, 2);
+  assert.equal(exec.of("systemctl").filter((c) => c.argv.includes("enable")).length, 2);
+  await second.agent.loops.stop();
 });

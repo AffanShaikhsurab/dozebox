@@ -128,6 +128,13 @@ describe("box/systemd units", () => {
     assert.equal(get(u, "Install", "WantedBy"), "multi-user.target");
   });
 
+  test("dozebox-payload@.service keeps the hardened default", () => {
+    const u = unit("dozebox-payload@.service");
+    assert.equal(get(u, "Service", "NoNewPrivileges"), "yes");
+    assert.equal(get(u, "Service", "PrivateTmp"), "yes");
+    assert.equal(get(u, "Service", "ProtectSystem"), "full");
+  });
+
   test("dozeboxd.service", () => {
     const u = unit("dozeboxd.service");
     const expected: [string, string, string][] = [

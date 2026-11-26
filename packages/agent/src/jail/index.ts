@@ -5,6 +5,7 @@ export {
   ENV_FILE_MAX_BYTES,
   ENV_FILE_MAX_RECORDS,
   envArgsContent,
+  JAIL_EXEC_BIN,
   parseEnvFile,
   parseJailExecArgs,
   payloadPath,

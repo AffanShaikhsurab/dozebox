@@ -300,7 +300,11 @@ export const SAMPLES: Readonly<Record<string, Sample>> = {
       user: "agent",
       protocol: "none",
       install: { command: ["/bin/sh", "-c", "true"], when: "on-change", timeoutSeconds: 600, asRoot: true },
-      start: { command: ["/usr/bin/dozebox", "run", "--", "/usr/local/bin/agent"], stopGraceSeconds: 60 },
+      start: {
+        command: ["/usr/bin/dozebox", "run", "--", "/usr/local/bin/agent"],
+        stopGraceSeconds: 60,
+        noNewPrivileges: false,
+      },
       activity: { cpuPercent: 5 },
       secrets: [{ name: "agent-token", as: { env: "AGENT_TOKEN" } }],
     },
