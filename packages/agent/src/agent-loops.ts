@@ -136,6 +136,8 @@ export function makeAgent(opts: AgentOptions = {}): Prepare {
         },
         s,
       );
+    const egressNow = (): JailReadiness["egress"] =>
+      box().jail.enabled ? (box().jail.egress === "allowlist" ? "allowlist" : "imds-only") : "off";
     let jail = await readiness(signal.signal);
     // This snapshot is taken before setupHost writes the profile, the nft table and the tripwire units. Refresh in
     // order, so a slow check cannot overwrite a newer one.
@@ -144,7 +146,13 @@ export function makeAgent(opts: AgentOptions = {}): Prepare {
       refreshing = refreshing
         .catch(() => {})
         .then(async () => {
-          jail = await readiness(s);
+          try {
+            jail = await readiness(s);
+          } catch (e) {
+            // A failed check must not leave the last good fact in place: report not-ready with the error.
+            jail = { ready: false, egress: egressNow(), missing: [messageOf(e)] };
+            throw e;
+          }
         });
       return refreshing;
     };

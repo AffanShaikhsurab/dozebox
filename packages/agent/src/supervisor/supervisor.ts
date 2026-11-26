@@ -10,6 +10,7 @@ import type { PayloadSupervisor } from "../ports/payloads.ts";
 import { runHealthCheck, unitName } from "./health.ts";
 import { runInstallHook } from "./install.ts";
 import { writeCredentials } from "./secrets.ts";
+import { verifyJailSudo } from "./sudo.ts";
 import { parseStates, systemctl } from "./systemctl.ts";
 import { renderUnit } from "./units.ts";
 import { ensureUser } from "./users.ts";
@@ -74,6 +75,16 @@ export function makeSupervisor(deps: SupervisorDeps): PayloadSupervisor {
     if (changed.size > 0) await systemctl(deps.exec, "daemon-reload", [], signal);
 
     for (const def of defs) {
+      if (def.start.noNewPrivileges === false) {
+        const verdict = await verifyJailSudo(deps.exec, def.user, signal);
+        if (!verdict.ok) {
+          throw new RunnerError(
+            "invalid_input",
+            false,
+            `payload ${def.name}: refusing to start: ${verdict.detail}; run it as a dedicated user whose only sudo right is the jail-exec rule`,
+          );
+        }
+      }
       const unit = unitName(def.name);
       const install = await runInstallHook(deps, def, signal);
       if (install.ran && install.code !== 0) {

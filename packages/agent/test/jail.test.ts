@@ -307,6 +307,21 @@ describe("jail readiness", () => {
     assert.deepEqual(r, { ready: false, egress: "allowlist", missing: ["bwrap", "apparmor", "nftables", "tripwire"] });
   });
 
+  it("a read that throws is not ready, with the error as the reason", async () => {
+    const exec = makeFakeExec([{ match: () => true, outcome: { code: 0 } }]);
+    const base = files({ [APPARMOR_PROFILE]: renderAppArmorProfile() });
+    const throwing = {
+      ...base,
+      readText: async (path: string) => {
+        if (path === APPARMOR_PROFILE) throw new Error("EIO: disk on fire");
+        return base.readText(path);
+      },
+    };
+    const r = await jailReadiness({ exec, files: throwing }, { ...ON, tripwire: true }, signal);
+    assert.equal(r.ready, false);
+    assert.match(r.missing.join(" "), /EIO: disk on fire/);
+  });
+
   it("the profile grants userns to bwrap only", () => {
     const p = renderAppArmorProfile();
     assert.match(p, /^profile dozebox-bwrap \/usr\/bin\/bwrap flags=\(unconfined\) \{$/m);

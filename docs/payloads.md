@@ -110,8 +110,25 @@ install. Payloads use the protocol or `@dozebox/client` for everything else. The
 
 A payload that starts coding agents runs them through `dozebox jail exec`, which needs `sudo`. The payload unit keeps
 `NoNewPrivileges=yes` by default, and sudo refuses to run under it, so such a payload sets
-`"start": { "noNewPrivileges": false }`. The opt-out applies to that payload's unit only; its sudo is still limited to
-`dozebox-jail-exec` by the rule the agent writes. Every other payload keeps the hardened default.
+`"start": { "noNewPrivileges": false }`. Every other payload keeps the hardened default.
+
+The opt-out only ever grants the one `dozebox-jail-exec` rule. Before starting such a payload, the agent reads the
+payload user's sudo rights (`sudo -ll -U <user>`) and refuses to start it, with the reason in `rec/last-error` and a
+failed `payload-start` boot step, if the user may run anything else. The jail must be on, because the jail-exec rule is
+what the opt-out grants.
+
+Run the payload as a dedicated user, not a login user such as `ubuntu`:
+
+```json
+{ "user": "nightshift", "start": { "noNewPrivileges": false } }
+```
+
+Dozebox creates the user when it is missing, owns `/data/payloads/<name>` with it, and writes the jail-exec rule for it.
+The Ubuntu image gives `ubuntu` passwordless root through cloud-init (`/etc/sudoers.d/90-cloud-init-users`), so a
+payload running as `ubuntu` is refused: the opt-out would restore that root grant.
+
+`NoNewPrivileges=no` still lets the payload user run setuid binaries the image ships, such as `newuidmap`, `pkexec` and
+`passwd`. The jail is not the only boundary for that process, so keep the payload's own code trusted.
 
 ## `@dozebox/client`
 

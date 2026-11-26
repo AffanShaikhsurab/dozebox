@@ -6,7 +6,7 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { makeFakeExec, makeFakeHostStats, makeFakeSpotNotices, makeFakeSupervisor } from "@dozebox/testkit/fakes";
 import { makeAgent, RUN_DIR, type AgentOptions } from "../src/agent-loops.ts";
-import { APPARMOR_PROFILE } from "../src/jail/index.ts";
+import { APPARMOR_PROFILE, type JailReadiness } from "../src/jail/index.ts";
 import type { ProtocolServerDeps } from "../src/protocol/index.ts";
 import { runAgent, type Proc } from "../src/run.ts";
 import { boxConfig, flush, harness } from "./support.ts";
@@ -109,7 +109,7 @@ test("a Spot notice moves to reclaim-notice and parks with reason reclaim", asyn
 // Bug 3: readiness was a snapshot taken before setupHost wrote the profile, the nft table and the tripwire units, so
 // a fresh box (and every wake) reported ready:false for its whole life. The host state here is the real one: the
 // profile is a file, the table and the socket are kernel state that a stop/start loses.
-async function setupJail() {
+async function setupJail(over: { readonly throwOnProfile?: () => boolean } = {}) {
   const h = harness({ files: { "/etc/passwd": "web:x:1000:1000::/data/home/web:/bin/bash\n" } });
   h.params.set(
     "config",
@@ -159,20 +159,52 @@ async function setupJail() {
     hostStats: stats,
     journal: async (cursor) => ({ events: [], cursor }),
   };
-  const deps = { ...h.deps, exec, selfStop: { stopSelf: async () => {} } };
+  const files = {
+    ...h.deps.files,
+    readText: async (path: string) => {
+      if (path === APPARMOR_PROFILE && over.throwOnProfile?.() === true)
+        throw new Error("EIO: cannot read the profile");
+      return h.deps.files.readText(path);
+    },
+  };
+  const deps = { ...h.deps, exec, files, selfStop: { stopSelf: async () => {} } };
   const start = async () => {
-    const agent = await runAgent(deps, proc, { prepare: makeAgent(opts) });
+    // Snapshot after makeAgent (setupHost has run) and before any loop tick (the egress table is not loaded yet).
+    let beforeEgress: JailReadiness | null = null;
+    const prepare = makeAgent(opts);
+    const agent = await runAgent(deps, proc, {
+      prepare: async (d, c) => {
+        const prepared = await prepare(d, c);
+        beforeEgress = server?.status("web").jail ?? null;
+        return prepared;
+      },
+    });
     await flush(300);
     if (!server) throw new Error("no server");
-    return { agent, srv: server as ProtocolServerDeps };
+    return { agent, srv: server as ProtocolServerDeps, beforeEgress };
   };
   return { h, host, exec, start };
 }
 
-test("jail readiness flips to true once setupHost and the egress table have run", async () => {
+test("jail readiness is not ready before the egress table lands, then flips to true", async () => {
   const { start } = await setupJail();
-  const { agent, srv } = await start();
+  const { agent, srv, beforeEgress } = await start();
+  assert.deepEqual(beforeEgress, { ready: false, egress: "imds-only", missing: ["nftables"] });
   assert.deepEqual(srv.status("web").jail, { ready: true, egress: "imds-only", missing: [] });
+  await agent.loops.stop();
+});
+
+test("a readiness check that throws reports not ready instead of keeping the last good fact", async () => {
+  let fail = false;
+  const { h, start } = await setupJail({ throwOnProfile: () => fail });
+  const { agent, srv } = await start();
+  assert.equal(srv.status("web").jail.ready, true);
+  fail = true;
+  h.clock.advance(30_000);
+  await flush(300);
+  const jail = srv.status("web").jail;
+  assert.equal(jail.ready, false);
+  assert.match(jail.missing.join(" "), /EIO: cannot read the profile/);
   await agent.loops.stop();
 });
 

@@ -1,5 +1,6 @@
 // A8: the AppArmor profile bwrap needs on Ubuntu 24.04 (unprivileged user namespaces are restricted there) and the
 // jail readiness fact `GET /v1/status` reports (`jail: { ready, egress, missing }`).
+import { messageOf } from "../errors.ts";
 import type { Exec } from "../ports/exec.ts";
 import type { Files } from "../ports/files.ts";
 import { BWRAP } from "./bwrap.ts";
@@ -46,7 +47,12 @@ export async function jailReadiness(
   if (!cfg.enabled) return { ready: false, egress: "off", missing: ["jail"] };
   const missing: string[] = [];
   if (!(await runs(deps.exec, [BWRAP, "--version"], signal))) missing.push("bwrap");
-  if ((await deps.files.readText(APPARMOR_PROFILE)) === null) missing.push("apparmor");
+  try {
+    if ((await deps.files.readText(APPARMOR_PROFILE)) === null) missing.push("apparmor");
+  } catch (e) {
+    // A read that fails is not a pass: name the error so status shows why the check could not finish.
+    missing.push(`apparmor: ${messageOf(e)}`);
+  }
   if (!(await runs(deps.exec, ["nft", "list", "table", "inet", NFT_TABLE], signal))) missing.push("nftables");
   if (
     cfg.tripwire &&
