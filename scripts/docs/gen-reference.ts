@@ -3,6 +3,7 @@
 // Usage: node --conditions=@dozebox/source scripts/docs/gen-reference.ts [--check]
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { SHIM_COMMANDS, type ShimCommand } from "../../packages/agent/src/protocol/shim-commands.ts";
 import { EXIT, type Command } from "../../packages/cli/src/command.ts";
 import { COMMANDS } from "../../packages/cli/src/commands/index.ts";
 import { helpText } from "../../packages/cli/src/main.ts";
@@ -74,16 +75,42 @@ const commandIndex = (list: ReadonlyArray<Command>): ReadonlyArray<string> => [
   "",
 ];
 
-export function renderCliReference(commands: ReadonlyArray<Command> = COMMANDS): string {
-  const operator = commands.filter((c) => c.mode !== "box");
-  const box = commands.filter((c) => c.mode !== "operator");
+const shimIndex = (list: ReadonlyArray<ShimCommand>): ReadonlyArray<string> => [
+  "| Command | What it does |",
+  "| --- | --- |",
+  ...list.map((c) => `| ${code(`dozebox ${c.name}`)} | ${cell(c.summary)} |`),
+  "",
+];
+
+function shimSection(c: ShimCommand): ReadonlyArray<string> {
   return [
-    banner("the CLI's command list"),
+    `### \`dozebox ${c.name}\``,
+    "",
+    cell(c.summary),
+    "",
+    "Changes state. Runs on the box as root through the admin socket.",
+    "",
+    "| Option | Meaning |",
+    "| --- | --- |",
+    ...c.options.map(([flag, meaning]) => `| ${code(flag)} | ${cell(meaning)} |`),
+    "",
+  ];
+}
+
+export function renderCliReference(
+  commands: ReadonlyArray<Command> = COMMANDS,
+  shim: ReadonlyArray<ShimCommand> = SHIM_COMMANDS,
+): string {
+  const operator = commands.filter((c) => c.mode !== "box");
+  const operatorOnly = commands.filter((c) => c.mode === "box");
+  return [
+    banner("the CLI's command list and the box shim's"),
     "",
     "# CLI reference",
     "",
-    "`dozebox` runs in operator mode on a machine with AWS credentials, and in box mode on the box (it detects",
-    "`/run/dozebox/`). The same command name can exist in both modes with a different meaning, such as `status`.",
+    "`dozebox` runs in operator mode on a machine with AWS credentials. On the box,",
+    "`/opt/dozebox/current/bin/dozebox` is a shim: it implements `hold` and `wake-request` only. The full CLI's",
+    "box-mode commands are operator-only; the box does not install the full CLI.",
     "Flags that are not listed for a command are a usage error (exit code 2).",
     "",
     "## Global options",
@@ -104,8 +131,17 @@ export function renderCliReference(commands: ReadonlyArray<Command> = COMMANDS):
     ...operator.flatMap(commandSection),
     "## Box commands",
     "",
-    ...commandIndex(box),
-    ...box.flatMap(commandSection),
+    "The box's `dozebox` is a shim over the admin socket. It implements these two commands.",
+    "",
+    ...shimIndex(shim),
+    ...shim.flatMap(shimSection),
+    "## Operator-only commands",
+    "",
+    "The full CLI has these box-mode commands. They are not on the box: the box ships the shim above, so `hold` and",
+    "`wake` here are the full CLI's versions, not the shim's. Run `dozebox help <command>` in the full CLI for their",
+    "flags.",
+    "",
+    ...commandIndex(operatorOnly),
   ]
     .join("\n")
     .replace(/\n+$/, "\n");

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { SHIM_COMMANDS } from "../src/protocol/shim-commands.ts";
 import { parseShim, shimMain, type ShimCall } from "../src/protocol/shim.ts";
 
 const T0 = Date.parse("2026-11-25T00:00:00.000Z");
@@ -41,6 +42,20 @@ describe("box shims", () => {
       },
     );
     assert.equal(parseShim(["wake-request", "nightly", "--payload", "web", "--cancel"], T0).method, "DELETE");
+  });
+
+  it("the documented command list is the shim's command list", () => {
+    assert.deepEqual(
+      SHIM_COMMANDS.map((c) => c.name),
+      ["hold", "wake-request"],
+    );
+    for (const c of SHIM_COMMANDS) {
+      const argv =
+        c.name === "hold"
+          ? ["hold", "a", "--payload", "web", "--reason", "r", "--for", "1m"]
+          : ["wake-request", "a", "--payload", "web", "--reason", "r", "--at", "2026-11-26T00:00:00Z"];
+      assert.doesNotThrow(() => parseShim(argv, T0), c.name);
+    }
   });
 
   it("usage errors exit 2 without calling the socket", async () => {

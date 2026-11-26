@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
+import { SHIM_COMMANDS } from "../../packages/agent/src/protocol/shim-commands.ts";
 import { COMMANDS } from "../../packages/cli/src/commands/index.ts";
 import {
   checkReference,
@@ -69,9 +70,12 @@ test("the Terraform reference lists inputs with defaults, required, rules and ou
   assert.match(text, /### caps\n\n```hcl\nobject\(\{\n {2}monthly_budget_usd = number/);
 });
 
-test("the CLI reference has a section for every command and the exit codes", () => {
+test("the CLI reference lists every command, the box shim's two, and the exit codes", () => {
   const text = renderCliReference();
-  for (const c of COMMANDS) assert.ok(text.includes(`### \`dozebox ${c.name}\``), c.name);
+  for (const c of COMMANDS) assert.ok(text.includes(`\`dozebox ${c.name}\``), c.name);
+  for (const c of SHIM_COMMANDS) assert.ok(text.includes(`### \`dozebox ${c.name}\``), c.name);
+  assert.match(text, /## Box commands[\s\S]*## Operator-only commands/);
+  assert.match(text, /## Operator-only commands[\s\S]*`dozebox status`/);
   assert.match(text, /\| 75 \| Try again later/);
   assert.match(text, /\| `--dry-run` \|/);
 });
