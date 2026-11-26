@@ -66,6 +66,7 @@ class Sandbox {
       `${record}\nfor a in "$@"; do case "$a" in file://*) cat "\${a#file://}" >> "${this.values}";; esac; done\nexit 0`,
     );
     sh(join(this.dir, "poweroff"), record);
+    sh(join(this.dir, "apt-get"), record);
     writeFileSync(join(this.dir, "instance-id"), "i-0123456789abcdef0\n");
     writeFileSync(join(this.dir, "boot-id"), "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0\n");
     writeFileSync(join(this.dir, "uptime"), "4000.12 8000.00\n");
@@ -78,6 +79,9 @@ class Sandbox {
       DOZEBOX_CURL_BIN: join(this.dir, "curl"),
       DOZEBOX_AWS_BIN: join(this.dir, "aws"),
       DOZEBOX_POWEROFF_COMMAND: join(this.dir, "poweroff"),
+      DOZEBOX_APT_GET_BIN: join(this.dir, "apt-get"),
+      DOZEBOX_BWRAP_BIN: join(this.dir, "missing-bwrap"),
+      DOZEBOX_NFT_BIN: join(this.dir, "missing-nft"),
       DOZEBOX_INSTANCE_ID_FILE: join(this.dir, "instance-id"),
       DOZEBOX_BOOT_ID_FILE: join(this.dir, "boot-id"),
       DOZEBOX_UPTIME_FILE: join(this.dir, "uptime"),
@@ -179,8 +183,11 @@ describe("install-agent.sh", { skip }, () => {
           ["systemctl", "enable", "--now", "--no-block", "dozebox-boot.service", "dozeboxd.service"],
         ],
       );
-      const [line] = sb.timeline();
-      assert.equal(line?.["step"], "agent-install");
+      assert.deepEqual(
+        sb.timeline().map((l) => l["step"]),
+        ["jail-packages", "agent-install"],
+      );
+      const line = sb.timeline().find((l) => l["step"] === "agent-install");
       assert.equal(line?.["ok"], true);
       assert.equal(typeof line?.["startedAt"], "number");
       assert.equal(typeof line?.["ms"], "number");
@@ -200,7 +207,59 @@ describe("install-agent.sh", { skip }, () => {
       const calls = sb.calls();
       assert.equal(calls.filter((c) => c[0] === "curl").length, 0);
       assert.equal(calls.filter((c) => c[0] === "systemctl" && c[1] === "enable").length, 1);
-      assert.equal(sb.timeline().length, 2);
+      assert.equal(sb.timeline().filter((l) => l["step"] === "agent-install").length, 2);
+    } finally {
+      sb.cleanup();
+    }
+  });
+
+  test("installs bubblewrap and nftables before the agent starts", async () => {
+    const sb = new Sandbox();
+    try {
+      const sha = sb.tarball();
+      const r = await sb.exec("install-agent.sh", ["1.0.0", BASE, sha]);
+      assert.equal(r.code, 0, r.stderr);
+      assert.deepEqual(
+        sb.calls().filter((c) => c[0] === "apt-get"),
+        [["apt-get", "install", "-y", "--no-install-recommends", "bubblewrap", "nftables"]],
+      );
+      assert.deepEqual(
+        sb.timeline().map((l) => l["step"]),
+        ["jail-packages", "agent-install"],
+      );
+      assert.equal(sb.timeline()[0]?.["ok"], true);
+    } finally {
+      sb.cleanup();
+    }
+  });
+
+  test("skips apt when bwrap and nft are already installed", async () => {
+    const sb = new Sandbox();
+    try {
+      const sha = sb.tarball();
+      const r = await sb.exec("install-agent.sh", ["1.0.0", BASE, sha], {
+        DOZEBOX_BWRAP_BIN: "/bin/true",
+        DOZEBOX_NFT_BIN: "/bin/true",
+      });
+      assert.equal(r.code, 0, r.stderr);
+      assert.equal(sb.calls().filter((c) => c[0] === "apt-get").length, 0);
+      assert.equal(sb.timeline()[0]?.["ok"], true);
+    } finally {
+      sb.cleanup();
+    }
+  });
+
+  test("a failed package install is recorded and does not stop the agent", async () => {
+    const sb = new Sandbox();
+    try {
+      sh(join(sb.dir, "apt-get"), "exit 1");
+      const sha = sb.tarball();
+      const r = await sb.exec("install-agent.sh", ["1.0.0", BASE, sha]);
+      assert.equal(r.code, 0, r.stderr);
+      assert.match(r.stderr, /could not install bubblewrap and nftables/);
+      assert.equal(sb.timeline()[0]?.["step"], "jail-packages");
+      assert.equal(sb.timeline()[0]?.["ok"], false);
+      assert.ok(existsSync(join(sb.root, "releases/1.0.0/bin/dozeboxd")));
     } finally {
       sb.cleanup();
     }
@@ -217,7 +276,7 @@ describe("install-agent.sh", { skip }, () => {
       assert.equal(readlinkSync(join(sb.root, "current")), previous);
       assert.ok(!existsSync(join(sb.root, "releases/1.0.0")));
       assert.equal(sb.calls().filter((c) => c[0] === "systemctl" && c[1] === "enable").length, 1);
-      assert.equal(sb.timeline()[0]?.["ok"], false);
+      assert.equal(sb.timeline().find((l) => l["step"] === "agent-install")?.["ok"], false);
     } finally {
       sb.cleanup();
     }
@@ -231,7 +290,7 @@ describe("install-agent.sh", { skip }, () => {
       assert.equal(r.code, 1);
       assert.throws(() => lstatSync(join(sb.root, "current")));
       assert.equal(sb.calls().filter((c) => c[0] === "systemctl").length, 0);
-      assert.equal(sb.timeline()[0]?.["ok"], false);
+      assert.equal(sb.timeline().find((l) => l["step"] === "agent-install")?.["ok"], false);
     } finally {
       sb.cleanup();
     }

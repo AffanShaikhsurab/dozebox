@@ -34,6 +34,9 @@ write_files:
       systemctl_bin="$${DOZEBOX_SYSTEMCTL_BIN:-systemctl}"
       curl_bin="$${DOZEBOX_CURL_BIN:-curl}"
       arch="$${DOZEBOX_ARCH:-$(uname -m)}"
+      apt_bin="$${DOZEBOX_APT_GET_BIN:-apt-get}"
+      bwrap_bin="$${DOZEBOX_BWRAP_BIN:-bwrap}"
+      nft_bin="$${DOZEBOX_NFT_BIN:-nft}"
 
       dir="$${root}/releases/$${version}"
       started="$(date +%s%3N)"
@@ -49,6 +52,24 @@ write_files:
           "$started" "$(($(date +%s%3N) - started))" "$ok" >>"$${run_dir}/boot-timeline.jsonl" || true
       }
       trap finish EXIT
+
+      # The jail needs bwrap and nft; the stock Ubuntu image has neither. Best effort: the agent reports what is missing.
+      ensure_jail_packages() {
+        local started ms ok=false
+        started="$(date +%s%3N)"
+        if command -v "$bwrap_bin" >/dev/null && command -v "$nft_bin" >/dev/null; then
+          ok=true
+        elif DEBIAN_FRONTEND=noninteractive "$apt_bin" install -y --no-install-recommends bubblewrap nftables; then
+          ok=true
+        else
+          echo "install-agent: could not install bubblewrap and nftables" >&2
+        fi
+        ms=$(($(date +%s%3N) - started))
+        printf '{"step":"jail-packages","startedAt":%s,"ms":%s,"ok":%s}\n' \
+          "$started" "$ms" "$ok" >>"$${run_dir}/boot-timeline.jsonl" || true
+      }
+
+      ensure_jail_packages
 
       fetch() {
         tmp="$(mktemp -d "$${root}/releases/.tmp.XXXXXX")"
