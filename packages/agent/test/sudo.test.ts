@@ -66,6 +66,16 @@ test("only the jail-exec rule is accepted", () => {
   assert.equal(isJailExecOnly(parseSudoRights(groups.join("\n"))), false);
   const setenv = [...HEAD, ...entry("/etc/sudoers.d/dozebox", "root", null, "!authenticate, SETENV", [`${JAIL} *`])];
   assert.equal(isJailExecOnly(parseSudoRights(setenv.join("\n"))), false);
+  // Some sudo versions put the command on the Commands: line itself.
+  const inline = [
+    ...HEAD,
+    "Sudoers entry: /etc/sudoers.d/dozebox",
+    "    RunAsUsers: root",
+    "    Options: !authenticate",
+    `    Commands: ${JAIL} *`,
+    "",
+  ].join("\n");
+  assert.equal(isJailExecOnly(parseSudoRights(inline)), true);
 });
 
 test("verifyJailSudo accepts the jail-exec rule", async () => {

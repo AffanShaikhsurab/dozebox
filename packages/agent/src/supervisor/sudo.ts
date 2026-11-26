@@ -49,7 +49,10 @@ export function parseSudoRights(stdout: string): ReadonlyArray<SudoRight> {
     if (key === "RunAsUsers") cur.runAsUsers = value;
     else if (key === "RunAsGroups") cur.runAsGroups = value;
     else if (key === "Options") cur.options = value;
-    else inCommands = true;
+    else {
+      inCommands = true;
+      if (value !== "") cur.commands.push(value);
+    }
   }
   flush();
   return out;
