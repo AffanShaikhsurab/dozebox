@@ -6,6 +6,8 @@ export type InstanceFacts = {
   readonly region: string;
   readonly availabilityZone: string;
   readonly instanceType: string;
+  /** IMDS reports `spot` or `on-demand`; reserved and scheduled instances read as on-demand. */
+  readonly lifecycle: "spot" | "on-demand";
 };
 
 export interface Imds {

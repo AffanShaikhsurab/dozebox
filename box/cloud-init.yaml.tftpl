@@ -11,6 +11,8 @@ write_files:
       DOZEBOX_REGION=${region}
       DOZEBOX_CONFIG_PARAMETER=${config_parameter}
       DOZEBOX_AGENT_VERSION=${agent_version}
+      DOZEBOX_AGENT_BASE_URL=${agent_base_url}
+      DOZEBOX_AGENT_SHA256=${agent_sha256}
       DOZEBOX_STATE_DIR=/data/dozebox
       AWS_REGION=${region}
       AWS_DEFAULT_REGION=${region}
@@ -114,6 +116,33 @@ write_files:
       fi
       "$systemctl_bin" daemon-reload
       "$systemctl_bin" enable --now --no-block dozebox-boot.service dozeboxd.service
+  - path: /opt/dozebox/stage0/stage0.sh
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env bash
+      # Stage 0 entry point for dozebox-stage0.service. cloud-init's runcmd runs once per instance, and the stack stops the
+      # box right after create, so a stop during runcmd would lose stage 0 for the instance's whole life. This unit is
+      # enabled on every boot instead: it arms the failsafe, records the boot-to-stage0 step, installs the agent, and writes
+      # the done marker only after that succeeded.
+      set -uo pipefail
+
+      here="$(cd "$(dirname "$0")" && pwd)"
+      run_dir="$${DOZEBOX_RUN_DIR:-/run/dozebox}"
+      systemctl_bin="$${DOZEBOX_SYSTEMCTL_BIN:-systemctl}"
+      uptime_file="$${DOZEBOX_UPTIME_FILE:-/proc/uptime}"
+      mkdir -p "$run_dir"
+
+      # Arm the failsafe first: a box whose stage 0 fails must still park itself instead of running until someone notices.
+      "$systemctl_bin" daemon-reload || true
+      "$systemctl_bin" enable --now dozebox-failsafe.timer || echo "stage0: could not arm dozebox-failsafe.timer" >&2
+
+      up="$(cut -d. -f1 "$uptime_file" 2>/dev/null || true)"
+      up="$${up:-0}"
+      printf '{"step":"stage0","startedAt":%s,"ms":%s,"ok":true}\n' \
+        "$(($(date +%s%3N) - up * 1000))" "$((up * 1000))" >>"$${run_dir}/boot-timeline.jsonl" || true
+
+      bash "$${here}/install-agent.sh" "$@" || exit 1
+      : >"$${run_dir}/stage0.done"
   - path: /opt/dozebox/stage0/failsafe.sh
     permissions: "0755"
     content: |
@@ -242,11 +271,33 @@ write_files:
       EnvironmentFile=/etc/dozebox/box.env
       Environment=DOZEBOX_PARK_NOW=1
       ExecStart=/opt/dozebox/stage0/failsafe.sh
+  - path: /etc/systemd/system/dozebox-stage0.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Dozebox stage 0: install the agent release, on every boot
+      # cloud-init's runcmd runs once per instance, and the stack stops the box right after create, so a stop during runcmd
+      # would lose stage 0 for the instance's whole life. This unit is enabled on every boot instead.
+      After=network-online.target cloud-config.service
+      Wants=network-online.target
+      Before=dozebox-boot.service
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      TimeoutStartSec=15min
+      EnvironmentFile=/etc/dozebox/box.env
+      RuntimeDirectory=dozebox
+      RuntimeDirectoryPreserve=yes
+      ExecStart=/opt/dozebox/stage0/stage0.sh $${DOZEBOX_AGENT_VERSION} $${DOZEBOX_AGENT_BASE_URL} $${DOZEBOX_AGENT_SHA256}
+
+      [Install]
+      WantedBy=multi-user.target
+bootcmd:
+  # Stage 0 is a unit, not a runcmd: runcmd runs once per instance, so a stop during it would leave stage 0 disabled for
+  # the instance's life. bootcmd runs on every boot. `--no-block` matters: the boot transaction is already built by the
+  # time cloud-init runs, so a symlink alone would only take effect on the next boot; the queued start job runs after
+  # cloud-config.service (the unit's After=). On the first boot the unit file does not exist yet; runcmd starts it then.
+  - test -f /etc/systemd/system/dozebox-stage0.service && systemctl enable --now --no-block dozebox-stage0.service || true
 runcmd:
-  - systemd-tmpfiles --create /etc/tmpfiles.d/dozebox.conf
-  - |
-    up=$(cut -d. -f1 /proc/uptime)
-    printf '{"step":"stage0","startedAt":%s,"ms":%s,"ok":true}\n' "$(($(date +%s%3N) - up * 1000))" "$((up * 1000))" >> /run/dozebox/boot-timeline.jsonl
-  - systemctl daemon-reload
-  - systemctl enable --now dozebox-failsafe.timer
-  - /opt/dozebox/stage0/install-agent.sh ${agent_version} ${agent_base_url} ${agent_sha256}
+  - systemctl enable --now dozebox-stage0.service

@@ -229,8 +229,23 @@ run "an_agent_version_renders_stage0" {
   }
 
   assert {
-    condition     = strcontains(local.user_data, "/opt/dozebox/stage0/install-agent.sh 1.0.0 https://artifacts.example/agent 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
-    error_message = "Stage 0 runs install-agent.sh with the version, base URL and checksum."
+    condition = (
+      strcontains(local.user_data, "DOZEBOX_AGENT_VERSION=1.0.0") &&
+      strcontains(local.user_data, "DOZEBOX_AGENT_BASE_URL=https://artifacts.example/agent") &&
+      strcontains(local.user_data, "DOZEBOX_AGENT_SHA256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+    )
+    error_message = "Stage 0 gets the version, base URL and checksum through box.env."
+  }
+  assert {
+    condition     = strcontains(local.user_data, "ExecStart=/opt/dozebox/stage0/stage0.sh $${DOZEBOX_AGENT_VERSION} $${DOZEBOX_AGENT_BASE_URL} $${DOZEBOX_AGENT_SHA256}")
+    error_message = "dozebox-stage0.service runs stage 0 with the box.env values."
+  }
+  assert {
+    condition = (
+      strcontains(local.user_data, "systemctl enable --now --no-block dozebox-stage0.service") &&
+      strcontains(local.user_data, "systemctl enable --now dozebox-stage0.service")
+    )
+    error_message = "Stage 0 is enabled and started on every boot (bootcmd) and on the first (runcmd)."
   }
   assert {
     condition     = strcontains(local.user_data, "DOZEBOX_BOX_ID=a2345678901234567890") && local.user_data_gzip_bytes <= 12800

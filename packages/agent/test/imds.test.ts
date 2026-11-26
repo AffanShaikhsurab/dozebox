@@ -15,6 +15,7 @@ test("reads the identity document with a session token, reusing the token", asyn
     region: "us-east-1",
     availabilityZone: "us-east-1b",
     instanceType: "t4g.small",
+    lifecycle: "spot",
   });
   await imds.instance();
   assert.deepEqual(
@@ -22,10 +23,20 @@ test("reads the identity document with a session token, reusing the token", asyn
     [
       "PUT /latest/api/token",
       "GET /latest/dynamic/instance-identity/document",
+      "GET /latest/meta-data/instance-life-cycle",
       "GET /latest/dynamic/instance-identity/document",
+      "GET /latest/meta-data/instance-life-cycle",
     ],
   );
   assert.ok(fake.requests.slice(1).every((r) => r.token === fake.requests[1]?.token && r.token !== null));
+});
+
+test("an On-Demand instance reads as on-demand", async (t) => {
+  const fake = await startFakeImds({ lifecycle: "on-demand" });
+  t.after(() => fake.close());
+  assert.equal((await makeHttpImds({ base: fake.base }).instance()).lifecycle, "on-demand");
+  fake.setLifecycle("spot");
+  assert.equal((await makeHttpImds({ base: fake.base }).instance()).lifecycle, "spot");
 });
 
 test("an expired token is replaced once", async (t) => {

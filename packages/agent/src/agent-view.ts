@@ -40,7 +40,7 @@ export function buildStatus(v: AgentView, store: ProtocolStore, payload: string 
         id: v.identity.instanceId,
         type: v.identity.instanceType,
         az: v.identity.availabilityZone,
-        lifecycle: "spot",
+        lifecycle: v.identity.lifecycle,
       },
       bootedAt: toInstant(v.bootedAt),
       ...(p.phase === "reclaim-notice" ? { terminationAt: toInstant(p.terminationAt) } : {}),
